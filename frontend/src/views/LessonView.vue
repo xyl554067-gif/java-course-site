@@ -107,19 +107,30 @@ function currentPct(): number {
  * 注意：不能靠「卸载时删除 key」来做这件事 —— 刷新页面同样会卸载组件，
  * 一旦删掉，刷新就会被误判成新的一次学习。
  */
-function ensureSessionKey(id: number): string {
-  let cur: { lessonId: number; key: string; born: number } | null = null
+function ensureSessionKey(id: number): { key: string; seconds: number; reportedSeconds: number } {
+  let cur: { lessonId: number; key: string; born: number; seconds?: number; reportedSeconds?: number } | null = null
   try {
     cur = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null')
   } catch {
     cur = null
   }
   if (cur && cur.lessonId === id && Date.now() - cur.born <= SESSION_TTL_MS) {
-    return cur.key
+    return { key: cur.key, seconds: cur.seconds ?? 0, reportedSeconds: cur.reportedSeconds ?? 0 }
   }
   const key = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ lessonId: id, key, born: Date.now() }))
-  return key
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ lessonId: id, key, born: Date.now(), seconds: 0, reportedSeconds: 0 }))
+  return { key, seconds: 0, reportedSeconds: 0 }
+}
+
+function persistSessionClock() {
+  try {
+    const cur = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null')
+    if (cur?.key === sessionKey) {
+      cur.seconds = sessionSeconds
+      cur.reportedSeconds = reported.get(lessonId.value ?? -1) ?? 0
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(cur))
+    }
+  } catch { /* storage may be disabled; server reporting still works */ }
 }
 
 /**
@@ -142,6 +153,7 @@ async function reportProgress(pct: number) {
       const delta = Math.max(0, job.seconds - (reported.get(job.lessonId) ?? 0))
       await progress.save(job.lessonId, job.pct, job.seconds, delta, job.sessionKey)
       reported.set(job.lessonId, job.seconds)
+      persistSessionClock()
     }
   } catch {
     // 上报失败不打断阅读；下次心跳会带上未结算的增量
@@ -169,9 +181,10 @@ function stopTimer(flush = true) {
 function startTimer(id: number) {
   stopTimer(false)
   settled = false
-  sessionSeconds = 0
-  reported.set(id, 0)
-  sessionKey = ensureSessionKey(id)
+  const savedSession = ensureSessionKey(id)
+  sessionSeconds = savedSession.seconds
+  reported.set(id, savedSession.reportedSeconds)
+  sessionKey = savedSession.key
   startTicking()
   // 进入课时立即上报一次：把「本次学习」这件事马上落到库里，
   // 否则学习次数要等到滚动或 30 秒心跳之后才入库，统计口径不可靠
@@ -183,7 +196,10 @@ function startTicking() {
   if (timerId) return
   // 页面可见才计时：切到别的标签页/最小化时暂停
   timerId = window.setInterval(() => {
-    if (document.visibilityState === 'visible') sessionSeconds += 1
+    if (document.visibilityState === 'visible') {
+      sessionSeconds += 1
+      persistSessionClock()
+    }
   }, 1000)
   if (!heartbeatId) {
     heartbeatId = window.setInterval(() => {
@@ -198,8 +214,12 @@ function onVisibilityChange() {
   if (document.visibilityState === 'hidden') {
     stopTimer(true)
   } else {
-    // 回到前台：恢复秒表，但保留之前累计的秒数
-    if (lessonId.value && !settled) startTicking()
+    // 回到前台：隐藏时已结算当前区间，重新允许结算并接着计时。
+    // 若不清掉 settled，页面再次可见后虽然能计时，后续离开却不会保存。
+    if (lessonId.value) {
+      settled = false
+      startTicking()
+    }
   }
 }
 
