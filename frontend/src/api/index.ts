@@ -107,6 +107,91 @@ export interface AiHealth {
   note: string
 }
 
+// ---------------- 代码实验室类型 ----------------
+
+/** 代码执行环境自检结果 */
+export interface CodeRuntime {
+  ready: boolean
+  javac: string | null
+  java: string | null
+  javaHome: string | null
+  javacVersion: string | null
+  javaVersion: string | null
+  timeoutMs: number
+  compileTimeoutMs: number
+  memoryLimitMb: number
+  maxOutputChars: number
+  maxSourceChars: number
+  note: string
+}
+
+/** 一次代码运行的结果 */
+export interface CodeRunResult {
+  /** COMPILE_ERROR / RUNTIME_ERROR / TIMEOUT / SUCCESS */
+  status: 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIMEOUT' | 'SUCCESS'
+  output: string
+  stdout: string
+  stderr: string
+  exitCode: number
+  durationMs: number
+  message: string
+  success: boolean
+}
+
+/** 判题结果中的单条用例 */
+export interface JudgeCase {
+  name: string
+  passed: boolean
+  expected: string
+  actual: string
+  note: string | null
+}
+
+/** 判题整体结果 */
+export interface JudgeResult {
+  status: 'PASSED' | 'FAILED' | 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIMEOUT' | 'NOT_FOUND'
+  passedCount: number
+  totalCount: number
+  cases: JudgeCase[]
+  stdout: string
+  stderr: string
+  errorOutput: string
+  durationMs: number
+  message: string
+  exerciseTitle?: string
+}
+
+/** 课后习题 */
+export interface CodeExercise {
+  id: number
+  lessonId: number | null
+  slug: string
+  title: string
+  description: string
+  difficulty: string
+  language: string
+  starterCode: string
+  /** 测试用例（JSON 字符串，后端原样下发） */
+  testCases: string
+  hint: string
+  sortOrder: number
+  lessonTitle?: string
+  lessonSlug?: string
+}
+
+/** 提交记录 */
+export interface CodeSubmission {
+  id: number
+  exerciseId: number
+  status: string
+  passedCount: number
+  totalCount: number
+  durationMs: number
+  createdAt: string
+  exerciseTitle?: string
+  exerciseSlug?: string
+}
+
 // ---------------- 接口 ----------------
 
 export const authApi = {
@@ -140,4 +225,31 @@ export const aiApi = {
   ask: (question: string, sessionTitle?: string) =>
     request<AskResult>(http.post('/ai/ask', { question, sessionTitle })),
   health: () => request<AiHealth>(http.get('/ai/health')),
+}
+
+export const codeApi = {
+  /** 代码执行环境自检：JDK 是否就绪 */
+  runtime: () => request<CodeRuntime>(http.get('/code/runtime')),
+  /**
+   * 运行任意 Java 源码（不判题）。
+   * 超时单独放宽到 60s：后端编译 15s + 运行 10s，判题还要跑多个用例，
+   * 全局 30s 的默认超时不够用。
+   */
+  run: (code: string, stdin?: string) =>
+    request<CodeRunResult>(
+      http.post('/code/run', { code, stdin: stdin ?? '' }, { timeout: 60000 }),
+    ),
+  /** 提交习题并判题 */
+  submit: (exerciseId: number, code: string) =>
+    request<JudgeResult>(
+      http.post('/code/submit', { exerciseId, code }, { timeout: 120000 }),
+    ),
+  /** 习题列表（不带 lessonId 则取全部） */
+  exercises: (lessonId?: number) =>
+    request<CodeExercise[]>(http.get('/code/exercises', { params: lessonId ? { lessonId } : {} })),
+  /** 习题详情 */
+  exercise: (slug: string) => request<CodeExercise>(http.get(`/code/exercises/${slug}`)),
+  /** 我的提交记录 */
+  submissions: (exerciseId?: number) =>
+    request<CodeSubmission[]>(http.get('/code/submissions', { params: exerciseId ? { exerciseId } : {} })),
 }

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+
+// 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
+const ASSET_BASE = import.meta.env.BASE_URL || '/'
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import GlobalSearch from '@/components/GlobalSearch.vue'
@@ -66,7 +69,7 @@ onMounted(() => doSearch())
       </p>
 
       <div v-if="!hits.length" class="card search__empty">
-        <img src="/assets/agent/meme-oh.png" alt="鲸鲸" class="search__empty-img" />
+        <img :src="ASSET_BASE + 'assets/agent/meme-oh.png'" alt="鲸鲸" class="search__empty-img" />
         <p>没有找到相关内容喵～ 换个关键词试试？</p>
         <ul class="search__tips">
           <li>试试「线程池」「JVM」「int」「多态」</li>

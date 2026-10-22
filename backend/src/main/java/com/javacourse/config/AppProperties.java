@@ -11,10 +11,12 @@ public class AppProperties {
     private final Jwt jwt = new Jwt();
     private final Ai ai = new Ai();
     private final Search search = new Search();
+    private final Code code = new Code();
 
     public Jwt getJwt() { return jwt; }
     public Ai getAi() { return ai; }
     public Search getSearch() { return search; }
+    public Code getCode() { return code; }
 
     public static class Jwt {
         private String secret = "javacourse-default-secret-key";
@@ -91,5 +93,47 @@ public class AppProperties {
 
         public int getMinKeywordLength() { return minKeywordLength; }
         public void setMinKeywordLength(int minKeywordLength) { this.minKeywordLength = minKeywordLength; }
+    }
+
+    /**
+     * Java 代码执行环境配置。
+     *
+     * <p>对应「代码实验室 / 课后习题」：学生提交的源码会被真实送进 JDK 编译并执行。
+     * 各项限制是为了防止一段死循环或无限打印把服务拖垮。</p>
+     */
+    public static class Code {
+        /**
+         * JDK 根目录（形如 {@code D:/develop/Java/jdk-21}）。
+         * 留空则依次尝试环境变量 {@code CODE_JAVA_HOME}、{@code JAVA_HOME}，最后交给系统 PATH。
+         */
+        private String javaHome = "";
+
+        /** 单次运行时长上限（毫秒），超时强杀进程树 */
+        private int timeoutMs = 10000;
+
+        /** 单次编译时长上限（毫秒） */
+        private int compileTimeoutMs = 15000;
+
+        /** 运行期 JVM 堆上限（MB） */
+        private int memoryLimitMb = 256;
+
+        /** stdout / stderr 各自的最大字符数 */
+        private int maxOutputChars = 20000;
+
+        /** 单次提交源码的最大字符数 */
+        private int maxSourceChars = 100000;
+
+        public String getJavaHome() { return javaHome; }
+        public void setJavaHome(String javaHome) { this.javaHome = javaHome; }
+        public int getTimeoutMs() { return timeoutMs; }
+        public void setTimeoutMs(int timeoutMs) { this.timeoutMs = timeoutMs; }
+        public int getCompileTimeoutMs() { return compileTimeoutMs; }
+        public void setCompileTimeoutMs(int compileTimeoutMs) { this.compileTimeoutMs = compileTimeoutMs; }
+        public int getMemoryLimitMb() { return memoryLimitMb; }
+        public void setMemoryLimitMb(int memoryLimitMb) { this.memoryLimitMb = memoryLimitMb; }
+        public int getMaxOutputChars() { return maxOutputChars; }
+        public void setMaxOutputChars(int maxOutputChars) { this.maxOutputChars = maxOutputChars; }
+        public int getMaxSourceChars() { return maxSourceChars; }
+        public void setMaxSourceChars(int maxSourceChars) { this.maxSourceChars = maxSourceChars; }
     }
 }

@@ -21,8 +21,28 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+/**
+ * API 基址解析优先级：
+ *   1. 运行时 window.__APP_CONFIG__.apiBase —— GitHub Pages 运维直接改 config.js
+ *      即可切换后端，无需重新构建。
+ *   2. 构建期 VITE_API_BASE_URL —— CI 里注入。
+ *   3. 默认 '/api' —— 本地 dev（Vite 代理）与前后端同域部署。
+ *
+ * 注意：Pages 子路径部署时 '/api' 会解析到域名根（https://user.github.io/api），
+ * 因此静态部署务必通过 config.js 或 VITE_API_BASE_URL 指定真实后端地址。
+ */
+function resolveApiBase(): string {
+  const runtime = (window as any).__APP_CONFIG__?.apiBase
+  if (typeof runtime === 'string') return runtime
+  const buildTime = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (buildTime) return buildTime
+  return '/api'
+}
+
+const API_BASE_URL = resolveApiBase()
+
 const http: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
 })
 

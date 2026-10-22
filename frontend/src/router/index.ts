@@ -27,6 +27,16 @@ const router = createRouter({
       component: () => import('@/views/LessonView.vue'),
     },
     {
+      path: '/exercise/:slug',
+      name: 'exercise',
+      component: () => import('@/views/ExerciseView.vue'),
+    },
+    {
+      path: '/exercises',
+      name: 'exercises',
+      component: () => import('@/views/ExerciseView.vue'),
+    },
+    {
       path: '/search',
       name: 'search',
       component: () => import('@/views/SearchView.vue'),

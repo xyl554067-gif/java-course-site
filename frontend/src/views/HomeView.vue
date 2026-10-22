@@ -1,4 +1,7 @@
 <script setup lang="ts">
+
+// 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
+const ASSET_BASE = import.meta.env.BASE_URL || '/'
 import { ref, onMounted, computed } from 'vue'
 import { courseApi, type Course, type CourseModule } from '@/api'
 import { useAgentStore } from '@/stores/agent'
@@ -71,7 +74,7 @@ onMounted(load)
         </div>
         <p class="hero__by">授课：{{ course.instructor }}</p>
       </div>
-      <img src="/assets/agent/agent-happy.png" alt="鲸鲸" class="hero__img anim-float" />
+      <img :src="ASSET_BASE + 'assets/agent/agent-happy.png'" alt="鲸鲸" class="hero__img anim-float" />
     </section>
 
     <div v-if="loading" class="home__loading"><div class="spinner" /></div>
@@ -93,7 +96,7 @@ onMounted(load)
           接着看《{{ progress.items[0].title }}》
         </RouterLink>
       </div>
-      <img src="/assets/agent/agent-idle.png" alt="鲸鲸" class="overview__whale anim-float" />
+      <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" class="overview__whale anim-float" />
     </section>
 
     <!-- 课程目录 -->

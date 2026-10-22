@@ -1,4 +1,7 @@
 <script setup lang="ts">
+
+// 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
+const ASSET_BASE = import.meta.env.BASE_URL || '/'
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -18,11 +21,11 @@ const loading = ref(false)
 const error = ref('')
 
 const MEMES = [
-  '/assets/agent/meme-ciallo.png',
-  '/assets/agent/meme-cute.png',
-  '/assets/agent/meme-oh.png',
-  '/assets/agent/meme-amazing.png',
-]
+  'assets/agent/meme-ciallo.png',
+  'assets/agent/meme-cute.png',
+  'assets/agent/meme-oh.png',
+  'assets/agent/meme-amazing.png',
+].map((p) => ASSET_BASE + p)
 const meme = ref(MEMES[0])
 
 function switchMode() {

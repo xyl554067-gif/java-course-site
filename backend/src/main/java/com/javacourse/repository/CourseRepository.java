@@ -181,7 +181,7 @@ public class CourseRepository {
 
     public List<Map<String, Object>> listSnippets(long lessonId) {
         return jdbc.query(
-                "SELECT id, lesson_id, language, title, code_text, explanation, sort_order "
+                "SELECT id, lesson_id, language, title, code_text, explanation, runnable, stdin, expected_out, sort_order "
                         + "FROM code_snippet WHERE lesson_id = ? ORDER BY sort_order, id",
                 (rs, i) -> {
                     Map<String, Object> m = new HashMap<>();
@@ -191,6 +191,9 @@ public class CourseRepository {
                     m.put("title", rs.getString("title"));
                     m.put("code", rs.getString("code_text"));
                     m.put("explanation", rs.getString("explanation"));
+                    m.put("runnable", rs.getBoolean("runnable"));
+                    m.put("stdin", rs.getString("stdin"));
+                    m.put("expectedOut", rs.getString("expected_out"));
                     m.put("sortOrder", rs.getInt("sort_order"));
                     return m;
                 }, lessonId);

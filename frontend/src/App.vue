@@ -1,4 +1,7 @@
 <script setup lang="ts">
+
+// 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
+const ASSET_BASE = import.meta.env.BASE_URL || '/'
 import { onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -15,15 +18,22 @@ const progress = useProgressStore()
 
 const bare = computed(() => route.meta.bare === true)
 
-onMounted(() => {
-  void auth.bootstrap()
-  void agent.loadProfile()
-  if (auth.isLogged) void progress.load()
+onMounted(async () => {
+  await auth.bootstrap()
+  // 助手资料只在有登录态时拉取：未登录时调用 API 会产生无意义的请求
+  // （GitHub Pages 静态部署下 API 未就绪，表现为 404 噪音）
+  if (auth.isLogged) {
+    void agent.loadProfile()
+    void progress.load()
+  }
 })
 
-// 登录态建立后再拉进度（首帧token 可能还没就绪）
+// 登录态建立后再拉进度与助手资料（首帧token 可能还没就绪）
 watch(() => auth.isLogged, (v) => {
-  if (v) void progress.load()
+  if (v) {
+    void progress.load()
+    void agent.loadProfile()
+  }
 })
 
 function onSearch(kw: string) {
@@ -44,15 +54,16 @@ async function handleLogout() {
     <header v-if="!bare" class="nav">
       <div class="container nav__inner">
         <RouterLink to="/" class="nav__brand">
-          <img src="/assets/agent/agent-idle.png" alt="鲸鲸" class="nav__logo" />
+          <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" class="nav__logo" />
           <span class="nav__title title-round">Java 精通之路</span>
         </RouterLink>
 
-        <nav class="nav__links">
-          <RouterLink to="/" class="nav__link">首页</RouterLink>
-          <RouterLink to="/course/java-mastery" class="nav__link">课程目录</RouterLink>
-          <RouterLink to="/qa" class="nav__link">题库</RouterLink>
-        </nav>
+          <nav class="nav__links">
+            <RouterLink to="/" class="nav__link">首页</RouterLink>
+            <RouterLink to="/course/java-mastery" class="nav__link">课程目录</RouterLink>
+            <RouterLink to="/exercises" class="nav__link">代码练习</RouterLink>
+            <RouterLink to="/qa" class="nav__link">题库</RouterLink>
+          </nav>
 
         <div class="nav__right">
           <GlobalSearch @submit="onSearch" />
@@ -83,7 +94,7 @@ async function handleLogout() {
 
     <!-- 快捷提问悬浮球（移动端也可见） -->
     <button v-if="!bare && !agent.panelOpen" class="fab" @click="agent.open()" title="叫醒鲸鲸">
-      <img src="/assets/agent/agent-idle.png" alt="鲸鲸" />
+      <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" />
       <span class="fab__dot" />
     </button>
   </div>

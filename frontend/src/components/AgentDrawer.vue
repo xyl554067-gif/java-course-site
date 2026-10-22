@@ -70,7 +70,11 @@ watch(
   },
 )
 
-onMounted(() => void agent.loadProfile())
+// 按需加载：仅在抽屉打开时拉取助手资料。
+// 挂载即拉会在静态部署（GitHub Pages 无后端）时产生无意义的 404 请求。
+onMounted(() => {
+  if (agent.panelOpen) void agent.loadProfile()
+})
 </script>
 
 <template>

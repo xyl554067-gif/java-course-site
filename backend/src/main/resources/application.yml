@@ -60,6 +60,20 @@ app:
   search:
     # 应用层分词搜索：单个关键词最小长度
     min-keyword-length: 2
+  code:
+    # Java 代码执行环境（代码实验室 / 课后习题）
+    # JDK 根目录，留空则依次尝试 CODE_JAVA_HOME、JAVA_HOME，最后交给系统 PATH
+    java-home: ${CODE_JAVA_HOME:}
+    # 单次运行时长上限（毫秒），超时强杀整个进程树
+    timeout-ms: 10000
+    # 单次编译时长上限（毫秒）
+    compile-timeout-ms: 15000
+    # 运行期 JVM 堆上限（MB）
+    memory-limit-mb: 256
+    # stdout / stderr 各自的最大字符数
+    max-output-chars: 20000
+    # 单次提交源码的最大字符数
+    max-source-chars: 100000
 
 logging:
   level:

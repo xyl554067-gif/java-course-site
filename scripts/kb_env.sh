@@ -87,7 +87,7 @@ public class KbRunSql {
 }
 JAVA
 
-  java -cp "$KB_JDBC_JAR" "$jf" "$KB_HOST" "$KB_PORT" "$db" "$staged" "$user" "$pw"
+  java -Dfile.encoding=UTF-8 -cp "$KB_JDBC_JAR" "$jf" "$KB_HOST" "$KB_PORT" "$db" "$staged" "$user" "$pw"
   rm -f "$jf"
 }
 
@@ -131,6 +131,6 @@ public class KbQuery {
   }
 }
 JAVA
-  java -cp "$KB_JDBC_JAR" "$jf" "$KB_HOST" "$KB_PORT" "$db" "C:/Users/$USERNAME/kbtmp/kb_query.sql" "$user" "$pw"
+  java -Dfile.encoding=UTF-8 -cp "$KB_JDBC_JAR" "$jf" "$KB_HOST" "$KB_PORT" "$db" "C:/Users/$USERNAME/kbtmp/kb_query.sql" "$user" "$pw"
   rm -f "$jf"
 }
