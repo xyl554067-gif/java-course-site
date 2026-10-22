@@ -5,6 +5,8 @@
 
 在线体验：[https://xyl554067-gif.github.io/java-course-site/](https://xyl554067-gif.github.io/java-course-site/)
 
+在线登录后端部署说明：[docs/online-login-deployment.md](docs/online-login-deployment.md)。GitHub Pages 只提供前端页面；登录需先部署 API 与 PostgreSQL，再在 `gh-pages` 分支的 `config.js` 中配置 API 地址。
+
 ---
 
 ## 快速启动

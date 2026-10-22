@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
   servlet:
     context-path: /api
   compression:
@@ -10,10 +10,10 @@ spring:
     name: javacourse-server
   datasource:
     # KingBaseES V8：URL 格式 jdbc:kingbase8://host:port/db
-    url: ${KB_URL:jdbc:kingbase8://127.0.0.1:54321/javacourse?currentSchema=public&characterEncoding=UTF-8}
-    username: ${KB_USER:javacourse_app}
-    password: ${KB_PASSWORD:App@Course2026}
-    driver-class-name: com.kingbase8.Driver
+    url: ${DB_URL:${KB_URL:jdbc:kingbase8://127.0.0.1:54321/javacourse?currentSchema=public&characterEncoding=UTF-8}}
+    username: ${DB_USER:${KB_USER:javacourse_app}}
+    password: ${DB_PASSWORD:${KB_PASSWORD:App@Course2026}}
+    driver-class-name: ${DB_DRIVER:com.kingbase8.Driver}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -80,3 +80,4 @@ logging:
     root: INFO
     com.javacourse: DEBUG
     org.springframework.jdbc.core: INFO
+
