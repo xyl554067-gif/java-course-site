@@ -24,6 +24,17 @@ BRANCH="gh-pages"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 DIST="$ROOT/frontend/dist"
 
+# ── 用户站点仓库（<用户名>.github.io）特殊规则 ────────────────────────────
+# GitHub 对用户站点仓库会忽略「分支 + 路径」设置，只发布**默认分支根目录**。
+# 所以这里把产物直接推到 main 根目录，而不是 gh-pages 分支。
+USER_SITE=0
+case "$REPO" in
+  *.github.io) USER_SITE=1 ;;
+esac
+if [ "$USER_SITE" -eq 1 ]; then
+  BRANCH="main"
+fi
+
 SKIP_BUILD=0
 ACTIVATE=1
 # 自定义域名（可选）。传了就写 CNAME 文件，并在 Settings→Pages 填同一域名。
@@ -139,7 +150,15 @@ PY
 # ---------- 4. 启用 Pages ----------
 if [ "$ACTIVATE" -eq 1 ]; then
   echo "▶ 启用 GitHub Pages..."
-  if gh api "repos/$REPO/pages" >/dev/null 2>&1; then
+  if [ "$USER_SITE" -eq 1 ]; then
+    # 用户站点仓库：分支/路径设置会被 GitHub 忽略，只能改 build_type=workflow，
+    # 否则保持 legacy（发布默认分支根目录）即可，无需 PUT source。
+    if gh api "repos/$REPO/pages" >/dev/null 2>&1; then
+      echo "  ℹ️用户站点仓库：GitHub 固定发布默认分支根目录，跳过 source 设置"
+    else
+      gh api "repos/$REPO/pages" -X POST -f "source[branch]=$BRANCH" -f "source[path]=/" >/dev/null && echo "  ✅ Pages 已创建"
+    fi
+  elif gh api "repos/$REPO/pages" >/dev/null 2>&1; then
     gh api "repos/$REPO/pages" -X PUT -f "source[branch]=$BRANCH" -f "source[path]=/" >/dev/null && echo "  ✅ Pages 已配置为 $BRANCH 分支"
   else
     gh api "repos/$REPO/pages" -X POST -f "source[branch]=$BRANCH" -f "source[path]=/" >/dev/null && echo "  ✅ Pages 已创建"
