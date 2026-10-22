@@ -3,6 +3,8 @@
 一个卡通风格的 Java 课程介绍站，后端 Spring Boot 3 + KingbaseES V8，前端 Vue 3 + Vite，
 内置鲸鲸 AI 助教（全站会动的 Ciallo~ 猫耳女仆形象）。
 
+在线体验：[https://xyl554067-gif.github.io/java-course-site/](https://xyl554067-gif.github.io/java-course-site/)
+
 ---
 
 ## 快速启动
@@ -284,3 +286,4 @@ python scripts/verify_pet_mobile.py   # 移动端 10 项：缩放/贴底气泡/�
    真正的跨窗口桌宠需要 Electron 壳（dsh-pet 的方案）。
 5. **未配置 Key 时 AI 回答偏机械** —— 走 `local` 检索式兜底，能给出正确课时代码片段与
    跳转链接，但没有自由推理与多轮问答能力。配置 `AI_API_KEY` 即解决。
+
