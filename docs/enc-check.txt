@@ -1,8 +1,0 @@
-语言起步：Hello Java
-面向对象乐园
-集合框架大观园
-JVM 内部探险
-并发编程实验室
-框架实战工坊
-L1: Hello World：第一行 Java | 认识 JDK、编译与运行，一分钟跑起你的第一个程序。
-L2: 变量与八大基本类型 | int、long、double、boolean……每个类型占多少字节？
