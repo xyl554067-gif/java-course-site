@@ -1,0 +1,278 @@
+/* ==========================================================================
+   Java 精通之路 — 卡通设计系统
+   视觉基调：马卡龙奶油底 + 粗描边卡片 + 弹跳动效 + 圆润字体
+   辨识度锚点：双色调描边（深墨蓝）+ 糖果色块 + 手绘风圆点背景
+   ========================================================================== */
+
+:root {
+  /* ---------- 主色板（糖果系） ---------- */
+  --c-mint: #4ecdc4;
+  --c-mint-deep: #2fb3aa;
+  --c-coral: #ff6b6b;
+  --c-coral-deep: #e85555;
+  --c-sun: #ffd93d;
+  --c-sun-deep: #f0bc20;
+  --c-lilac: #a78bfa;
+  --c-lilac-deep: #8b6ee8;
+  --c-peach: #ffa94d;
+  --c-sky: #74c0fc;
+  --c-grape: #9775fa;
+
+  /* ---------- 中性色 ---------- */
+  --c-ink: #2d3561;
+  --c-ink-soft: #5a6296;
+  --c-ink-faint: #8e95bd;
+  --c-cream: #fffaf3;
+  --c-cream-deep: #fff3e0;
+  --c-paper: #ffffff;
+  --c-line: #2d3561;
+
+  /* ---------- 语义色 ---------- */
+  --c-success: #51cf66;
+  --c-warning: #ffa94d;
+  --c-danger: #ff6b6b;
+
+  /* ---------- 描边系统（卡通核心） ---------- */
+  --bw-thin: 2px;
+  --bw-base: 3px;
+  --bw-thick: 4px;
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 26px;
+  --radius-xl: 36px;
+  --radius-full: 999px;
+
+  /* ---------- 阴影：硬边偏移阴影，像贴纸 ---------- */
+  --shadow-sm: 3px 3px 0 var(--c-line);
+  --shadow-md: 5px 5px 0 var(--c-line);
+  --shadow-lg: 8px 8px 0 var(--c-line);
+  --shadow-color: 3px 3px 0 var(--c-line);
+  --shadow-color-sm: 4px 4px 0 var(--c-line);
+  --shadow-soft: 0 10px 30px rgba(45, 53, 97, 0.12);
+
+  /* ---------- 字体 ---------- */
+  --font-round: 'Baloo 2', 'Comic Sans MS', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-body: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace;
+
+  /* ---------- 布局 ---------- */
+  --nav-h: 68px;
+  --container: 1240px;
+  --space-xs: 6px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--c-ink);
+  background-color: var(--c-cream);
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(116, 192, 252, 0.20) 0 12px, transparent 13px),
+    radial-gradient(circle at 88% 12%, rgba(255, 217, 61, 0.22) 0 10px, transparent 11px),
+    radial-gradient(circle at 78% 72%, rgba(167, 139, 250, 0.18) 0 14px, transparent 15px),
+    radial-gradient(circle at 22% 88%, rgba(78, 205, 196, 0.18) 0 11px, transparent 12px);
+  background-size: 340px 340px, 420px 420px, 380px 380px, 460px 460px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--c-sun); color: var(--c-ink); }
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--c-cream-deep); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb {
+  background: var(--c-ink-faint);
+  border: 2px solid var(--c-cream-deep);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--c-ink-soft); }
+
+/* ==========================================================================
+   通用卡通组件
+   ========================================================================== */
+
+/* 卡片：粗描边 + 硬阴影 */
+.card {
+  background: var(--c-paper);
+  border: var(--bw-base) solid var(--c-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease;
+}
+.card--hover:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  font-family: var(--font-round);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-ink);
+  background: var(--c-paper);
+  border: var(--bw-base) solid var(--c-line);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s ease, background .16s;
+  user-select: none;
+  text-decoration: none;
+}
+.btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-md); }
+.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--c-line); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm); }
+
+.btn--primary { background: var(--c-coral); color: #fff; }
+.btn--mint    { background: var(--c-mint); color: #fff; }
+.btn--sun     { background: var(--c-sun); }
+.btn--lilac   { background: var(--c-lilac); color: #fff; }
+.btn--ghost   { background: transparent; box-shadow: none; border-style: dashed; }
+.btn--ghost:hover { background: var(--c-cream-deep); box-shadow: none; transform: translateY(-1px); }
+.btn--sm { padding: 6px 14px; font-size: 13px; border-width: var(--bw-thin); }
+.btn--lg { padding: 14px 34px; font-size: 18px; }
+
+/* 标签 / 徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px;
+  font-family: var(--font-round);
+  font-size: 12px;
+  font-weight: 700;
+  border: var(--bw-thin) solid var(--c-line);
+  border-radius: var(--radius-full);
+  background: var(--c-paper);
+  white-space: nowrap;
+}
+.badge--mint  { background: var(--c-mint); color: #fff; }
+.badge--coral { background: var(--c-coral); color: #fff; }
+.badge--sun   { background: var(--c-sun); }
+.badge--lilac { background: var(--c-lilac); color: #fff; }
+.badge--sky   { background: var(--c-sky); }
+.badge--peach { background: var(--c-peach); color: #fff; }
+
+/* 输入 */
+.input {
+  width: 100%;
+  padding: 11px 16px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--c-ink);
+  background: var(--c-paper);
+  border: var(--bw-base) solid var(--c-line);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: box-shadow .16s ease, transform .16s ease;
+}
+.input::placeholder { color: var(--c-ink-faint); }
+.input:focus {
+  box-shadow: var(--shadow-sm);
+  transform: translate(-1px, -1px);
+}
+
+/* 标题 */
+.title-round {
+  font-family: var(--font-round);
+  font-weight: 800;
+  letter-spacing: .5px;
+}
+
+/* 弹跳动效 */
+@keyframes pop-in {
+  0%   { transform: scale(.85); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(3deg); }
+}
+@keyframes blink {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(.1); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-5px); }
+  75%      { transform: translateX(5px); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.anim-pop { animation: pop-in .34s cubic-bezier(.34,1.56,.64,1) both; }
+.anim-float { animation: float-y 3.4s ease-in-out infinite; }
+.anim-wiggle { animation: wiggle 1.1s ease-in-out infinite; }
+
+/* 布局容器 */
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+/* 通用分区标题 */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-md);
+}
+.section-head h2 {
+  margin: 0;
+  font-family: var(--font-round);
+  font-size: 26px;
+  font-weight: 800;
+}
+.section-head .dot {
+  width: 14px; height: 14px;
+  border: var(--bw-thin) solid var(--c-line);
+  border-radius: 50%;
+  background: var(--c-sun);
+  flex-shrink: 0;
+}
+.section-head .line {
+  flex: 1;
+  height: 0;
+  border-top: var(--bw-thin) dashed var(--c-ink-faint);
+}
+
+/* 空态 */
+.empty {
+  padding: 50px 20px;
+  text-align: center;
+  color: var(--c-ink-faint);
+  font-family: var(--font-round);
+}
+
+/* 加载 */
+.spinner {
+  width: 34px; height: 34px;
+  border: 4px solid var(--c-cream-deep);
+  border-top-color: var(--c-coral);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .container { padding: 0 14px; }
+  .section-head h2 { font-size: 21px; }
+}

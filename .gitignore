@@ -1,0 +1,43 @@
+# ---------- 构建产物 ----------
+backend/target/
+frontend/dist/
+frontend/node_modules/
+frontend/.npm-cache/
+*.class
+*.jar
+*.zip
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---------- 本地工具链（Maven 发行版等，体积大且人人都有）----------
+tools/
+!.gitkeep
+
+# ---------- 密钥与本地配置（绝不入库）----------
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
+application-local.properties
+*.key
+*.pem
+
+# ---------- IDE ----------
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+*.iws
+*.ipr
+
+# ---------- 系统与杂项 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+logs/
+
+# ---------- 运行时 ----------
+/tmp/
+kbtmp/
+*.tsv.tmp

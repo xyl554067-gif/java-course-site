@@ -1,0 +1,68 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+
+spring:
+  application:
+    name: javacourse-server
+  datasource:
+    # KingBaseES V8：URL 格式 jdbc:kingbase8://host:port/db
+    url: ${KB_URL:jdbc:kingbase8://127.0.0.1:54321/javacourse?currentSchema=public&characterEncoding=UTF-8}
+    username: ${KB_USER:javacourse_app}
+    password: ${KB_PASSWORD:App@Course2026}
+    driver-class-name: com.kingbase8.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 10000
+      pool-name: kb-pool
+  jackson:
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+# ============ 业务配置 ============
+app:
+  jwt:
+    # 会话令牌签名密钥，生产环境务必通过环境变量覆盖
+    secret: ${APP_JWT_SECRET:javacourse-default-secret-key-please-change-in-production-2026}
+    # 令牌有效期（小时）
+    expire-hours: 12
+  ai:
+    # 大模型接入策略：
+    #   auto   = 按 fallback-order 依次尝试（默认，最稳）
+    #   openai = 只用 OpenAI 兼容端点
+    #   ollama = 只用本地 Ollama
+    #   local  = 完全不调远程模型，只用课程检索式回答（零延迟零成本）
+    provider: ${AI_PROVIDER:auto}
+    # OpenAI 兼容端点根地址（不含 /v1/chat/completions）。
+    #   DeepSeek   https://api.deepseek.com
+    #   通义千问   https://dashscope.aliyuncs.com/compatible-mode
+    #   智谱 GLM   https://open.bigmodel.cn/api/paas
+    #   豆包       https://ark.cn-beijing.volces.com/api/v3
+    #   硅基流动   https://api.siliconflow.cn
+    base-url: ${AI_BASE_URL:https://api.deepseek.com}
+    # API Key：只从环境变量注入，不入库、不进版本库
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:deepseek-v3}
+    # auto 模式下的尝试顺序（逗号分隔）
+    fallback-order: ${AI_FALLBACK_ORDER:openai,ollama,local}
+    # 本地 Ollama（走它自带的 /v1 OpenAI 兼容端点）
+    ollama-base-url: ${AI_OLLAMA_BASE_URL:http://127.0.0.1:11434}
+    ollama-model: ${AI_OLLAMA_MODEL:qwen2.5:7b}
+    # 单次调用硬超时（毫秒），超时即降级到下一档
+    timeout-ms: ${AI_TIMEOUT_MS:20000}
+    # 检索课程内容喂给模型的上下文条数
+    context-limit: 6
+  search:
+    # 应用层分词搜索：单个关键词最小长度
+    min-keyword-length: 2
+
+logging:
+  level:
+    root: INFO
+    com.javacourse: DEBUG
+    org.springframework.jdbc.core: INFO
