@@ -8,6 +8,7 @@ export interface ProgressSummary {
   inProgress: number
   started: number
   totalSeconds: number
+  studyCount: number
   favoriteCount: number
   overallPct: number
 }
@@ -20,6 +21,8 @@ export interface ProgressItem {
   progressPct: number
   completed: boolean
   lastSeconds: number
+  totalSeconds: number
+  studyCount: number
   updatedAt: string
 }
 
@@ -37,6 +40,7 @@ const emptySummary: ProgressSummary = {
   inProgress: 0,
   started: 0,
   totalSeconds: 0,
+  studyCount: 0,
   favoriteCount: 0,
   overallPct: 0,
 }
@@ -94,10 +98,27 @@ export const useProgressStore = defineStore('progress', () => {
     }
   }
 
-  /** 保存进度（节流调用） */
-  async function save(lessonId: number, pct: number, lastSeconds: number) {
+  /**
+   * 保存进度（节流调用）
+   *
+   * @param lastSeconds 本次会话累计已学秒数（覆盖写）
+   * @param deltaSeconds 相对上次上报新增加的秒数（累加进总时长）
+   * @param sessionKey 会话标识：同一会话重复上报只计一次学习次数
+   */
+  async function save(
+    lessonId: number,
+    pct: number,
+    lastSeconds: number,
+    deltaSeconds = 0,
+    sessionKey = '',
+  ) {
     const r = await request<{ progress: ProgressItem | null; favorite: boolean }>(
-      http.put(`/progress/lesson/${lessonId}`, { progressPct: pct, lastSeconds }),
+      http.put(`/progress/lesson/${lessonId}`, {
+        progressPct: pct,
+        lastSeconds,
+        deltaSeconds,
+        sessionKey,
+      }),
     )
     lessonProgress.value[lessonId] = r.progress
     if (r.progress) {

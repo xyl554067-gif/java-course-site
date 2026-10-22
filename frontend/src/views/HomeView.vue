@@ -91,6 +91,7 @@ onMounted(load)
           <template v-if="progress.summary.inProgress"> · 在学 {{ progress.summary.inProgress }} 节</template>
           <template v-if="progress.summary.favoriteCount"> · 收藏 {{ progress.summary.favoriteCount }} 节</template>
           <template v-if="progress.learningMinutes"> · 累计 {{ progress.learningMinutes }} 分钟</template>
+          <template v-if="progress.summary.studyCount"> · 学习 {{ progress.summary.studyCount }} 次</template>
         </p>
         <RouterLink v-if="progress.items.length" :to="`/lesson/${progress.items[0].slug}`" class="btn btn--sm btn--primary">
           接着看《{{ progress.items[0].title }}》

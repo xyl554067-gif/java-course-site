@@ -27,6 +27,12 @@
   --c-paper: #ffffff;
   --c-line: #2d3561;
 
+  /* ---------- 代码展示区（浅色为默认，暗色见下方媒体查询） ---------- */
+  --code-surface: #fbf7f0;
+  --code-surface-dark: #161b2e;
+  --c-line-dark: #3d4470;
+  --code-ink-dark: #e6e9f5;
+
   /* ---------- 语义色 ---------- */
   --c-success: #51cf66;
   --c-warning: #ffa94d;

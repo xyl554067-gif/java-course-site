@@ -67,7 +67,12 @@ async function handleLogout() {
 
         <div class="nav__right">
           <GlobalSearch @submit="onSearch" />
-          <button class="btn btn--sm btn--sun nav__agent" @click="agent.toggle()">
+          <button
+            class="btn btn--sm btn--sun nav__agent"
+            :aria-expanded="agent.panelOpen"
+            aria-controls="agent-drawer"
+            @click="agent.toggle()"
+          >
             鲸鲸助教
           </button>
           <div class="nav__user">
@@ -93,7 +98,14 @@ async function handleLogout() {
     <FloatingPet v-if="!bare" />
 
     <!-- 快捷提问悬浮球（移动端也可见） -->
-    <button v-if="!bare && !agent.panelOpen" class="fab" @click="agent.open()" title="叫醒鲸鲸">
+    <button
+      v-if="!bare && !agent.panelOpen"
+      class="fab"
+      :aria-expanded="agent.panelOpen"
+      aria-controls="agent-drawer"
+      @click="agent.open()"
+      title="叫醒鲸鲸"
+    >
       <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" />
       <span class="fab__dot" />
     </button>

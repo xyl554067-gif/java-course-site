@@ -39,8 +39,14 @@ public class ProgressController {
     public static class SaveRequest {
         @Min(0) @Max(100)
         public Integer progressPct;
+        /** 本次会话累计已学秒数 */
         @Min(0)
         public Integer lastSeconds;
+        /** 相对上次上报新增加的秒数，用于累加总学习时长 */
+        @Min(0)
+        public Integer deltaSeconds;
+        /** 会话标识：同一会话重复上报只计一次学习次数 */
+        public String sessionKey;
     }
 
     public static class MarkRequest {
@@ -78,7 +84,7 @@ public class ProgressController {
                                                  @PathVariable long lessonId,
                                                  @Valid @RequestBody SaveRequest body) {
         return ApiResponse.ok(service.save(uid(req), lessonId,
-                body.progressPct, body.lastSeconds));
+                body.progressPct, body.lastSeconds, body.deltaSeconds, body.sessionKey));
     }
 
     /** 标记完成 / 取消完成 */

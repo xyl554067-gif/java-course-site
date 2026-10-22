@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
 import { errMsg } from '@/api/http'
@@ -8,6 +8,16 @@ const agent = useAgentStore()
 const router = useRouter()
 const input = ref('')
 const listEl = ref<HTMLElement | null>(null)
+const inputEl = ref<HTMLInputElement | null>(null)
+
+/**
+ * 离场动画期间元素仍然留在 DOM 里：遮罩会继续拦截整页点击，抽屉仍能被 Tab 聚焦。
+ * 这里在离场开始时统一把元素置为 inert（不可点击、不可聚焦、对读屏不可见）。
+ */
+function lockOnLeave(el: Element) {
+  el.setAttribute('inert', '')
+  el.setAttribute('aria-hidden', 'true')
+}
 
 const QUICK = [
   'int 和 long 有什么区别？',
@@ -66,6 +76,14 @@ watch(
     if (v) {
       void agent.loadProfile()
       void scrollDown()
+      // 打开后把焦点移进输入框，键盘用户可以直接提问
+      void nextTick(() => inputEl.value?.focus())
+    } else {
+      // 关闭后把焦点还给触发入口，避免焦点残留在已销毁的抽屉里
+      void nextTick(() => {
+        const el = document.querySelector<HTMLElement>('.fab, .nav__agent')
+        el?.focus()
+      })
     }
   },
 )
@@ -75,17 +93,24 @@ watch(
 onMounted(() => {
   if (agent.panelOpen) void agent.loadProfile()
 })
+
+// Esc 关闭抽屉，避免键盘用户被关在抽屉里
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && agent.panelOpen) agent.close()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
   <!-- 遮罩 -->
-  <Transition name="mask">
+  <Transition name="mask" @before-leave="lockOnLeave">
     <div v-if="agent.panelOpen" class="drawer__mask" @click="agent.close()" />
   </Transition>
 
   <!-- 抽屉 -->
-  <Transition name="slide">
-    <aside v-if="agent.panelOpen" class="drawer card">
+  <Transition name="slide" @before-leave="lockOnLeave">
+    <aside v-if="agent.panelOpen" id="agent-drawer" class="drawer card" role="dialog" aria-modal="true" aria-label="鲸鲸助教">
       <!-- 头部 -->
       <header class="drawer__head">
         <div class="drawer__avatar" @click="cycleMeme">
@@ -150,6 +175,7 @@ onMounted(() => {
       <!-- 输入区 -->
       <footer class="drawer__foot">
         <input
+          ref="inputEl"
           v-model="input"
           class="input"
           placeholder="问鲸鲸一个问题…（Enter 发送）"
@@ -367,4 +393,7 @@ export default { methods: { renderMarkdown } }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 .mask-enter-active, .mask-leave-active { transition: opacity .2s; }
 .mask-enter-from, .mask-leave-to { opacity: 0; }
+
+/* 离场过渡期间元素已不可见，必须停止拦截点击与焦点（inert 的兜底） */
+.slide-leave-active, .mask-leave-active { pointer-events: none; }
 </style>

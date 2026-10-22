@@ -41,6 +41,9 @@ function resolveApiBase(): string {
 
 const API_BASE_URL = resolveApiBase()
 
+/** 导出解析后的基址，供需要绕过 axios 的场景（如页面卸载时的 keepalive 请求）使用 */
+export { API_BASE_URL }
+
 const http: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,

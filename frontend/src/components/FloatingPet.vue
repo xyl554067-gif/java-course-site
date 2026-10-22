@@ -63,6 +63,15 @@ const cfgDraft = ref({ mode: 'backend' as 'backend' | 'direct' | 'local', baseUr
  */
 const bubbleDown = ref(false)
 
+/**
+ * 气泡离场动画期间元素仍留在 DOM 里，会继续拦截点击与 Tab 焦点，
+ * 这里在离场开始时统一把元素置为 inert（不可点击、不可聚焦、对读屏不可见）。
+ */
+function lockOnLeave(el: Element) {
+  el.setAttribute('inert', '')
+  el.setAttribute('aria-hidden', 'true')
+}
+
 function computeBubbleDir() {
   const h = Math.round(SIZE.value * HEIGHT_RATIO)
   const spaceAbove = pos.value.y - 24
@@ -379,7 +388,7 @@ onUnmounted(() => {
     :style="{ left: pos.x + 'px', top: pos.y + 'px', width: SIZE + 'px' }"
   >
     <!-- 对话气泡 -->
-    <Transition name="pet-bubble">
+    <Transition name="pet-bubble" @before-leave="lockOnLeave">
       <div
         v-if="pet.bubbleOpen"
         ref="bubble"

@@ -229,7 +229,14 @@ CREATE TABLE learning_progress (
     lesson_id    BIGINT       NOT NULL,
     progress_pct INTEGER      NOT NULL DEFAULT 0,
     completed    SMALLINT     NOT NULL DEFAULT 0,
+    -- 本次会话已学秒数（覆盖写）
     last_seconds INTEGER      NOT NULL DEFAULT 0,
+    -- 累计有效学习秒数（累加写，统计总时长用）
+    total_seconds INTEGER     NOT NULL DEFAULT 0,
+    -- 学习次数：同一会话只计一次
+    study_count  INTEGER      NOT NULL DEFAULT 0,
+    -- 最近一次上报的会话标识，用于去重
+    last_session_key VARCHAR(64),
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_lp_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE,
     CONSTRAINT fk_lp_lesson FOREIGN KEY (lesson_id) REFERENCES lesson (id) ON DELETE CASCADE

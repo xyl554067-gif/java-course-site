@@ -30,12 +30,15 @@ public class ProgressRepository {
         m.put("progressPct", rs.getInt("progress_pct"));
         m.put("completed", rs.getInt("completed") == 1);
         m.put("lastSeconds", rs.getInt("last_seconds"));
+        m.put("totalSeconds", rs.getInt("total_seconds"));
+        m.put("studyCount", rs.getInt("study_count"));
         m.put("updatedAt", rs.getTimestamp("updated_at"));
         return m;
     };
 
     private static final String SELECT_JOIN =
-            "SELECT lp.lesson_id, lp.progress_pct, lp.completed, lp.last_seconds, lp.updated_at, "
+            "SELECT lp.lesson_id, lp.progress_pct, lp.completed, lp.last_seconds, "
+                    + "lp.total_seconds, lp.study_count, lp.updated_at, "
                     + "l.title, l.slug, l.sort_order, m.title AS module_title "
                     + "FROM learning_progress lp "
                     + "JOIN lesson l ON l.id = lp.lesson_id "
@@ -58,27 +61,43 @@ public class ProgressRepository {
     /**
      * Upsert 进度。KingBase V8 支持 ON CONFLICT，
      * 用它替代「先查再插/改」避免竞态与多余往返。
+     *
+     * 时长口径：
+     *   * total_seconds 累计有效学习秒数 —— 增量累加（学习时长必须累加，覆盖会导致统计永远归零）
+     *   * last_seconds  本次会话已学秒数 —— 覆盖更新（表示「这一次学了多久」）
+     *   * study_count   学习次数 —— 同一 sessionKey 只计一次，避免刷新页面重复计数
      */
     public void upsert(long userId, long lessonId, int progressPct,
-                       boolean completed, int lastSeconds) {
+                       boolean completed, int lastSeconds, int deltaSeconds,
+                       String sessionKey) {
         jdbc.update(
-                "INSERT INTO learning_progress (user_id, lesson_id, progress_pct, completed, last_seconds, updated_at) "
-                        + "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+                "INSERT INTO learning_progress (user_id, lesson_id, progress_pct, completed, "
+                        + "last_seconds, total_seconds, study_count, last_session_key, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
                         + "ON CONFLICT (user_id, lesson_id) DO UPDATE SET "
                         + "progress_pct = EXCLUDED.progress_pct, "
                         + "completed = EXCLUDED.completed, "
                         + "last_seconds = EXCLUDED.last_seconds, "
+                        + "total_seconds = learning_progress.total_seconds + EXCLUDED.total_seconds, "
+                        + "study_count = learning_progress.study_count + CASE "
+                        + "WHEN EXCLUDED.last_session_key IS NOT NULL "
+                        + "AND learning_progress.last_session_key IS DISTINCT FROM EXCLUDED.last_session_key "
+                        + "THEN 1 ELSE 0 END, "
+                        + "last_session_key = EXCLUDED.last_session_key, "
                         + "updated_at = CURRENT_TIMESTAMP",
                 userId, lessonId, Math.max(0, Math.min(100, progressPct)),
-                completed ? 1 : 0, Math.max(0, lastSeconds));
+                completed ? 1 : 0, Math.max(0, lastSeconds), Math.max(0, deltaSeconds),
+                sessionKey == null || sessionKey.isEmpty() ? 0 : 1,
+                sessionKey == null || sessionKey.isEmpty() ? null : sessionKey);
     }
 
-    /** 标记完成/取消完成，保留进度百分比 */
+    /** 标记完成/取消完成，保留进度百分比与已累计的学习时长 */
     public void markCompleted(long userId, long lessonId, boolean completed) {
         int pct = completed ? 100 : 0;
         jdbc.update(
-                "INSERT INTO learning_progress (user_id, lesson_id, progress_pct, completed, last_seconds, updated_at) "
-                        + "VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP) "
+                "INSERT INTO learning_progress (user_id, lesson_id, progress_pct, completed, "
+                        + "last_seconds, total_seconds, study_count, updated_at) "
+                        + "VALUES (?, ?, ?, ?, 0, 0, 0, CURRENT_TIMESTAMP) "
                         + "ON CONFLICT (user_id, lesson_id) DO UPDATE SET "
                         + "progress_pct = EXCLUDED.progress_pct, "
                         + "completed = EXCLUDED.completed, "
@@ -100,7 +119,10 @@ public class ProgressRepository {
                 "SELECT COUNT(*) FROM learning_progress WHERE user_id = ? AND progress_pct > 0",
                 Integer.class, userId));
         m.put("totalSeconds", jdbc.queryForObject(
-                "SELECT COALESCE(SUM(last_seconds), 0) FROM learning_progress WHERE user_id = ?",
+                "SELECT COALESCE(SUM(total_seconds), 0) FROM learning_progress WHERE user_id = ?",
+                Integer.class, userId));
+        m.put("studyCount", jdbc.queryForObject(
+                "SELECT COALESCE(SUM(study_count), 0) FROM learning_progress WHERE user_id = ?",
                 Integer.class, userId));
         m.put("favoriteCount", jdbc.queryForObject(
                 "SELECT COUNT(*) FROM user_favorite WHERE user_id = ?",

@@ -50,14 +50,24 @@ public class ProgressService {
         return out;
     }
 
-    /** 保存进度（前端滚动/心跳时调用） */
+    /**
+     * 保存进度（前端滚动/心跳时调用）。
+     *
+     * @param lastSeconds 本次会话累计已学秒数（覆盖写，展示「这次学了多久」）
+     * @param deltaSeconds 本次相对上次上报新增加的秒数（累加进总时长）
+     * @param sessionKey 会话标识：同一会话重复上报只计一次「学习次数」
+     */
     @Transactional
     public Map<String, Object> save(long userId, long lessonId,
-                                    Integer progressPct, Integer lastSeconds) {
+                                    Integer progressPct, Integer lastSeconds,
+                                    Integer deltaSeconds, String sessionKey) {
         int pct = progressPct == null ? 0 : progressPct;
         // 进度到 100% 自动视为完成，避免前端漏传 completed
         boolean completed = pct >= 100;
-        repo.upsert(userId, lessonId, pct, completed, lastSeconds == null ? 0 : lastSeconds);
+        repo.upsert(userId, lessonId, pct, completed,
+                lastSeconds == null ? 0 : lastSeconds,
+                deltaSeconds == null ? 0 : deltaSeconds,
+                sessionKey);
         return get(userId, lessonId);
     }
 
