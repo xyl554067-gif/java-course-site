@@ -297,13 +297,38 @@ function renderMarkdown(src: string): string {
     }
   }
 
-  for (const raw of lines) {
+  /** 表格分隔行，形如 | --- | :---: | */
+  const isTableSep = (l: string) => /^\|[\s:|-]+\|?$/.test(l.trim()) && l.includes('-')
+  /** 拆出一行的单元格 */
+  const cells = (l: string) =>
+    l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i]
     const l = raw.trimEnd()
     // 代码块占位行：整块回填原始 HTML，不参与按行拆分，缩进才不会被打散
     const blk = l.match(/^%%BLOCK(\d+)%%$/)
     if (blk) {
       closeList()
       out.push(blocks[Number(blk[1])])
+      continue
+    }
+    // 表格：当前行以 | 开头且下一行是分隔行，整块按表格渲染
+    if (l.trim().startsWith('|') && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+      closeList()
+      const head = cells(l)
+      i += 2 // 跳过表头与分隔行
+      const rows: string[][] = []
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        rows.push(cells(lines[i]))
+        i++
+      }
+      i-- // for 循环会自增，交回这一行
+      const th = head.map((c) => `<th>${inline(c)}</th>`).join('')
+      const tb = rows
+        .map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
+        .join('')
+      out.push(`<div class="md-table-wrap"><table class="md-table"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div>`)
       continue
     }
     const h = l.match(/^(#{1,4})\s+(.*)$/)
@@ -313,7 +338,14 @@ function renderMarkdown(src: string): string {
       out.push(`<h${lv} class="md-h md-h${lv}">${h[2]}</h${lv}>`)
     } else if (/^[-*]\s+/.test(l)) {
       if (inList !== 'ul') { closeList(); out.push('<ul>'); inList = 'ul' }
-      out.push(`<li>${l.replace(/^[-*]\s+/, '')}</li>`)
+      // 任务列表：- [ ] 未完成 / - [x] 已完成
+      const task = l.replace(/^[-*]\s+/, '').match(/^\[([ xX])\]\s*(.*)$/)
+      if (task) {
+        const done = task[1].toLowerCase() === 'x'
+        out.push(`<li class="md-task"><span class="md-check${done ? ' is-done' : ''}">${done ? '✓' : ''}</span>${inline(task[2])}</li>`)
+      } else {
+        out.push(`<li>${l.replace(/^[-*]\s+/, '')}</li>`)
+      }
     } else if (/^\d+[.)]\s+/.test(l)) {
       if (inList !== 'ol') { closeList(); out.push('<ol>'); inList = 'ol' }
       out.push(`<li>${l.replace(/^\d+[.)]\s+/, '')}</li>`)
@@ -323,6 +355,13 @@ function renderMarkdown(src: string): string {
     } else if (!l.trim()) {
       closeList()
     } else {
+      // 独占一行的 **加粗小标题**：渲染成小标题而不是普通段落
+      const bold = l.trim().match(/^\*\*(.+)\*\*$/)
+      if (bold) {
+        closeList()
+        out.push(`<h4 class="md-h md-h4 md-subtitle">${bold[1]}</h4>`)
+        continue
+      }
       closeList()
       out.push(`<p>${inline(l)}</p>`)
     }
@@ -671,9 +710,39 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 .md-body :deep(.md-h2) { font-size: 21px; padding-left: 12px; border-left: 6px solid var(--c-mint); }
 .md-body :deep(.md-h3) { font-size: 18px; }
 .md-body :deep(.md-h4) { font-size: 16px; }
+/* 独占一行的加粗小标题 */
+.md-body :deep(.md-subtitle) {
+  margin: 20px 0 8px;
+  color: var(--c-ink);
+  font-weight: 700;
+}
 .md-body :deep(p) { margin: 12px 0; line-height: 1.95; }
 .md-body :deep(ul), .md-body :deep(ol) { margin: 12px 0; padding-left: 26px; line-height: 2; }
 .md-body :deep(li) { margin-bottom: 4px; }
+/* 任务列表：- [ ] / - [x] */
+.md-body :deep(.md-task) {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.md-body :deep(.md-check) {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 5px;
+  border: var(--bw-base) solid var(--c-line);
+  border-radius: 4px;
+  background: var(--c-surface, #fff);
+}
+.md-body :deep(.md-check.is-done) {
+  background: var(--c-mint);
+  border-color: var(--c-mint);
+  color: #fff;
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
+}
 .md-body :deep(strong) { color: var(--c-coral-deep); }
 .md-body :deep(blockquote) {
   margin: 14px 0;
@@ -690,6 +759,42 @@ watch(() => route.params.slug, (s) => s && load(s as string))
   background: var(--c-cream-deep);
   border: var(--bw-thin) solid var(--c-line);
   border-radius: 6px;
+}
+/* 表格：正文里的表格由 v-html 注入（不带 scoped 属性），必须用 :deep() 命中 */
+.md-body :deep(.md-table-wrap) {
+  margin: 16px 0;
+  overflow-x: auto;
+  border: var(--bw-base) solid var(--c-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.md-body :deep(.md-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.md-body :deep(.md-table th),
+.md-body :deep(.md-table td) {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: var(--bw-thin) solid var(--c-line);
+  vertical-align: top;
+}
+.md-body :deep(.md-table th) {
+  background: var(--c-cream-deep);
+  font-weight: 700;
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+.md-body :deep(.md-table tbody tr:last-child td) { border-bottom: none; }
+.md-body :deep(.md-table tbody tr:hover td) { background: var(--c-cream); }
+/* 表格里的行内代码不要继承 code 块的高亮底色 */
+.md-body :deep(.md-table code) { background: var(--c-cream-deep); }
+@media (prefers-color-scheme: dark) {
+  .md-body :deep(.md-table th),
+  .md-body :deep(.md-table td) { border-color: var(--c-line-dark); }
+  .md-body :deep(.md-table th) { background: rgba(255, 255, 255, 0.05); color: var(--code-ink-dark); }
+  .md-body :deep(.md-table tbody tr:hover td) { background: rgba(255, 255, 255, 0.04); }
 }
 /* 代码块：正文里的代码块由 v-html 注入（不带 scoped 属性），必须用 :deep() 命中 */
 .code,
