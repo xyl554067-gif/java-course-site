@@ -48,6 +48,8 @@ const videoReady = ref(false)
 const front = ref<'a' | 'b'>('a')
 /** 已加载成功的动画路径，避免重复 load */
 const loadedSrc = ref('')
+/** 每次状态切换递增，过期的异步播放回调不得再替换当前前景视频 */
+let animationRequestId = 0
 
 const input = ref('')
 const bubble = ref<HTMLElement | null>(null)
@@ -155,6 +157,7 @@ const backVideo = computed(() => (front.value === 'a' ? videoB.value : videoA.va
  */
 async function switchAnimation(src: string) {
   if (src === loadedSrc.value) return
+  const requestId = ++animationRequestId
   const back = backVideo.value
   if (!back) return
 
@@ -172,14 +175,14 @@ async function switchAnimation(src: string) {
       return
     }
   }
+  // 多个状态可在一次点击中连续变化（dragging → idle → happy）。旧请求可能晚于
+  // 最新请求完成；只允许最后发起的请求切换前后台，避免前景视频被旧状态覆盖。
+  if (requestId !== animationRequestId) return
   videoReady.value = true
   loadedSrc.value = src
   front.value = front.value === 'a' ? 'b' : 'a'
-  // 隐藏旧的那一个，避免两层同时可见
-  const old = backVideo.value
-  if (old) {
-    old.style.opacity = '0'
-  }
+  // 透明度只由 is-front 类控制。给旧视频写内联 opacity: 0 会在双缓冲
+  // 复用时压过 CSS 的 .is-front opacity: 1，导致点击后角色彻底不可见。
 }
 
 watchPetState()
