@@ -43,6 +43,7 @@ const dragMoved = ref(false)
 
 const videoA = ref<HTMLVideoElement | null>(null)
 const videoB = ref<HTMLVideoElement | null>(null)
+const videoReady = ref(false)
 /** 当前显示的是 A 还是 B */
 const front = ref<'a' | 'b'>('a')
 /** 已加载成功的动画路径，避免重复 load */
@@ -171,6 +172,7 @@ async function switchAnimation(src: string) {
       return
     }
   }
+  videoReady.value = true
   loadedSrc.value = src
   front.value = front.value === 'a' ? 'b' : 'a'
   // 隐藏旧的那一个，避免两层同时可见
@@ -208,7 +210,7 @@ let lastMove = { x: 0, y: 0, t: 0 }
 
 function onPointerDown(e: PointerEvent) {
   if (!auth.isLogged) {
-    router.push({ name: 'login', query: { redirect: routeFullPath() } })
+    // 登录页也保留桌宠形象，但未登录时不允许拖动或打开助教，避免跳回当前页。
     return
   }
   ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
@@ -545,6 +547,7 @@ onUnmounted(() => {
       @pointercancel="onPointerUp"
       @contextmenu.prevent
     >
+      <div v-if="!videoReady" class="pet-placeholder" aria-hidden="true">🐳</div>
       <video
         ref="videoA"
         class="pet-video"
@@ -601,6 +604,15 @@ onUnmounted(() => {
   touch-action: none;
   transition: transform .18s cubic-bezier(.34, 1.56, .64, 1);
   filter: drop-shadow(0 6px 10px rgba(45, 53, 97, .28));
+}
+.pet-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(76px, 10vw, 132px);
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(45, 53, 97, .2));
 }
 .pet-body.is-dragging {
   cursor: grabbing;
@@ -1035,3 +1047,4 @@ onUnmounted(() => {
   .pet-video { transition: none; }
 }
 </style>
+

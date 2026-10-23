@@ -95,7 +95,7 @@ async function handleLogout() {
     <AgentDrawer v-if="!bare" />
 
     <!-- 悬浮式 AI 助教桌宠（始终在最上层，可拖拽，点击唤出对话气泡） -->
-    <FloatingPet v-if="!bare" />
+    <FloatingPet />
 
     <!-- 快捷提问悬浮球（移动端也可见） -->
     <button
@@ -197,3 +197,4 @@ async function handleLogout() {
   .nav__agent { display: none; }
 }
 </style>
+
