@@ -54,6 +54,28 @@ export interface KnowledgePoint {
   description?: string
 }
 
+export interface QaItem {
+  id: number
+  lessonId: number | null
+  lessonTitle?: string | null
+  lessonSlug?: string | null
+  question: string
+  answer: string
+  options: string | null
+  answerKey: string | null
+  qaType: 'CHOICE' | 'JUDGE' | 'SHORT_ANSWER' | string
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string
+  mine: boolean
+}
+
+export interface QaLessonOption {
+  id: number
+  title: string
+  slug: string
+  moduleTitle: string
+  courseTitle: string
+}
+
 export interface SearchHit {
   id: number
   targetType: string
@@ -212,7 +234,12 @@ export const courseApi = {
   detail: (slug: string) => request<any>(http.get(`/course/${slug}`)),
   modules: () => request<CourseModule[]>(http.get('/modules')),
   lesson: (slug: string) => request<any>(http.get(`/lesson/${slug}`)),
-  qa: () => request<any[]>(http.get('/qa/list')),
+  qa: () => request<QaItem[]>(http.get('/qa/list')),
+  qaLessons: () => request<QaLessonOption[]>(http.get('/qa/lessons')),
+  createQa: (item: Record<string, unknown>) => request<QaItem>(http.post('/qa/items', item)),
+  updateQa: (id: number, item: Record<string, unknown>) => request<QaItem>(http.put(`/qa/items/${id}`, item)),
+  deleteQa: (id: number) => request<void>(http.delete(`/qa/items/${id}`)),
+  importQa: (items: Record<string, unknown>[]) => request<{ imported: number; skipped: number; total: number }>(http.post('/qa/import', { items })),
 }
 
 export const searchApi = {
@@ -282,4 +309,3 @@ export const codeApi = {
   submissions: (exerciseId?: number) =>
     request<CodeSubmission[]>(http.get('/code/submissions', { params: exerciseId ? { exerciseId } : {} })),
 }
-
