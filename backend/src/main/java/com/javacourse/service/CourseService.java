@@ -82,7 +82,4 @@ public class CourseService {
         return lesson;
     }
 
-    public List<Map<String, Object>> listQa() {
-        return repo.listQa();
-    }
 }
