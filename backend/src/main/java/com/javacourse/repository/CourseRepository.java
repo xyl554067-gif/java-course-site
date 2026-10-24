@@ -228,26 +228,6 @@ public class CourseRepository {
                 });
     }
 
-    // ---------------- 问答 ----------------
-
-    public List<Map<String, Object>> listQa() {
-        return jdbc.query(
-                "SELECT id, lesson_id, question, answer_text, options_json, answer_key, qa_type, difficulty "
-                        + "FROM qa_item ORDER BY id",
-                (rs, i) -> {
-                    Map<String, Object> m = new HashMap<>();
-                    m.put("id", rs.getLong("id"));
-                    m.put("lessonId", rs.getObject("lesson_id") == null ? null : rs.getLong("lesson_id"));
-                    m.put("question", rs.getString("question"));
-                    m.put("answer", rs.getString("answer_text"));
-                    m.put("options", rs.getString("options_json"));
-                    m.put("answerKey", rs.getString("answer_key"));
-                    m.put("qaType", rs.getString("qa_type"));
-                    m.put("difficulty", rs.getString("difficulty"));
-                    return m;
-                });
-    }
-
     // ---------------- 搜索索引 ----------------
 
     /** 分词可能上百个（中文单字+双字），限制参与 SQL 匹配的 token 数，避免谓词爆炸 */
