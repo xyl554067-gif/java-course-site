@@ -36,7 +36,7 @@ import java.util.Map;
  *
  * <h3>鉴权方式</h3>
  * <ul>
- *   <li>openai 档：{@code Authorization: Bearer <AI_API_KEY>}，Key 只从环境变量注入，不入库、不进代码库</li>
+ *   <li>openai 档：使用账号级 AES-GCM 加密配置，未设置时才使用站点环境变量</li>
  *   <li>ollama 档：Ollama 不校验 Key，但仍按协议发一个占位符（{@code ollama}），
  *       避免某些 SDK/网关因缺 header 直接拒请求</li>
  * </ul>
@@ -55,13 +55,15 @@ public class ModelGateway {
     private static final Logger log = LoggerFactory.getLogger(ModelGateway.class);
 
     private final AppProperties props;
+    private final UserAiConfigService userConfigs;
     private final HttpClient http;
 
-    public ModelGateway(AppProperties props) {
+    public ModelGateway(AppProperties props, UserAiConfigService userConfigs) {
         this.props = props;
+        this.userConfigs = userConfigs;
         this.http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
-                .followRedirects(HttpClient.Redirect.NORMAL)
+                .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
     }
 
@@ -83,8 +85,24 @@ public class ModelGateway {
     }
 
     /** Course generation shares the same provider configuration as the assistant. */
-    public Result generate(String systemPrompt, String userPrompt, String fallbackJson) {
+    public Result generate(long userId, String systemPrompt, String userPrompt, String fallbackJson) {
         long start = System.currentTimeMillis();
+        UserAiConfigService.ModelConfig accountConfig;
+        try { accountConfig = userConfigs.get(userId); }
+        catch (Exception e) {
+            log.warn("[ModelGateway] 账号模型配置不可用：{}", rootMessage(e));
+            return new Result(fallbackJson, "local", true, "账号 AI 配置不可用，已生成基于资料的可编辑草稿", System.currentTimeMillis() - start);
+        }
+        if (accountConfig != null) {
+            try {
+                String answer = postChat(accountConfig.baseUrl(), accountConfig.model(), accountConfig.apiKey(), systemPrompt, userPrompt, 6000);
+                return new Result(answer, "account", false, "", System.currentTimeMillis() - start);
+            } catch (Exception e) {
+                log.warn("[ModelGateway] 账号模型配置调用失败：{}", rootMessage(e));
+                return new Result(fallbackJson, "local", true,
+                        "账号 AI 接口暂不可用，已生成基于资料的可编辑草稿：" + rootMessage(e), System.currentTimeMillis() - start);
+            }
+        }
         String provider = props.getAi().getProvider() == null ? "auto" : props.getAi().getProvider().toLowerCase();
         List<String> order = resolveOrder(provider);
         List<String> failures = new ArrayList<>();
@@ -122,9 +140,26 @@ public class ModelGateway {
      * @param question     原始问题（供 local 档使用）
      * @param context      检索到的课程上下文（供 local 档使用）
      */
-    public Result call(String systemPrompt, String userPrompt, String question,
+    public Result call(long userId, String systemPrompt, String userPrompt, String question,
                        List<Map<String, Object>> context, LocalFallback fallback) {
         long start = System.currentTimeMillis();
+        UserAiConfigService.ModelConfig accountConfig;
+        try { accountConfig = userConfigs.get(userId); }
+        catch (Exception e) {
+            log.warn("[ModelGateway] 账号模型配置不可用：{}", rootMessage(e));
+            return new Result(fallback.answer(question, context), "local", true,
+                    "账号 AI 配置不可用，已使用课程检索兜底", System.currentTimeMillis() - start);
+        }
+        if (accountConfig != null) {
+            try {
+                String answer = postChat(accountConfig.baseUrl(), accountConfig.model(), accountConfig.apiKey(), systemPrompt, userPrompt, 1500);
+                return new Result(answer, "account", false, "", System.currentTimeMillis() - start);
+            } catch (Exception e) {
+                log.warn("[ModelGateway] 账号模型配置调用失败：{}", rootMessage(e));
+                return new Result(fallback.answer(question, context), "local", true,
+                        "账号 AI 接口暂不可用，已使用课程检索兜底：" + rootMessage(e), System.currentTimeMillis() - start);
+            }
+        }
         String provider = props.getAi().getProvider() == null
                 ? "auto" : props.getAi().getProvider().toLowerCase();
 
@@ -161,6 +196,19 @@ public class ModelGateway {
         log.info("[ModelGateway] 全部远程通道不可用，降级到本地检索式回答。失败详情：{}", failures);
         return new Result(fallback.answer(question, context), "local", true,
                 String.join("；", failures), System.currentTimeMillis() - start);
+    }
+
+    /** Validate a user's unsaved endpoint and credentials with a minimal completion request. */
+    public Map<String, Object> testAccountConfig(long userId, String baseUrl, String model, String apiKey) {
+        long start = System.currentTimeMillis();
+        UserAiConfigService.ModelConfig config = userConfigs.proposed(baseUrl, model, apiKey, userId);
+        try {
+            postChat(config.baseUrl(), config.model(), config.apiKey(),
+                    "你是一个连接测试助手。", "请仅回复：连接成功", 24);
+            return Map.of("ok", true, "message", "连接成功", "latencyMs", System.currentTimeMillis() - start);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("连接失败：" + rootMessage(e));
+        }
     }
 
     /**
@@ -236,7 +284,8 @@ public class ModelGateway {
     private String postChat(String baseUrl, String model, String apiKey,
                             String systemPrompt, String userPrompt, int maxTokens) throws Exception {
         String root = trimTrailingSlash(baseUrl);
-        String url = root.endsWith("/chat/completions") ? root : root + "/v1/chat/completions";
+        String url = root.endsWith("/chat/completions") ? root
+                : root.endsWith("/v1") ? root + "/chat/completions" : root + "/v1/chat/completions";
 
         String body = """
                 {"model":%s,"messages":[{"role":"system","content":%s},{"role":"user","content":%s}],\
@@ -411,3 +460,4 @@ public class ModelGateway {
         return t.length() > 200 ? t.substring(0, 200) + "…" : t;
     }
 }
+

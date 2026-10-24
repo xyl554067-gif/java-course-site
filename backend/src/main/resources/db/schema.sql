@@ -341,3 +341,14 @@ CREATE TABLE learning_session (
     CONSTRAINT fk_learning_session_lesson FOREIGN KEY (lesson_id) REFERENCES lesson(id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX uk_learning_session_key ON learning_session(user_id,lesson_id,session_key);
+
+-- Per-account AI provider settings; API keys are AES-GCM encrypted by the backend.
+CREATE TABLE user_ai_config (
+    user_id BIGINT PRIMARY KEY,
+    base_url VARCHAR(1000) NOT NULL,
+    model VARCHAR(160) NOT NULL,
+    encrypted_key VARCHAR(4096) NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_ai_config_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE
+);
+

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { aiApi, type AskResult } from '@/api'
 
 /**
@@ -52,61 +52,13 @@ export interface PetMessage {
   content: string
   pending?: boolean
   citations?: { title: string; slug: string }[]
-  /** 回答来源：backend=走后端代理，direct=浏览器直连用户自填的接口，local=本地兜底 */
+  /** 回答来源：account/server=大模型，local=本地兜底 */
   source?: string
 }
-
-/**
- * AI 接口配置。
- *
- * 三种模式，按可用性自动降级：
- *   backend —— 走本项目后端的 /api/ai/ask（由后端持有 Key，最安全）
- *   direct  —— 浏览器直连用户填写的 OpenAI 兼容端点（Key 存在本地 localStorage）
- *   local   —— 无任何可用通道时的本地兜底（纯前端模板回复）
- */
-export interface PetAiConfig {
-  mode: 'backend' | 'direct' | 'local'
-  /** OpenAI 兼容端点根地址（不含 /v1/chat/completions） */
-  baseUrl: string
-  apiKey: string
-  model: string
-  /** 自定义系统提示词（留空用默认） */
-  systemPrompt: string
-}
-
-export const DEFAULT_AI_CONFIG: PetAiConfig = {
-  mode: 'backend',
-  baseUrl: '',
-  apiKey: '',
-  model: 'gpt-4o-mini',
-  systemPrompt: '',
-}
-
-const CONFIG_KEY = 'javacourse.pet.aiConfig'
 const HISTORY_KEY = 'javacourse.pet.history'
 const MAX_HISTORY = 60
 
 let seq = 0
-
-/** 读配置：localStorage 不可用时返回默认配置 */
-function loadConfig(): PetAiConfig {
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY)
-    if (raw) {
-      const p = JSON.parse(raw)
-      return {
-        mode: p.mode === 'direct' || p.mode === 'local' ? p.mode : 'backend',
-        baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : '',
-        apiKey: typeof p.apiKey === 'string' ? p.apiKey : '',
-        model: typeof p.model === 'string' && p.model ? p.model : 'gpt-4o-mini',
-        systemPrompt: typeof p.systemPrompt === 'string' ? p.systemPrompt : '',
-      }
-    }
-  } catch {
-    /* 忽略：解析失败用默认 */
-  }
-  return { ...DEFAULT_AI_CONFIG }
-}
 
 /** 读历史：只保留已完成的对话，pending 的半截消息丢弃 */
 function loadHistory(): PetMessage[] {
@@ -145,7 +97,8 @@ export const usePetStore = defineStore('pet', () => {
   /** 最近一次请求的失败原因（用于在气泡里明确提示「为什么没走大模型」） */
   const lastError = ref('')
 
-  const aiConfig = ref<PetAiConfig>(loadConfig())
+  // Remove legacy browser-stored API credentials after switching to encrypted account settings.
+  try { localStorage.removeItem('javacourse.pet.aiConfig') } catch { /* storage may be unavailable */ }
 
   const animation = computed(() => PET_ANIMATIONS[state.value])
 
@@ -156,23 +109,6 @@ export const usePetStore = defineStore('pet', () => {
       if (list[i].role === 'assistant') return list[i]
     }
     return null
-  })
-
-  /** 是否已配置可用的直连接口（直连模式下必须同时有地址和 Key） */
-  const directConfigured = computed(
-    () =>
-      aiConfig.value.mode === 'direct' &&
-      !!aiConfig.value.baseUrl.trim() &&
-      !!aiConfig.value.apiKey.trim(),
-  )
-
-  /** 当前实际会走的通道说明，用于设置面板展示 */
-  const effectiveChannel = computed(() => {
-    if (aiConfig.value.mode === 'local') return 'local'
-    if (aiConfig.value.mode === 'direct') {
-      return directConfigured.value ? 'direct' : 'local'
-    }
-    return 'backend'
   })
 
   function setState(s: PetState) {
@@ -214,25 +150,6 @@ export const usePetStore = defineStore('pet', () => {
     }
   }
 
-  /** 持久化 AI 配置 */
-  function persistConfig() {
-    try {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(aiConfig.value))
-    } catch {
-      /* 忽略 */
-    }
-  }
-
-  function updateConfig(patch: Partial<PetAiConfig>) {
-    aiConfig.value = { ...aiConfig.value, ...patch }
-    persistConfig()
-  }
-
-  function resetConfig() {
-    aiConfig.value = { ...DEFAULT_AI_CONFIG }
-    persistConfig()
-  }
-
   /**
    * 向鲸鲸提问。
    *
@@ -250,7 +167,7 @@ export const usePetStore = defineStore('pet', () => {
     lastError.value = ''
 
     try {
-      const r: AskResult = await callAi(q)
+      const r: AskResult = await aiApi.ask(q)
       const item = messages.value.find((m) => m.id === replyId)
       if (item) {
         item.content = r.answer
@@ -267,13 +184,7 @@ export const usePetStore = defineStore('pet', () => {
       const reason = e?.message || String(e)
       lastError.value = reason
       if (item) {
-        // 直连模式下若接口没配好，明确告知原因，而不是含糊地说「连不上」
-        item.content =
-          aiConfig.value.mode === 'direct' && !directConfigured.value
-            ? '呜哇，鲸鲸还没接上你的 AI 接口喵～\n\n请在气泡右上角的「⚙ 设置」里填写：\n'
-              + '· 接口地址（OpenAI 兼容，例如 https://api.deepseek.com）\n'
-              + '· API Key\n\n填好之后我就能直接回答啦！'
-            : offlineReply(q)
+        item.content = offlineReply(q)
         item.pending = false
         item.source = 'local'
       }
@@ -283,85 +194,6 @@ export const usePetStore = defineStore('pet', () => {
     } finally {
       loading.value = false
       persistHistory()
-    }
-  }
-
-  /**
-   * 按当前配置调用 AI。
-   * backend → 本项目后端代理；direct → 浏览器直连用户填写的端点；local → 直接抛错走兜底。
-   */
-  async function callAi(q: string): Promise<AskResult> {
-    const mode = aiConfig.value.mode
-
-    if (mode === 'local') {
-      throw new Error('当前设置为「仅本地兜底」，未接入任何大模型')
-    }
-
-    if (mode === 'direct') {
-      if (!directConfigured.value) {
-        throw new Error('未配置接口地址或 API Key')
-      }
-      return callDirect(q)
-    }
-
-    // backend：走项目后端
-    return aiApi.ask(q)
-  }
-
-  /**
-   * 浏览器直连 OpenAI 兼容端点。
-   *
-   * 说明：Key 只存在浏览器 localStorage，不经过本项目后端，
-   * 代价是浏览器会直接向第三方发请求（CORS 策略需对方放行）。
-   * 想避免 Key 暴露在浏览器，就用 backend 模式让后端代理。
-   */
-  async function callDirect(q: string): Promise<AskResult> {
-    const cfg = aiConfig.value
-    const root = cfg.baseUrl.trim().replace(/\/+$/, '')
-    const url = root.endsWith('/chat/completions') ? root : root + '/v1/chat/completions'
-
-    // 带上前文，让多轮对话有上下文
-    const history = messages.value
-      .filter((m) => !m.pending && m.content)
-      .slice(-10)
-      .map((m) => ({ role: m.role, content: m.content }))
-
-    const sys =
-      cfg.systemPrompt.trim() ||
-      '你是「鲸鲸」，一个活泼亲切的 Java 课程助教，回答用中文，技术讲解必须严谨准确。'
-
-    const started = Date.now()
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${cfg.apiKey.trim()}`,
-      },
-      body: JSON.stringify({
-        model: cfg.model.trim() || 'gpt-4o-mini',
-        messages: [{ role: 'system', content: sys }, ...history, { role: 'user', content: q }],
-        temperature: 0.6,
-        max_tokens: 1500,
-      }),
-    })
-
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => '')
-      throw new Error(`AI 接口返回 HTTP ${resp.status}${body ? '：' + body.slice(0, 200) : ''}`)
-    }
-    const data = await resp.json()
-    const answer = data?.choices?.[0]?.message?.content
-    if (!answer) {
-      throw new Error('AI 接口响应中没有 message.content')
-    }
-    return {
-      answer: String(answer),
-      citations: [],
-      sessionId: 0,
-      latencyMs: Date.now() - started,
-      agent: {} as any,
-      provider: 'direct',
-      degraded: false,
     }
   }
 
@@ -389,9 +221,6 @@ export const usePetStore = defineStore('pet', () => {
     }
   }
 
-  // 配置变化时立即落盘
-  watch(aiConfig, () => persistConfig(), { deep: true })
-
   return {
     state,
     bubbleOpen,
@@ -403,9 +232,6 @@ export const usePetStore = defineStore('pet', () => {
     lastError,
     animation,
     lastAnswer,
-    aiConfig,
-    directConfigured,
-    effectiveChannel,
     setState,
     flash,
     openBubble,
@@ -414,8 +240,6 @@ export const usePetStore = defineStore('pet', () => {
     ask,
     reset,
     clearHistory,
-    updateConfig,
-    resetConfig,
   }
 })
 
@@ -442,3 +266,4 @@ function offlineReply(q: string): string {
   }
   return `呜哇，鲸鲸现在连不上模型服务了喵……\n\n不过你可以先试试：\n- 顶部搜索框搜关键词（如「线程池」「HashMap」）\n- 「课程目录」按 6 个模块浏览，共 42 课时\n- 把问题换个更具体的说法，我恢复后马上能答`
 }
+

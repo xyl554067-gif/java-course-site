@@ -85,7 +85,7 @@ public class CourseImportService {
     private Map<String, Object> createDraft(long ownerId, String sourceName, String sourceUrl, String sourceText) throws Exception {
         String bounded = sourceText.substring(0, Math.min(sourceText.length(), MAX_SOURCE_CHARS));
         String fallback = mapper.writeValueAsString(fallbackDraft(sourceName, bounded));
-        ModelGateway.Result ai = gateway.generate(SYSTEM_PROMPT,
+        ModelGateway.Result ai = gateway.generate(ownerId, SYSTEM_PROMPT,
                 "请把以下原始资料变成一套可编辑的自学课程草稿，并按要求输出 JSON。\n\n" + bounded, fallback);
         JsonNode draft;
         boolean parseDegraded=false;
@@ -238,3 +238,4 @@ public class CourseImportService {
     private String textOr(String value,String fallback){return value==null||value.isBlank()?fallback:value.trim();}
     private String safeMessage(Exception e){String s=e.getMessage();return s==null?e.getClass().getSimpleName():s.substring(0,Math.min(s.length(),160));}
 }
+

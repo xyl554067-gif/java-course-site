@@ -52,6 +52,8 @@ app:
     # API Key：只从环境变量注入，不入库、不进版本库
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:deepseek-v3}
+    # Dedicated secret for encrypting account-owned API credentials. Keep it outside the repository.
+    user-config-encryption-key: ${AI_CONFIG_ENCRYPTION_KEY:}
     # auto 模式下的尝试顺序（逗号分隔）
     fallback-order: ${AI_FALLBACK_ORDER:openai,ollama,local}
     # 本地 Ollama（走它自带的 /v1 OpenAI 兼容端点）
@@ -84,4 +86,5 @@ logging:
     root: INFO
     com.javacourse: DEBUG
     org.springframework.jdbc.core: INFO
+
 

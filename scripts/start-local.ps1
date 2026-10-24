@@ -31,6 +31,13 @@ try {
   }
 
   if (-not (Test-Port 8080)) {
+    $configKeyFile = Join-Path $runDir 'ai-config-encryption.key'
+    if (-not (Test-Path $configKeyFile)) {
+      $random = [byte[]]::new(32)
+      [System.Security.Cryptography.RandomNumberGenerator]::Fill($random)
+      [Convert]::ToBase64String($random) | Set-Content -Path $configKeyFile -NoNewline -Encoding ascii
+    }
+    $env:AI_CONFIG_ENCRYPTION_KEY = (Get-Content -Path $configKeyFile -Raw).Trim()
     $jar = Join-Path $repo 'backend/target/javacourse-server-1.0.0.jar'
     $bootable = $false
     if (Test-Path $jar) { $bootable = [bool](& jar.exe tf $jar 2>$null | Select-String -Quiet 'BOOT-INF/') }
@@ -66,3 +73,4 @@ try {
   [System.Windows.MessageBox]::Show($message, 'Java 课程站启动器', 'OK', 'Error') | Out-Null
   exit 1
 }
+

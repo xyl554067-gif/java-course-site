@@ -46,6 +46,9 @@ public class AppProperties {
         /** API Key；为空则该档不可用（auto 模式下自动跳过） */
         private String apiKey = "";
 
+        /** Dedicated server secret used to encrypt per-account model credentials at rest. */
+        private String userConfigEncryptionKey = "";
+
         /** 模型名 */
         private String model = "deepseek-v3";
 
@@ -74,6 +77,8 @@ public class AppProperties {
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getUserConfigEncryptionKey() { return userConfigEncryptionKey; }
+        public void setUserConfigEncryptionKey(String userConfigEncryptionKey) { this.userConfigEncryptionKey = userConfigEncryptionKey; }
         public String getModel() { return model; }
         public void setModel(String model) { this.model = model; }
         public String getFallbackOrder() { return fallbackOrder; }
@@ -137,3 +142,4 @@ public class AppProperties {
         public void setMaxSourceChars(int maxSourceChars) { this.maxSourceChars = maxSourceChars; }
     }
 }
+

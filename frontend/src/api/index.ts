@@ -248,7 +248,13 @@ export const profileApi = {
   update: (profile: { nickname: string; avatar: string; email: string }) => request<any>(http.put('/profile', profile)),
   calendar: (year: number, month: number) => request<Array<{ date: string; seconds: number; completed: number }>>(http.get('/profile/calendar', { params: { year, month } })),
   achievements: () => request<Array<{ id: string; title: string; description: string; unlocked: boolean }>>(http.get('/profile/achievements')),
+  aiConfig: () => request<AiConfigStatus>(http.get('/profile/ai-config')),
+  saveAiConfig: (config: { baseUrl: string; model: string; apiKey?: string }) => request<AiConfigStatus>(http.put('/profile/ai-config', config)),
+  testAiConfig: (config: { baseUrl: string; model: string; apiKey?: string }) => request<{ ok: boolean; message: string; latencyMs: number }>(http.post('/profile/ai-config/test', config)),
+  clearAiConfig: () => request<void>(http.delete('/profile/ai-config')),
 }
+
+export interface AiConfigStatus { configured: boolean; encryptionReady: boolean; baseUrl?: string; model?: string; apiKeyConfigured: boolean; apiKeyHint?: string; }
 
 export const codeApi = {
   /** 代码执行环境自检：JDK 是否就绪 */
@@ -276,3 +282,4 @@ export const codeApi = {
   submissions: (exerciseId?: number) =>
     request<CodeSubmission[]>(http.get('/code/submissions', { params: exerciseId ? { exerciseId } : {} })),
 }
+

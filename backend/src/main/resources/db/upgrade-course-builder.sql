@@ -39,3 +39,12 @@ CREATE TABLE IF NOT EXISTS learning_session (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_learning_session_key ON learning_session(user_id,lesson_id,session_key);
+
+CREATE TABLE IF NOT EXISTS user_ai_config (
+    user_id BIGINT PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+    base_url VARCHAR(1000) NOT NULL,
+    model VARCHAR(160) NOT NULL,
+    encrypted_key VARCHAR(4096) NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+

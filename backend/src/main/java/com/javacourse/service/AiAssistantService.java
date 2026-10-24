@@ -88,7 +88,7 @@ public class AiAssistantService {
         }
         prompt.append("\n【用户问题】\n").append(question);
 
-        String answer = callModel(prompt.toString(), question, context);
+        String answer = callModel(userId, prompt.toString(), question, context);
 
         List<Map<String, Object>> citations = new ArrayList<>();
         for (Map<String, Object> c : context) {
@@ -229,8 +229,8 @@ public class AiAssistantService {
     private final ThreadLocal<String> lastProvider = new ThreadLocal<>();
     private final ThreadLocal<Boolean> lastDegraded = new ThreadLocal<>();
 
-    private String callModel(String fullPrompt, String question, List<Map<String, Object>> context) {
-        ModelGateway.Result r = gateway.call(PERSONA, fullPrompt, question, context, this::localAnswer);
+    private String callModel(long userId, String fullPrompt, String question, List<Map<String, Object>> context) {
+        ModelGateway.Result r = gateway.call(userId, PERSONA, fullPrompt, question, context, this::localAnswer);
         lastProvider.set(r.provider());
         lastDegraded.set(r.degraded());
         if (r.degraded() && r.detail() != null && !r.detail().isBlank()) {
@@ -322,3 +322,4 @@ public class AiAssistantService {
         return s.length() <= max ? s : s.substring(0, max);
     }
 }
+

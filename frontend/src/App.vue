@@ -64,6 +64,7 @@ async function handleLogout() {
             <RouterLink to="/exercises" class="nav__link">代码练习</RouterLink>
             <RouterLink to="/qa" class="nav__link">题库</RouterLink>
             <RouterLink to="/ai/courses" class="nav__link">AI 课程工坊</RouterLink>
+            <RouterLink to="/ai/settings" class="nav__link">AI 接入</RouterLink>
           </nav>
 
         <div class="nav__right">
@@ -199,4 +200,5 @@ async function handleLogout() {
   .nav__agent { display: none; }
 }
 </style>
+
 

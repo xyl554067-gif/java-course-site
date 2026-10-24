@@ -55,11 +55,6 @@ const input = ref('')
 const bubble = ref<HTMLElement | null>(null)
 const listEl = ref<HTMLElement | null>(null)
 
-/** 设置面板是否展开 */
-const showSettings = ref(false)
-/** 设置面板里的临时输入（点保存才写进 store） */
-const cfgDraft = ref({ mode: 'backend' as 'backend' | 'direct' | 'local', baseUrl: '', apiKey: '', model: '', systemPrompt: '' })
-
 /**
  * 气泡展开方向自适应：桌宠在页面上半部时向上展开会超出视口顶部，
  * 此时改为向下展开。
@@ -326,40 +321,13 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-/**
- * 打开设置面板：把当前配置复制到草稿，取消编辑不影响已生效的配置。
- */
 function openSettings() {
-  const c = pet.aiConfig
-  cfgDraft.value = {
-    mode: c.mode,
-    baseUrl: c.baseUrl,
-    apiKey: c.apiKey,
-    model: c.model,
-    systemPrompt: c.systemPrompt,
-  }
-  showSettings.value = true
+  pet.closeBubble()
+  void router.push('/ai/settings')
 }
 
-function saveSettings() {
-  pet.updateConfig({ ...cfgDraft.value })
-  showSettings.value = false
-}
-
-function cancelSettings() {
-  showSettings.value = false
-}
-
-function resetSettings() {
-  pet.resetConfig()
-  showSettings.value = false
-}
-
-/** 一键清空历史对话 */
 function clearHistory() {
-  if (window.confirm('确定清空与鲸鲸的历史对话吗？此操作不可恢复。')) {
-    pet.clearHistory()
-  }
+  if (window.confirm('确定清空与鲸鲸的历史对话吗？此操作不可恢复。')) pet.clearHistory()
 }
 
 // ------------------------------------------------------------------
@@ -408,90 +376,16 @@ onUnmounted(() => {
           </span>
           <button
             class="pet-bubble__icon"
-            :class="{ 'is-on': showSettings }"
-            title="AI 接口设置"
-            @click="showSettings ? cancelSettings() : openSettings()"
+            title="AI 接入设置"
+            @click="openSettings"
           >
             ⚙
           </button>
+          <button class="pet-bubble__icon" title="清空对话" @click="clearHistory">⌫</button>
           <button class="pet-bubble__close" title="收起" @click="pet.closeBubble()">×</button>
         </div>
 
-        <!-- AI 接口设置面板 -->
-        <div v-if="showSettings" class="pet-settings">
-          <p class="pet-settings__lead">
-            选择鲸鲸走哪条 AI 通道。配置保存在本机浏览器（localStorage），不会上传服务器。
-          </p>
-
-          <label class="pet-settings__field">
-            <span class="pet-settings__label">接入方式</span>
-            <select v-model="cfgDraft.mode" class="pet-settings__select">
-              <option value="backend">后端代理（推荐，Key 不进浏览器）</option>
-              <option value="direct">浏览器直连（自己填 API Key）</option>
-              <option value="local">仅本地兜底（不调用任何大模型）</option>
-            </select>
-          </label>
-
-          <template v-if="cfgDraft.mode === 'direct'">
-            <label class="pet-settings__field">
-              <span class="pet-settings__label">接口地址（OpenAI 兼容根地址）</span>
-              <input
-                v-model="cfgDraft.baseUrl"
-                class="pet-settings__input"
-                placeholder="https://api.deepseek.com"
-              />
-            </label>
-            <label class="pet-settings__field">
-              <span class="pet-settings__label">API Key</span>
-              <input
-                v-model="cfgDraft.apiKey"
-                class="pet-settings__input"
-                type="password"
-                placeholder="sk-…"
-                autocomplete="off"
-              />
-            </label>
-            <label class="pet-settings__field">
-              <span class="pet-settings__label">模型名</span>
-              <input
-                v-model="cfgDraft.model"
-                class="pet-settings__input"
-                placeholder="deepseek-v3"
-              />
-            </label>
-            <label class="pet-settings__field">
-              <span class="pet-settings__label">系统提示词（可选）</span>
-              <textarea
-                v-model="cfgDraft.systemPrompt"
-                class="pet-settings__textarea"
-                rows="2"
-                placeholder="留空使用默认人设"
-              />
-            </label>
-            <p class="pet-settings__warn">
-              直连模式下 Key 保存在本机浏览器，请求由浏览器直接发往第三方站点，
-              需对方允许跨域（CORS）。若介意，请改用「后端代理」。
-            </p>
-          </template>
-
-          <p v-else-if="cfgDraft.mode === 'backend'" class="pet-settings__note">
-            由本项目后端持有 Key 并转发请求（<code>AI_API_KEY</code> 环境变量）。
-            后端未配置时自动降级为课程检索式回答，功能不中断。
-          </p>
-
-          <p v-else class="pet-settings__note">
-            不调用任何大模型。鲸鲸会用内置的课程检索式模板回复，适合离线演示。
-          </p>
-
-          <div class="pet-settings__actions">
-            <button class="pet-btn pet-btn--primary" @click="saveSettings">保存</button>
-            <button class="pet-btn" @click="cancelSettings">取消</button>
-            <button class="pet-btn pet-btn--ghost" @click="resetSettings">恢复默认</button>
-            <button class="pet-btn pet-btn--ghost" @click="clearHistory">清空对话</button>
-          </div>
-        </div>
-
-        <div ref="listEl" class="pet-bubble__list" :class="{ 'is-hidden': showSettings }">
+        <div ref="listEl" class="pet-bubble__list">
           <div v-if="!pet.messages.length" class="pet-bubble__empty">
             {{ pet.hint }}
           </div>
@@ -521,16 +415,16 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <form class="pet-bubble__input" :class="{ 'is-hidden': showSettings }" @submit.prevent="submit">
+        <form class="pet-bubble__input" @submit.prevent="submit">
           <input
             id="pet-ask-input"
             v-model="input"
             type="text"
             placeholder="问点 Java 的事…"
-            :disabled="pet.loading || showSettings"
+            :disabled="pet.loading"
             @keydown="onKeydown"
           />
-          <button type="submit" class="pet-send" :disabled="pet.loading || !input.trim() || showSettings">
+          <button type="submit" class="pet-send" :disabled="pet.loading || !input.trim()">
             {{ pet.loading ? '…' : '问' }}
           </button>
         </form>
@@ -803,94 +697,6 @@ onUnmounted(() => {
 .pet-bubble__icon:hover { background: var(--c-sun); }
 .pet-bubble__icon.is-on { background: var(--c-sun); }
 
-/* ---------- AI 接口设置面板 ---------- */
-.pet-settings {
-  padding: 12px;
-  background: var(--c-cream);
-  border-bottom: var(--bw-thin) solid var(--c-line);
-  max-height: min(420px, 55vh);
-  overflow-y: auto;
-}
-.pet-settings__lead {
-  margin: 0 0 10px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--c-ink-soft);
-}
-.pet-settings__field { display: block; margin-bottom: 9px; }
-.pet-settings__label {
-  display: block;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--c-ink);
-  margin-bottom: 4px;
-}
-.pet-settings__select,
-.pet-settings__input,
-.pet-settings__textarea {
-  width: 100%;
-  padding: 7px 10px;
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  color: var(--c-ink);
-  background: var(--c-paper);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: var(--radius-sm);
-  outline: none;
-}
-.pet-settings__textarea { resize: vertical; }
-.pet-settings__select:focus,
-.pet-settings__input:focus,
-.pet-settings__textarea:focus {
-  border-color: var(--c-mint-deep);
-  box-shadow: 0 0 0 3px rgba(78, 205, 196, .25);
-}
-.pet-settings__note,
-.pet-settings__warn {
-  margin: 6px 0 10px;
-  font-size: 11.5px;
-  line-height: 1.65;
-  color: var(--c-ink-soft);
-}
-.pet-settings__warn {
-  background: var(--c-cream-deep);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-}
-.pet-settings__note code {
-  background: var(--c-paper);
-  border: 1px solid var(--c-line);
-  border-radius: 4px;
-  padding: 0 5px;
-  font-size: 11px;
-}
-.pet-settings__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.pet-btn {
-  padding: 5px 13px;
-  background: var(--c-paper);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: var(--radius-full);
-  font-family: var(--font-round);
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--c-ink);
-  cursor: pointer;
-}
-.pet-btn:hover { background: var(--c-sun); }
-.pet-btn--primary { background: var(--c-mint); color: #fff; }
-.pet-btn--primary:hover { background: var(--c-mint-deep); }
-.pet-btn--ghost {
-  background: transparent;
-  color: var(--c-ink-soft);
-}
-
-.is-hidden { display: none; }
-
 .pet-bubble__list {
   flex: 1;
   overflow-y: auto;
@@ -1050,4 +856,5 @@ onUnmounted(() => {
   .pet-video { transition: none; }
 }
 </style>
+
 

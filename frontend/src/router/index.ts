@@ -32,6 +32,7 @@ const router = createRouter({
       component: () => import('@/views/CodeLabView.vue'),
     },
     { path: '/ai/courses', name: 'course-generator', component: () => import('@/views/CourseGeneratorView.vue') },
+    { path: '/ai/settings', name: 'ai-settings', component: () => import('@/views/AiSettingsView.vue') },
     { path: '/me', name: 'learning-center', component: () => import('@/views/LearningCenterView.vue') },
     { path: '/shared/:token', name: 'shared-course', component: () => import('@/views/SharedCourseView.vue'), meta: { public: true } },
     {
@@ -71,3 +72,4 @@ router.beforeEach((to) => {
 })
 
 export default router
+
