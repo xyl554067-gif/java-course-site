@@ -447,9 +447,10 @@ const lessonExercises = computed(() => {
 })
 const lessonQa = computed(() => {
   const lid=lesson.value?.id
-  return lid ? qaItems.value.filter((q) => q.lessonId === lid && (snippets.value.length || q.qaType !== 'CODE')) : []
+  return lid ? qaItems.value.filter((q) => q.lessonId === lid && q.qaType !== 'CODE') : []
 })
 function qaOptions(raw: string) { try { const v=JSON.parse(raw||'[]'); return Array.isArray(v)?v:[] } catch { return [] } }
+function qaAnswerKey(raw: string) { return raw === 'TRUE' ? '正确' : raw === 'FALSE' ? '错误' : raw }
 
 async function loadCodeEnv() {
   try {
@@ -635,10 +636,10 @@ watch(() => route.params.slug, (s) => s && load(s as string))
       <section v-else class="card lesson-exercises-panel">
         <div class="section-head"><span class="dot" /><h2>课后练习</h2><span class="line" /></div>
         <div v-if="snippets.length&&lessonExercises.length" class="ex-list"><RouterLink v-for="e in lessonExercises" :key="e.id" :to="`/exercise/${e.slug}`" class="ex-list__item"><strong>{{ e.title }}</strong><span class="badge badge--sun">{{ e.difficulty }}</span><span class="ex-list__go">去做题 →</span></RouterLink></div>
-        <article v-for="q in lessonQa" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':'练习题' }}</span><strong>{{ q.question }}</strong>
+        <article v-for="q in lessonQa" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'||q.qaType==='SINGLE_CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':q.qaType==='SHORT_ANSWER'?'简答题':'练习题' }}</span><strong>{{ q.question }}</strong>
           <ul v-if="q.options" class="quiz-options"><li v-for="(opt,i) in qaOptions(q.options)" :key="i">{{ opt }}</li></ul>
           <button class="btn btn--sm btn--mint" @click="revealedQa[q.id]=!revealedQa[q.id]">{{revealedQa[q.id]?'收起答案':'查看答案'}}</button>
-          <div v-if="revealedQa[q.id]" class="quiz-answer"><p>{{q.answer}}</p><b v-if="q.answerKey">答案：{{q.answerKey}}</b></div>
+          <div v-if="revealedQa[q.id]" class="quiz-answer"><p>{{q.answer}}</p><b v-if="q.answerKey">答案：{{qaAnswerKey(q.answerKey)}}</b></div>
         </article>
       </section>
     </template>
