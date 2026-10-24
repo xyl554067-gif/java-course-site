@@ -14,9 +14,6 @@ import java.util.Map;
 @Service
 public class ProgressService {
 
-    /** 全站课时总数，用于计算总进度百分比 */
-    private static final long TOTAL_LESSONS = 42L;
-
     private final ProgressRepository repo;
 
     public ProgressService(ProgressRepository repo) {
@@ -25,10 +22,11 @@ public class ProgressService {
 
     /** 学习总览 */
     public Map<String, Object> summary(long userId) {
-        Map<String, Object> s = repo.summary(userId, TOTAL_LESSONS);
+        long totalLessons = repo.totalLessons();
+        Map<String, Object> s = repo.summary(userId, totalLessons);
         long completed = toLong(s.get("completed"));
-        s.put("overallPct", TOTAL_LESSONS == 0 ? 0
-                : (int) Math.round(completed * 100.0 / TOTAL_LESSONS));
+        s.put("overallPct", totalLessons == 0 ? 0
+                : (int) Math.round(completed * 100.0 / totalLessons));
         return s;
     }
 
@@ -68,6 +66,7 @@ public class ProgressService {
                 lastSeconds == null ? 0 : lastSeconds,
                 deltaSeconds == null ? 0 : deltaSeconds,
                 sessionKey);
+        repo.recordActivity(userId,lessonId,lastSeconds==null?0:lastSeconds,sessionKey);
         return get(userId, lessonId);
     }
 

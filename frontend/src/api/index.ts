@@ -227,6 +227,29 @@ export const aiApi = {
   health: () => request<AiHealth>(http.get('/ai/health')),
 }
 
+export interface GeneratedLesson { title: string; summary?: string; content: string; sourceRefs?: string[]; }
+export interface GeneratedModule { title: string; lessons: GeneratedLesson[]; }
+export interface GeneratedCourse { title: string; description?: string; learningObjectives?: string[]; prerequisites?: string[]; modules: GeneratedModule[]; }
+export interface GeneratedCourseRecord { id: number; title: string; status: 'DRAFT' | 'PUBLISHED'; course: GeneratedCourse; sourceName?: string; sourceUrl?: string; sourceText?: string; shareToken?: string; shareRevoked?: boolean; provider?: string; degraded?: boolean; aiNote?: string; }
+export const generatedCourseApi = {
+  importFile: (file: File) => { const form = new FormData(); form.append('file', file); return request<GeneratedCourseRecord>(http.post('/ai/courses/import/file', form, { timeout: 120000 })); },
+  importUrl: (url: string) => request<GeneratedCourseRecord>(http.post('/ai/courses/import/url', { url }, { timeout: 120000 })),
+  list: () => request<any[]>(http.get('/ai/courses')),
+  get: (id: number) => request<GeneratedCourseRecord>(http.get(`/ai/courses/${id}`)),
+  save: (id: number, course: GeneratedCourse) => request<GeneratedCourseRecord>(http.put(`/ai/courses/${id}`, { course: JSON.stringify(course) })),
+  publish: (id: number) => request<GeneratedCourseRecord>(http.post(`/ai/courses/${id}/publish`)),
+  share: (id: number) => request<{ token: string }>(http.post(`/ai/courses/${id}/share`)),
+  revoke: (id: number) => request<void>(http.delete(`/ai/courses/${id}/share`)),
+  shared: (token: string) => request<any>(http.get(`/ai/courses/shared/${token}`)),
+}
+
+export const profileApi = {
+  get: () => request<any>(http.get('/profile')),
+  update: (profile: { nickname: string; avatar: string; email: string }) => request<any>(http.put('/profile', profile)),
+  calendar: (year: number, month: number) => request<Array<{ date: string; seconds: number; completed: number }>>(http.get('/profile/calendar', { params: { year, month } })),
+  achievements: () => request<Array<{ id: string; title: string; description: string; unlocked: boolean }>>(http.get('/profile/achievements')),
+}
+
 export const codeApi = {
   /** 代码执行环境自检：JDK 是否就绪 */
   runtime: () => request<CodeRuntime>(http.get('/code/runtime')),

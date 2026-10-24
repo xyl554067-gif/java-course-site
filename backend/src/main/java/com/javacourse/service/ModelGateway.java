@@ -82,6 +82,38 @@ public class ModelGateway {
         String answer(String question, List<Map<String, Object>> context);
     }
 
+    /** Course generation shares the same provider configuration as the assistant. */
+    public Result generate(String systemPrompt, String userPrompt, String fallbackJson) {
+        long start = System.currentTimeMillis();
+        String provider = props.getAi().getProvider() == null ? "auto" : props.getAi().getProvider().toLowerCase();
+        List<String> order = resolveOrder(provider);
+        List<String> failures = new ArrayList<>();
+        if (!"local".equals(provider)) {
+            for (String p : order) {
+                if ("local".equals(p)) break;
+                try {
+                    String answer = switch (p) {
+                        case "openai" -> postChat(props.getAi().getBaseUrl(), props.getAi().getModel(),
+                                props.getAi().getApiKey(), systemPrompt, userPrompt, 6000);
+                        case "ollama" -> postChat(props.getAi().getOllamaBaseUrl(), props.getAi().getOllamaModel(),
+                                "ollama", systemPrompt, userPrompt, 6000);
+                        default -> null;
+                    };
+                    if (answer != null && !answer.isBlank())
+                        return new Result(answer, p, !failures.isEmpty(), String.join("；", failures),
+                                System.currentTimeMillis() - start);
+                    failures.add(p + "：返回内容为空");
+                } catch (Exception e) {
+                    failures.add(p + "：" + rootMessage(e));
+                    log.warn("[ModelGateway] 课程生成通道 {} 调用失败：{}", p, rootMessage(e));
+                }
+            }
+        }
+        return new Result(fallbackJson, "local", true,
+                failures.isEmpty() ? "未配置可用的大模型，已生成基于资料的可编辑草稿" : String.join("；", failures),
+                System.currentTimeMillis() - start);
+    }
+
     /**
      * 按配置的 provider 策略调用模型。
      *
@@ -184,7 +216,7 @@ public class ModelGateway {
         if (key == null || key.isBlank()) {
             throw new IllegalStateException("未配置 AI_API_KEY");
         }
-        return postChat(props.getAi().getBaseUrl(), props.getAi().getModel(), key, systemPrompt, userPrompt);
+        return postChat(props.getAi().getBaseUrl(), props.getAi().getModel(), key, systemPrompt, userPrompt, 1500);
     }
 
     /**
@@ -193,7 +225,7 @@ public class ModelGateway {
      */
     private String callOllama(String systemPrompt, String userPrompt) throws Exception {
         return postChat(props.getAi().getOllamaBaseUrl(), props.getAi().getOllamaModel(),
-                "ollama", systemPrompt, userPrompt);
+                "ollama", systemPrompt, userPrompt, 1500);
     }
 
     /**
@@ -202,20 +234,21 @@ public class ModelGateway {
      * @param baseUrl 端点根地址，自动补 {@code /v1/chat/completions}
      */
     private String postChat(String baseUrl, String model, String apiKey,
-                            String systemPrompt, String userPrompt) throws Exception {
+                            String systemPrompt, String userPrompt, int maxTokens) throws Exception {
         String root = trimTrailingSlash(baseUrl);
         String url = root.endsWith("/chat/completions") ? root : root + "/v1/chat/completions";
 
         String body = """
                 {"model":%s,"messages":[{"role":"system","content":%s},{"role":"user","content":%s}],\
-                "temperature":0.6,"max_tokens":1500}
-                """.formatted(jsonString(model), jsonString(systemPrompt), jsonString(userPrompt));
+                "temperature":0.4,"max_tokens":%d}
+                """.formatted(jsonString(model), jsonString(systemPrompt), jsonString(userPrompt), maxTokens);
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
-                .timeout(Duration.ofMillis(props.getAi().getTimeoutMs()))
+                .timeout(Duration.ofMillis(maxTokens > 1500
+                        ? Math.max(90_000, props.getAi().getTimeoutMs()) : props.getAi().getTimeoutMs()))
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 

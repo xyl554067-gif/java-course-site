@@ -35,7 +35,7 @@ export interface FavoriteItem {
 }
 
 const emptySummary: ProgressSummary = {
-  totalLessons: 42,
+  totalLessons: 0,
   completed: 0,
   inProgress: 0,
   started: 0,

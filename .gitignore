@@ -38,6 +38,7 @@ desktop.ini
 logs/
 
 # ---------- 运行时 ----------
+.local-run/
 /tmp/
 kbtmp/
 *.tsv.tmp

@@ -15,8 +15,12 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: AI_API_KEY
+        sync: false
       - key: APP_JWT_SECRET
         generateValue: true
       - key: AI_PROVIDER
-        value: local
+        value: auto
+      - key: AI_FALLBACK_ORDER
+        value: openai,local
 

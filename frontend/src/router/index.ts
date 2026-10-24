@@ -27,6 +27,14 @@ const router = createRouter({
       component: () => import('@/views/LessonView.vue'),
     },
     {
+      path: '/lesson/:slug/lab',
+      name: 'lesson-lab',
+      component: () => import('@/views/CodeLabView.vue'),
+    },
+    { path: '/ai/courses', name: 'course-generator', component: () => import('@/views/CourseGeneratorView.vue') },
+    { path: '/me', name: 'learning-center', component: () => import('@/views/LearningCenterView.vue') },
+    { path: '/shared/:token', name: 'shared-course', component: () => import('@/views/SharedCourseView.vue'), meta: { public: true } },
+    {
       path: '/exercise/:slug',
       name: 'exercise',
       component: () => import('@/views/ExerciseView.vue'),

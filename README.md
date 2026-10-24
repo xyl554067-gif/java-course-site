@@ -3,7 +3,7 @@
 一个卡通风格的 Java 课程介绍站，后端 Spring Boot 3 + KingbaseES V8，前端 Vue 3 + Vite，
 内置鲸鲸 AI 助教（全站会动的 Ciallo~ 猫耳女仆形象）。
 
-在线体验：[https://xyl554067-gif.github.io/java-course-site/](https://xyl554067-gif.github.io/java-course-site/)
+在线体验（GitHub Pages 免费地址）：[https://xyl554067-gif.github.io/java-course-site/](https://xyl554067-gif.github.io/java-course-site/)
 
 在线登录后端部署说明：[docs/online-login-deployment.md](docs/online-login-deployment.md)。GitHub Pages 只提供前端页面；登录需先部署 API 与 PostgreSQL，再在 `gh-pages` 分支的 `config.js` 中配置 API 地址。
 
@@ -20,7 +20,13 @@
 | Maven | 3.9+ | `tools/apache-maven-3.9.9`已自带 |
 | Node.js | 18+ | 任意 20.x 亦可 |
 
-### 三步启动
+### 一键启动（Windows）
+
+双击仓库根目录的 `启动Java课程站.bat`。它会检查 KingBase、后端和前端端口，复用已运行的服务；数据库未运行时会请求管理员权限启动本机 KingBase，然后等待 API 健康检查并打开浏览器。构建产物不存在时会给出具体提示。
+
+启动日志位于 `.local-run/logs/`：`database-start.log`、`backend.log`、`backend-error.log`、`frontend.log` 与 `frontend-error.log`。KingBase 需要 UAC 管理员确认；取消后启动器会报告数据库环节未完成。
+
+### 手动启动
 
 ```bash
 # 1. 确认数据库在跑
@@ -52,7 +58,7 @@ KingbaseES V8 的 License 共享内存是 Windows **Global 命名空间内核对
 `CreateFileMappingW` 返回 err 5，`AdjustTokenPrivileges` 返回 1300。
 
 结论：**全局只能跑一个实例，且必须由管理员权限进程启动。**
-所以本项目不提供自启脚本，只提供状态检查（`kb_start.sh`）与优雅停库（`kb_stop.sh`）。
+因此一键启动器只在检测到数据库未运行时请求 UAC 管理员确认，并先检查端口，避免重复启动现有实例。也可手动使用状态检查（`kb_start.sh`）与优雅停库（`kb_stop.sh`）。
 
 数据库启动方式：
 
@@ -64,6 +70,17 @@ cd D:\Kingbase\KESRealPro\V008R006C009B0014\Server\bin
 
 **停止时务必用 `sys_ctl stop`，不要 `taskkill`**——强杀不会释放 License 共享内存，
 下次启动会报 `FATAL: attach License shared memory error: openfilemapping error`。
+
+---
+
+## 自学、AI 课程生成与个人学习中心
+
+- 课时阅读采用笔记目录布局；课时笔记、独立代码实验室和习题分区，只有存在编程示例的课时才显示代码实验室。代码编辑器在系统明暗主题下使用相应对比度。
+- 顶部“AI 课程工坊”支持文本型 PDF、DOCX、PPTX 和无需登录的公开网页。单文件上限 20 MB；扫描版 PDF、旧版 Office 文件和登录网页暂不支持。生成内容先保存为个人私有草稿，可编辑后发布；只读分享链接由本人创建并可撤销。
+- AI 课程生成复用鲸鲸助教的后端模型配置。大模型 Key 只由后端环境变量管理。AI 不可用时仍会根据资料生成可编辑提纲，并提示用户核对补充。
+- Render 默认使用 `AI_PROVIDER=auto`，可在服务环境变量中设置 `AI_API_KEY` 与 `AI_BASE_URL`、`AI_MODEL` 接入 OpenAI 兼容模型；Key 不放在前端或仓库中。未配置 Key 时会明确降级成资料提纲。
+- “学习中心”包含真实学习记录、按日历展示的计时/完成数据、成就、收藏、导入课程与个人资料。学习时长只按可见页面的计时心跳累加，不使用预估时长。
+- 新功能需要的私有课程和学习日历表会在后端启动时幂等创建；升级 SQL 也可在 `backend/src/main/resources/db/upgrade-course-builder.sql` 查阅。
 
 ---
 

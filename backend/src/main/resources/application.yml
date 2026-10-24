@@ -19,6 +19,10 @@ spring:
       minimum-idle: 2
       connection-timeout: 10000
       pool-name: kb-pool
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
   jackson:
     default-property-inclusion: non_null
     date-format: yyyy-MM-dd HH:mm:ss

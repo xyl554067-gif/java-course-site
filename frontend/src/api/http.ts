@@ -32,6 +32,9 @@ export function clearToken() {
  * 因此静态部署务必通过 config.js 或 VITE_API_BASE_URL 指定真实后端地址。
  */
 function resolveApiBase(): string {
+  // Local development always uses the Vite proxy to the local backend. The runtime
+  // config is for the static GitHub Pages deployment and must not divert localhost.
+  if (import.meta.env.DEV) return '/api'
   const runtime = (window as any).__APP_CONFIG__?.apiBase
   if (typeof runtime === 'string') return runtime
   const buildTime = import.meta.env.VITE_API_BASE_URL as string | undefined

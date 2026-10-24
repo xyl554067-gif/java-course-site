@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 /**
  * 学习进度与收藏仓储
@@ -95,6 +97,24 @@ public class ProgressRepository {
                 sessionKey == null || sessionKey.isEmpty() ? null : sessionKey);
     }
 
+    /** Record only newly observed seconds, so repeated heartbeats and midnight rollover stay exact. */
+    public void recordActivity(long userId,long lessonId,int sessionSeconds,String sessionKey) {
+        if(sessionKey==null||sessionKey.isBlank()) return;
+        jdbc.update("INSERT INTO learning_session(user_id,lesson_id,session_key,last_seconds,updated_at) "
+                + "VALUES(?,?,?,0,CURRENT_TIMESTAMP) ON CONFLICT(user_id,lesson_id,session_key) DO NOTHING",userId,lessonId,sessionKey);
+        Integer previous=jdbc.queryForObject("SELECT last_seconds FROM learning_session WHERE user_id=? AND lesson_id=? AND session_key=? FOR UPDATE",
+                Integer.class,userId,lessonId,sessionKey);
+        int accepted=Math.max(0,Math.max(0,sessionSeconds)-(previous==null?0:previous));
+        if(accepted==0)return;
+        jdbc.update("UPDATE learning_session SET last_seconds=?,updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND lesson_id=? AND session_key=?",
+                Math.max(0,sessionSeconds),userId,lessonId,sessionKey);
+        jdbc.update("INSERT INTO learning_activity(user_id,lesson_id,session_key,activity_date,session_seconds,total_seconds,updated_at) "
+                        + "VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(user_id,lesson_id,session_key,activity_date) DO UPDATE SET "
+                        + "session_seconds=learning_activity.session_seconds+EXCLUDED.session_seconds, "
+                        + "total_seconds=learning_activity.total_seconds+EXCLUDED.total_seconds,updated_at=CURRENT_TIMESTAMP",
+                userId,lessonId,sessionKey,LocalDate.now(ZoneId.of("Asia/Shanghai")),accepted,accepted);
+    }
+
     /** 标记完成/取消完成，保留进度百分比与已累计的学习时长 */
     public void markCompleted(long userId, long lessonId, boolean completed) {
         int pct = completed ? 100 : 0;
@@ -107,6 +127,22 @@ public class ProgressRepository {
                         + "completed = EXCLUDED.completed, "
                         + "updated_at = CURRENT_TIMESTAMP",
                 userId, lessonId, pct, completed ? 1 : 0);
+        if (completed) {
+            LocalDate today=LocalDate.now(ZoneId.of("Asia/Shanghai"));
+            String marker = "__completed_" + today;
+            jdbc.update("INSERT INTO learning_activity(user_id,lesson_id,session_key,activity_date,completed,updated_at) "
+                            + "VALUES(?,?,?,?,1,CURRENT_TIMESTAMP) ON CONFLICT(user_id,lesson_id,session_key,activity_date) "
+                            + "DO UPDATE SET completed=1,updated_at=CURRENT_TIMESTAMP", userId, lessonId, marker, today);
+        }
+    }
+
+    public List<Map<String,Object>> calendar(long userId, int year, int month) {
+        return jdbc.query("SELECT activity_date, SUM(total_seconds) AS seconds, COUNT(DISTINCT CASE WHEN completed=1 THEN lesson_id END) AS completed "
+                        + "FROM learning_activity WHERE user_id=? AND EXTRACT(YEAR FROM activity_date)=? AND EXTRACT(MONTH FROM activity_date)=? "
+                        + "GROUP BY activity_date ORDER BY activity_date", (rs,i) -> {
+                    Map<String,Object> m=new HashMap<>();m.put("date",rs.getDate("activity_date").toLocalDate().toString());
+                    m.put("seconds",rs.getLong("seconds"));m.put("completed",rs.getInt("completed"));return m;
+                },userId,year,month);
     }
 
     /** 学习总览：完成数、在学数、总课时 */
@@ -132,6 +168,11 @@ public class ProgressRepository {
                 "SELECT COUNT(*) FROM user_favorite WHERE user_id = ?",
                 Integer.class, userId));
         return m;
+    }
+
+    public long totalLessons() {
+        Long total = jdbc.queryForObject("SELECT COUNT(*) FROM lesson", Long.class);
+        return total == null ? 0L : total;
     }
 
     // ---------------- 收藏 ----------------

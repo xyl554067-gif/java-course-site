@@ -63,6 +63,7 @@ async function handleLogout() {
             <RouterLink to="/course/java-mastery" class="nav__link">课程目录</RouterLink>
             <RouterLink to="/exercises" class="nav__link">代码练习</RouterLink>
             <RouterLink to="/qa" class="nav__link">题库</RouterLink>
+            <RouterLink to="/ai/courses" class="nav__link">AI 课程工坊</RouterLink>
           </nav>
 
         <div class="nav__right">
@@ -75,6 +76,7 @@ async function handleLogout() {
           >
             鲸鲸助教
           </button>
+          <RouterLink to="/me" class="btn btn--sm btn--ghost nav__profile">学习中心</RouterLink>
           <div class="nav__user">
             <span class="badge badge--lilac">{{ auth.displayName }}</span>
             <button class="btn btn--sm btn--ghost" @click="handleLogout">退出</button>

@@ -16,5 +16,5 @@
  * 未配置/不可用时，页面仍能正常渲染（静态外壳 + 登录页），只是数据接口不可用。
  */
 window.__APP_CONFIG__ = {
-  apiBase: '/api',
+  apiBase: 'https://java-course-api-0sl8.onrender.com/api',
 }

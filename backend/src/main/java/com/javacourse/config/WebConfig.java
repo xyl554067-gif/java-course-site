@@ -31,7 +31,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/search",
                         "/modules/**",
                         "/qa/**",
-                        "/ai/agent"
+                        "/ai/agent",
+                        "/ai/courses/shared/**"
                 );
     }
 

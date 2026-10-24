@@ -17,6 +17,10 @@ const agent = useAgentStore()
 const progress = useProgressStore()
 
 const lesson = ref<any>(null)
+const activeTab = computed(() => String(route.query.tab || 'notes'))
+const toc = computed(() => (String(lesson.value?.content || '').replace(/\r\n?/g, '\n').match(/^#{1,3}\s+.+$/gm) || [])
+  .map((line: string, index: number) => ({ id: `lesson-section-${index + 1}`, title: line.replace(/^#{1,3}\s+/, ''), level: line.match(/^#+/)?.[0].length || 1 })))
+function jumpToHeading(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
 const snippets = ref<any[]>([])
 const knowledge = ref<any[]>([])
 const prev = ref<any>(null)
@@ -289,6 +293,7 @@ function renderMarkdown(src: string): string {
   const lines = esc(text).split('\n')
   const out: string[] = []
   let inList: 'ul' | 'ol' | null = null
+  let headingIndex = 0
 
   const closeList = () => {
     if (inList) {
@@ -335,7 +340,8 @@ function renderMarkdown(src: string): string {
     if (h) {
       closeList()
       const lv = h[1].length
-      out.push(`<h${lv} class="md-h md-h${lv}">${h[2]}</h${lv}>`)
+      const anchor = lv <= 3 ? ` id="lesson-section-${++headingIndex}"` : ''
+      out.push(`<h${lv}${anchor} class="md-h md-h${lv}">${h[2]}</h${lv}>`)
     } else if (/^[-*]\s+/.test(l)) {
       if (inList !== 'ul') { closeList(); out.push('<ul>'); inList = 'ul' }
       // 任务列表：- [ ] 未完成 / - [x] 已完成
@@ -431,12 +437,19 @@ const runningSnippet = ref<number | null>(null)
 const snippetRuns = ref<Record<number, any>>({})
 /** 该课时的习题 */
 const exercises = ref<any[]>([])
+const qaItems = ref<any[]>([])
+const revealedQa = ref<Record<number, boolean>>({})
 /** 只展示属于本课时的习题 */
 const lessonExercises = computed(() => {
   const lid = lesson.value?.id
   if (!lid) return []
-  return exercises.value.filter((e) => e.lessonId === lid)
+  return snippets.value.length ? exercises.value.filter((e) => e.lessonId === lid) : []
 })
+const lessonQa = computed(() => {
+  const lid=lesson.value?.id
+  return lid ? qaItems.value.filter((q) => q.lessonId === lid && (snippets.value.length || q.qaType !== 'CODE')) : []
+})
+function qaOptions(raw: string) { try { const v=JSON.parse(raw||'[]'); return Array.isArray(v)?v:[] } catch { return [] } }
 
 async function loadCodeEnv() {
   try {
@@ -471,10 +484,9 @@ async function runSnippet(s: any) {
   }
 }
 
-/** 把示例代码复制到编辑器（跳到习题页） */
+/** 打开独立代码实验室，不进入习题列表 */
 function openInLab(s: any) {
-  sessionStorage.setItem('javacourse.lab.snippet', JSON.stringify({ code: s.code, title: s.title }))
-  void router.push({ name: 'exercises' })
+  void router.push({ name: 'lesson-lab', params: { slug: route.params.slug }, query: { snippet: String(s.id) } })
 }
 
 onMounted(() => {
@@ -491,6 +503,7 @@ onMounted(() => {
   }).catch(() => {
     exercises.value = []
   })
+  void courseApi.qa().then((list) => { qaItems.value=list }).catch(() => { qaItems.value=[] })
 })
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
@@ -548,74 +561,25 @@ watch(() => route.params.slug, (s) => s && load(s as string))
         </div>
       </header>
 
-      <div class="lesson__grid">
+      <nav class="lesson-tabs card" aria-label="课程区域">
+        <RouterLink :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'notes' } }" :class="{ active: activeTab === 'notes' }">笔记</RouterLink>
+        <RouterLink v-if="snippets.length" :to="{ name: 'lesson-lab', params: { slug: route.params.slug } }" :class="{ active: route.name === 'lesson-lab' }">代码实验室</RouterLink>
+        <RouterLink v-if="lessonExercises.length||lessonQa.length" :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'exercises' } }" :class="{ active: activeTab === 'exercises' }">习题</RouterLink>
+      </nav>
+
+      <div v-if="activeTab !== 'exercises'" class="lesson__grid">
         <!-- 正文 -->
         <article class="lesson__body card">
           <div class="md-body" v-html="contentHtml" />
 
-          <!-- 代码片段 -->
-          <section v-if="snippets.length" class="snips">
-            <div class="section-head">
-              <span class="dot" /><h2>代码实验室</h2><span class="line" />
-            </div>
-            <p v-if="codeRuntime && !codeRuntime.ready" class="snips__env-warn">
-              ⚠ {{ codeRuntime.note }}
-            </p>
-            <div v-for="s in snippets" :key="s.id" class="snip">
-              <div class="snip__head">
-                <span class="badge badge--lilac">{{ s.language || 'java' }}</span>
-                <strong>{{ s.title }}</strong>
-                <span v-if="s.runnable" class="snip__runnable">可运行</span>
-                <span class="snip__actions">
-                  <button
-                    v-if="s.runnable"
-                    class="btn btn--sm btn--mint"
-                    :disabled="!codeRuntime?.ready || runningSnippet !== null"
-                    @click="runSnippet(s)"
-                  >
-                    {{ runningSnippet === s.id ? '运行中…' : '▶ 运行' }}
-                  </button>
-                  <button class="btn btn--sm btn--ghost" @click="openInLab(s)">✎ 在编辑器中打开</button>
-                </span>
-              </div>
-              <pre class="code"><code>{{ s.code }}</code></pre>
-              <p v-if="s.explanation" class="snip__note">{{ s.explanation }}</p>
-
-              <!-- 运行结果 -->
-              <div v-if="snippetRuns[s.id]" class="snip__run">
-                <div class="snip__run-head">
-                  <span class="snip__run-status" :class="snippetRuns[s.id].success ? 'is-pass' : 'is-err'">
-                    {{ snippetRuns[s.id].success ? '✓ 运行成功' : '✗ ' + snippetRuns[s.id].message }}
-                  </span>
-                  <span class="snip__run-time">{{ snippetRuns[s.id].durationMs }} ms</span>
-                </div>
-                <pre v-if="snippetRuns[s.id].output" class="snip__pre snip__pre--err">{{ snippetRuns[s.id].output }}</pre>
-                <pre v-if="snippetRuns[s.id].stdout" class="snip__pre snip__pre--out">{{ snippetRuns[s.id].stdout }}</pre>
-                <pre v-if="snippetRuns[s.id].stderr" class="snip__pre snip__pre--err">{{ snippetRuns[s.id].stderr }}</pre>
-                <p v-if="s.expectedOut && snippetRuns[s.id].success" class="snip__expect">
-                  期望输出：<code>{{ s.expectedOut }}</code>
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <!-- 本节习题 -->
-          <section v-if="lessonExercises.length" class="snips">
-            <div class="section-head">
-              <span class="dot" /><h2>课后习题</h2><span class="line" />
-            </div>
-            <div class="ex-list">
-              <RouterLink
-                v-for="e in lessonExercises"
-                :key="e.id"
-                :to="`/exercise/${e.slug}`"
-                class="ex-list__item"
-              >
-                <strong>{{ e.title }}</strong>
-                <span class="badge badge--sun">{{ e.difficulty }}</span>
-                <span class="ex-list__go">去做题 →</span>
-              </RouterLink>
-            </div>
+          <section v-if="snippets.length" class="notebook-examples">
+            <div class="section-head"><span class="dot" /><h2>本节代码示例</h2><span class="line" /></div>
+            <article v-for="s in snippets" :key="s.id" class="notebook-example">
+              <div><span class="badge badge--lilac">{{ s.language || 'java' }}</span><strong>{{ s.title }}</strong></div>
+              <pre><code>{{ s.code }}</code></pre>
+              <p v-if="s.explanation">{{ s.explanation }}</p>
+              <button class="btn btn--sm btn--mint" @click="openInLab(s)">在独立实验室打开此示例 →</button>
+            </article>
           </section>
 
           <!-- 知识点 -->
@@ -648,6 +612,11 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 
         <!-- 侧栏 -->
         <aside class="lesson__side">
+          <div class="card side__card side__toc">
+            <h3 class="title-round side__title">本节目录</h3>
+            <button v-for="item in toc" :key="item.id" :class="`toc-level-${item.level}`" @click="jumpToHeading(item.id)">{{ item.title }}</button>
+            <span v-if="!toc.length" class="side__empty">阅读正文并使用下方课时导航</span>
+          </div>
           <div class="card side__card">
             <h3 class="title-round side__title">本节速记</h3>
             <ul class="side__list">
@@ -663,6 +632,15 @@ watch(() => route.params.slug, (s) => s && load(s as string))
           </div>
         </aside>
       </div>
+      <section v-else class="card lesson-exercises-panel">
+        <div class="section-head"><span class="dot" /><h2>课后练习</h2><span class="line" /></div>
+        <div v-if="snippets.length&&lessonExercises.length" class="ex-list"><RouterLink v-for="e in lessonExercises" :key="e.id" :to="`/exercise/${e.slug}`" class="ex-list__item"><strong>{{ e.title }}</strong><span class="badge badge--sun">{{ e.difficulty }}</span><span class="ex-list__go">去做题 →</span></RouterLink></div>
+        <article v-for="q in lessonQa" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':'练习题' }}</span><strong>{{ q.question }}</strong>
+          <ul v-if="q.options" class="quiz-options"><li v-for="(opt,i) in qaOptions(q.options)" :key="i">{{ opt }}</li></ul>
+          <button class="btn btn--sm btn--mint" @click="revealedQa[q.id]=!revealedQa[q.id]">{{revealedQa[q.id]?'收起答案':'查看答案'}}</button>
+          <div v-if="revealedQa[q.id]" class="quiz-answer"><p>{{q.answer}}</p><b v-if="q.answerKey">答案：{{q.answerKey}}</b></div>
+        </article>
+      </section>
     </template>
   </div>
 </template>
@@ -700,6 +678,24 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 
 .lesson__grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
 .lesson__body { padding: 28px 32px; }
+.lesson-tabs { display: flex; gap: 8px; padding: 9px; margin: 0 0 18px; width: max-content; max-width: 100%; }
+.lesson-tabs a { padding: 9px 18px; border-radius: 999px; text-decoration: none; color: var(--c-ink-soft); font-weight: 800; }
+.lesson-tabs a.active { background: var(--c-mint); color: #fff; }
+.lesson-exercises-panel { padding: 28px; }
+.lesson-quiz { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px 0; border-bottom: 1px solid var(--c-cream-deep); }
+.lesson-quiz strong { line-height: 1.8; }
+.quiz-options { margin: 0; padding-left: 24px; line-height: 1.8; }
+.quiz-answer { width: 100%; padding: 12px 16px; border-left: 5px solid var(--c-mint); border-radius: 0 10px 10px 0; background: var(--c-cream); line-height: 1.7; }
+.quiz-answer p { margin: 0 0 6px; }
+.notebook-examples { margin-top: 32px; }
+.notebook-example { padding: 16px; margin: 14px 0; border: 1px solid var(--c-line); border-radius: var(--radius-md); background: var(--c-cream); }
+.notebook-example > div { display: flex; align-items: center; gap: 10px; }
+.notebook-example pre { overflow-x: auto; padding: 14px; border-radius: 10px; background: var(--code-surface); white-space: pre; tab-size: 4; }
+.notebook-example code { font-family: var(--font-mono); font-size: 13px; }
+.notebook-example p { color: var(--c-ink-soft); line-height: 1.7; }
+.lesson__grid { grid-template-columns: 250px minmax(0, 1fr); }
+.lesson__side { grid-column: 1; grid-row: 1; }
+.lesson__body { grid-column: 2; grid-row: 1; }
 
 .md-body :deep(.md-h) {
   margin: 26px 0 12px;
@@ -977,6 +973,10 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 .side__card { padding: 20px; }
 .side__title { margin: 0 0 12px; font-size: 18px; }
 .side__list { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 2; color: var(--c-ink-soft); }
+.side__toc { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+.side__toc button { border: 0; background: transparent; padding: 6px; text-align: left; color: var(--c-ink-soft); cursor: pointer; border-radius: 7px; }
+.side__toc button:hover { background: var(--c-cream-deep); color: var(--c-ink); }
+.side__toc .toc-level-2 { padding-left: 12px; }.side__toc .toc-level-3 { padding-left: 22px; font-size: 12px; }
 .side__empty { color: var(--c-ink-faint); }
 .side__card--whale { text-align: center; background: linear-gradient(160deg, var(--c-sun), var(--c-peach)); }
 .side__whale { width: 100px; height: 100px; }
@@ -984,7 +984,12 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 
 @media (max-width: 980px) {
   .lesson__grid { grid-template-columns: 1fr; }
-  .lesson__side { position: static; }
+  .lesson__side { position: static; grid-column: 1; grid-row: 2; }
+  .lesson__body { grid-column: 1; grid-row: 1; }
   .lesson__title { font-size: 25px; }
+}
+@media (prefers-color-scheme: dark) {
+  .notebook-example { background: rgba(255,255,255,.035); border-color: var(--c-line-dark); }
+  .notebook-example pre { background: var(--code-surface-dark); color: var(--code-ink-dark); }
 }
 </style>
