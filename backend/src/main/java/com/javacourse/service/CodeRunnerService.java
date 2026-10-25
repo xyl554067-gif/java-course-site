@@ -60,6 +60,11 @@ public class CodeRunnerService {
     /** 顶层类声明：public/final/abstract/strictfp 可选 */
     private static final Pattern TOP_LEVEL_CLASS =
             Pattern.compile("(?m)^[ \\t]*(?:(?:public|final|abstract|strictfp)[ \\t]+)*class[ \\t]+(\\w+)");
+    private static final Pattern TOP_LEVEL_METHOD = Pattern.compile(
+            "(?m)^[ \\t]*(?:(?:public|protected|private|static|final|synchronized|abstract|native|strictfp)[ \\t]+)*(?:void|boolean|byte|short|int|long|float|double|char|[A-Z][\\w$]*(?:<[^\\n>]+>)?(?:\\[\\])?)[ \\t]+[A-Za-z_$][\\w$]*[ \\t]*\\(");
+    private static final Pattern TOP_LEVEL_NON_CLASS_TYPE = Pattern.compile(
+            "(?m)^[ \\t]*(?:(?:public|abstract|final|strictfp)[ \\t]+)*(?:interface|enum|record)[ \\t]+[A-Za-z_$][\\w$]*");
+    private static final Pattern MAIN_METHOD = Pattern.compile("\\bstatic[ \\t]+void[ \\t]+main[ \\t]*\\(");
 
     private final AppProperties props;
 
@@ -149,7 +154,7 @@ public class CodeRunnerService {
     /**
      * 编译并运行一段 Java 源码。
      *
-     * @param source 完整源码（必须包含 {@code class X { public static void main(String[] args) {...} }}）
+     * @param source 完整源码，或可直接放入 {@code main} 方法中的课堂语句片段
      * @param stdin  可选的标准输入（习题常用）
      */
     public RunResult run(String source, String stdin) {
@@ -170,10 +175,17 @@ public class CodeRunnerService {
 
         String className = detectClassName(code);
         if (className == null) {
-            return new RunResult("COMPILE_ERROR",
-                    "未在源码中找到类定义（class ...）",
-                    "", "", -1, System.currentTimeMillis() - start,
-                    "这段代码里没有找到 class 定义，请检查是否复制完整（需要 class + main 方法）");
+            boolean includesMainMethod = MAIN_METHOD.matcher(code).find();
+            if ((!includesMainMethod && TOP_LEVEL_METHOD.matcher(code).find())
+                    || TOP_LEVEL_NON_CLASS_TYPE.matcher(code).find()
+                    || Pattern.compile("(?m)^\\\\s*package\\\\s+").matcher(code).find()) {
+                return new RunResult("COMPILE_ERROR",
+                        "当前是方法、类型或 package 声明片段，不能直接作为语句运行",
+                        "", "", -1, System.currentTimeMillis() - start,
+                        "这段示例不是可直接运行的语句。请补充完整类与 main 方法后再运行");
+            }
+            code = wrapRunnableSnippet(code);
+            className = "SnippetMain";
         }
 
         Path workDir = null;
@@ -248,6 +260,29 @@ public class CodeRunnerService {
         } finally {
             deleteRecursively(workDir);
         }
+    }
+
+    /** Make statement-only lesson examples executable without changing the editor text. */
+    private String wrapRunnableSnippet(String snippet) {
+        StringBuilder imports = new StringBuilder();
+        StringBuilder body = new StringBuilder();
+        for (String line : snippet.split("\\\\n", -1)) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("import ") && trimmed.endsWith(";")) {
+                imports.append(line).append('\\n');
+            } else {
+                body.append(line).append('\\n');
+            }
+        }
+
+        StringBuilder source = new StringBuilder(imports).append("public class SnippetMain {\\n");
+        if (MAIN_METHOD.matcher(body).find()) {
+            source.append(body).append("}\\n");
+        } else {
+            source.append("    public static void main(String[] args) throws Exception {\\n")
+                    .append(body).append("    }\\n}\\n");
+        }
+        return source.toString();
     }
 
     // ------------------------------------------------------------------

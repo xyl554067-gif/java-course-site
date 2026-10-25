@@ -54,7 +54,43 @@ public class PostgresDatabaseBootstrap implements ApplicationRunner {
             }
 
             normalizeSeededCodeNewlines(connection);
+            applyEnhancedLessonContent(connection);
         }
+    }
+
+    /**
+     * Upgrade the hosted PostgreSQL built-in lesson text once to match the complete local course.
+     * A migration marker prevents later restarts from replacing edits made after this upgrade.
+     */
+    private void applyEnhancedLessonContent(Connection connection) throws Exception {
+        if (!tableExists(connection, "lesson")) {
+            return;
+        }
+        try (var statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE IF NOT EXISTS app_schema_migration ("
+                    + "version VARCHAR(120) PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+        }
+
+        String version = "2026-10-23-enhanced-lesson-content";
+        try (var statement = connection.prepareStatement(
+                "SELECT 1 FROM app_schema_migration WHERE version = ?")) {
+            statement.setString(1, version);
+            try (var result = statement.executeQuery()) {
+                if (result.next()) {
+                    return;
+                }
+            }
+        }
+
+        log.info("Applying enhanced default lesson content to PostgreSQL");
+        ScriptUtils.executeSqlScript(connection,
+                new EncodedResource(new ClassPathResource("db/seed-content-enhanced.sql")));
+        try (var statement = connection.prepareStatement(
+                "INSERT INTO app_schema_migration(version) VALUES (?) ON CONFLICT (version) DO NOTHING")) {
+            statement.setString(1, version);
+            statement.executeUpdate();
+        }
+        log.info("Enhanced default lesson content migration completed");
     }
 
     /** Repairs existing seed rows written with literal backslash-n by PostgreSQL standard strings. */
