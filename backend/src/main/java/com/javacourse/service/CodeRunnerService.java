@@ -206,6 +206,8 @@ public class CodeRunnerService {
                     "-J-Dstdout.encoding=UTF-8",
                     "-J-Dstderr.encoding=UTF-8",
                     "-encoding", "UTF-8",
+                    "-proc:none",
+                    "-g:none",
                     "-nowarn",
                     "-d", clsDir.toString(),
                     srcFile.toString());
@@ -513,3 +515,4 @@ public class CodeRunnerService {
         return m == null ? c.getClass().getSimpleName() : m;
     }
 }
+
