@@ -1,25 +1,6 @@
+-- Java 课程的内置课时正文
+-- 本脚本仅更新 lesson.content。
 -- ============================================================================
--- Java 课程介绍网站 — 课时正文增强内容（基于 ima「Java江湖」知识库校准）
--- ----------------------------------------------------------------------------
--- 说明：
---   本脚本只更新 lesson.content，不改动表结构与其他字段。
---   原始 seed.sql 保留初始内容，两者可叠加执行（后者覆盖正文）。
---
---   正文结构：
---     ## 本节要点 / ## 核心概念 / ## 关键代码 / ## 常见误区 /
---     ## 动手练习 / ## 延伸阅读（来自「Java江湖」知识库）
---   「延伸阅读」段落标注了每个知识点对应的知识库资料，便于溯源与后续更新。
---
---   字符说明：GBK 字符集不含少数字符（如 U+2212 −、U+2714 ✔、emoji），
---   已统一替换为语义等价的 ASCII/GBK 字符，保证在 oracle 兼容模式下也能完整落库。
---
--- 生成方式：scripts/export_content_seed.py（从运行中的库导出）
--- ============================================================================
-
-BEGIN;
-
-
--- hello-world
 UPDATE lesson SET content = '## 本节要点  认识 JDK、编译与运行，一分钟跑起你的第一个程序。    ## 核心概念  - JDK、JRE、JVM 三者的包含关系  - 源码到运行：javac 编译与 java 执行  - 为什么 Java 能跨平台    ## 关键代码  ```  public class HelloWorld {      public static void main(String[] args) {          System.out.println("Hello, Java!");      }  }  ```    > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。    ## 常见误区  - [''以为 JDK、JRE、JVM 是三选一，实际上是层层包含'', ''编译和运行用的是不同命令：javac 编译，java 运行'']    ## 动手练习  新建一个目录，用记事本写 HelloWorld.java，用 javac 编译后用 java 运行，亲眼看到 .class 文件是怎么生成的。  ' WHERE slug = 'hello-world';
 
 -- variables-and-types
@@ -91,17 +72,16 @@ int bin = 0b1010;
 
 写一个程序验证 Integer 缓存边界、`0.1 + 0.2` 的精度问题，以及 char 与 emoji 的存储差异。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 Java 基础篇》《面渣逆袭Java基础篇V2.0（暗黑）》《面试题-01-Java基础知识面试题》《二哥修订版《30天速通Java》暗黑版》《Java编程思想第四版》对本节有完整覆盖。
 
 **基本类型与包装类型的对应**
 
-《面试题-01-Java基础知识面试题》的「基础语法 → 数据类型」部分给出了完整对照，并强调 Java 早期版本包装类型是为「一切皆对象」的纯粹性做的妥协——实际上基本类型无法参与泛型、无法作为集合元素的高效存储。
+基本类型无法参与泛型、无法作为集合元素的高效存储。
 
 **Integer 缓存的精确范围**
 
-《面渣逆袭Java基础篇V2.0（暗黑）》与《面渣逆袭 Java 基础篇》都指出缓存范围是 **-128 到 127**，并说明其来源：`Integer.valueOf` 源码里有一个 `Integer[] cache` 静态数组在类加载时初始化。
+缓存范围是 **-128 到 127**。实现上，`Integer.valueOf` 源码里有一个 `Integer[] cache` 静态数组在类加载时初始化。
 
 关键结论：
 
@@ -113,11 +93,11 @@ i1 == i3;              // false —— new 绕过缓存
 i1.equals(i3);         // true  —— equals 比值
 ```
 
-书中还指出 `Integer.valueOf` 与 `new Integer` 的性能差异——前者能复用缓存对象，后者每次都分配新对象（且 `new Integer` 在 JDK 9 已 deprecated，JDK 16 移除）。
+`Integer.valueOf` 与 `new Integer` 的性能差异——前者能复用缓存对象，后者每次都分配新对象（且 `new Integer` 在 JDK 9 已 deprecated，JDK 16 移除）。
 
 **自动装箱的性能代价**
 
-《面渣逆袭 Java 基础篇》强调装箱不是免费的：
+装箱不是免费的：
 
 - 每个装箱都会 `new` 一个对象（除非命中缓存）
 - 在循环里装箱会产生大量短命对象，增加 GC 压力
@@ -135,13 +115,13 @@ for (int i = 0; i < 1000000; i++) sum += i;
 
 **浮点数精度问题**
 
-《面渣逆袭 Java 基础篇》与《二哥修订版《30天速通Java》暗黑版》都解释了 `0.1 + 0.2 != 0.3` 的原因：
+`0.1 + 0.2 != 0.3` 的原因：
 
 0.1 在二进制中是**无限循环小数**，double 用 52 位尾数只能近似存储。因此 `0.1` 的实际值略大于 1/10，`0.2` 略大于 2/10，两者相加后不等于 0.3 的实际值。
 
 **BigDecimal 的正确用法**
 
-书中特别强调构造方式：
+构造方式：
 
 ```java
 new BigDecimal(0.1);      // 错 —— double 的二进制误差被带入
@@ -149,11 +129,11 @@ new BigDecimal("0.1");    // 对 —— 从字符串精确解析
 BigDecimal.valueOf(0.1);  // 对 —— 内部走 Double.toString
 ```
 
-还提到 BigDecimal 的比较要用 `compareTo` 而非 `equals`——`equals` 会额外比较 scale（`1.0` 与 `1.00` 用 equals 不相等，用 compareTo 相等）。
+BigDecimal 的数值比较要用 `compareTo` 而非 `equals`——`equals` 会额外比较 scale（`1.0` 与 `1.00` 用 equals 不相等，用 compareTo 相等）。
 
 **char 与 Unicode**
 
-《面渣逆袭Java基础篇V2.0（暗黑）》指出：
+
 
 - `char` 是 UTF-16 的**码元（code unit）**，16 位
 - 基本多文种平面（BMP）内的字符（如常用汉字）用一个 char 够
@@ -167,7 +147,7 @@ System.out.println("".length());   // 2
 
 **类型提升规则**
 
-《面试题-01》给出了运算中的自动转换规则：
+运算中的自动转换规则：
 
 - 字节、短整型、字符型 → 整型（byte + byte → int）
 - 整型 + 短整型 → 整型
@@ -179,7 +159,7 @@ System.out.println("".length());   // 2
 
 **字面量的八进制与十六进制陷阱**
 
-《面渣逆袭 Java 基础篇》指出一个经典 bug：
+一个经典 bug：
 
 ```java
 int a = 010;      // 八进制！= 8
@@ -191,7 +171,7 @@ int c = 0x1F;     // 十六进制 = 31
 
 **字符串常量池**
 
-《二哥的 Java 进阶之路暗黑版》指出字符串常量池是**运行期**数据结构，位于堆中（JDK 7 起从永久代移到堆）。字面量 `"abc"` 会进池，`new String("abc")` 不会——这解释了 `==` 与 `equals` 的差异：
+字符串常量池是**运行期**数据结构，位于堆中（JDK 7 起从永久代移到堆）。字面量 `"abc"` 会进池，`new String("abc")` 不会——这解释了 `==` 与 `equals` 的差异：
 
 ```java
 String s1 = "abc";
@@ -204,7 +184,7 @@ s1.equals(s3);  // true
 
 **编译期常量折叠**
 
-《二哥的 Java 进阶之路》指出 `static final` 的基本类型/String 常量会在编译期直接内联到使用处：
+`static final` 的基本类型/String 常量会在编译期直接内联到使用处：
 
 ```java
 static final int MAX = 100;
@@ -337,13 +317,12 @@ Double.compare(0.1 + 0.2, 0.3) != 0;   // 正确
 
 写一个程序验证短路求值的效果（右侧不执行），并用位运算实现「判断 2 的幂」与「反转整数的二进制位」。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 Java 基础篇》《面渣逆袭Java基础篇V2.0（暗黑）》《面试题-01-Java基础知识面试题》《二哥修订版《30天速通Java》暗黑版》《java实战演练35讲》对本节有覆盖。
 
 **运算符优先级表**
 
-《面渣逆袭 Java 基础篇》给出了完整优先级（从高到低）：
+完整优先级（从高到低）：
 
 | 优先级 | 运算符 | 结合性 |
 | --- | --- | --- |
@@ -361,11 +340,11 @@ Double.compare(0.1 + 0.2, 0.3) != 0;   // 正确
 | 12 | `? :` | 右结合 |
 | 13 | 赋值类 | 右结合 |
 
-**实践建议**：不要依赖优先级，用括号显式表达意图。这条建议在《二哥修订版《30天速通Java》暗黑版》中被反复强调——「表达式中少用运算符优先级，多用括号」。
+**实践建议**：不要依赖优先级，用括号显式表达意图。
 
 **短路求值的实用价值**
 
-《面渣逆袭 Java 基础篇》指出短路最常见的用途是**安全访问**：
+短路最常见的用途是**安全访问**：
 
 ```java
 // 先判空再访问，避免 NPE
@@ -384,13 +363,13 @@ if (list != null && !list.isEmpty() && list.get(0).equals("x")) { }
 
 **整数除法与取模**
 
-《面渣逆袭Java基础篇V2.0（暗黑）》给出的精确规则：
+精确规则：
 
 - 整数除法**向零取整**（不是向下取整）：`-7 / 2 == -3`
 - 取模结果符号跟随**被除数**：`-7 % 2 == -1`
 - 这两个规则组合起来，使得 `a % b` 的结果与 `a` 同号，且 `|a % b| < |b|`
 
-《java实战演练35讲》里有一灰灰 blog 的实战技巧：
+实战技巧：
 
 ```java
 // 取模的常见用途：判断闰年
@@ -403,7 +382,7 @@ long abs = i < 0 ? -(long) i : i;   // 注意先转 long
 
 **位运算的工程用途**
 
-《二哥修订版《30天速通Java》暗黑版》与《java实战演练35讲》都列举了位运算的实际场景：
+位运算的实际场景：
 
 ```java
 // 1. 判断奇偶（比 % 2 更快）
@@ -428,7 +407,7 @@ n &= ~flag;                // 清位
 
 **移位运算符的细节**
 
-《面渣逆袭 Java 基础篇》与《面试题-01》都强调 `>>` 与 `>>>` 的区别：
+`>>` 与 `>>>` 的区别：
 
 ```java
 -8 >> 1;      // -4   算术右移，高位补符号位 1
@@ -441,7 +420,7 @@ n &= ~flag;                // 清位
 
 **浮点数比较**
 
-《面渣逆袭 Java 基础篇》建议：
+
 
 ```java
 // 错误
@@ -454,7 +433,7 @@ if (Double.compare(d1, d2) == 0) { }
 
 **三元运算符与短路**
 
-《二哥修订版《30天速通Java》暗黑版》指出三目运算符本质上是**短路**的——只会求值被选中的那个分支，这让它可以安全地做「惰性求值」：
+三目运算符本质上是**短路**的——只会求值被选中的那个分支，这让它可以安全地做「惰性求值」：
 
 ```java
 // 只有 flag 为 true 时才调用 expensive()
@@ -463,7 +442,7 @@ String s = flag ? expensive() : null;
 
 **复合赋值的隐式强转**
 
-《面渣逆袭 Java 基础篇》指出一个易错点：
+一个易错点：
 
 ```java
 byte b = 10;
@@ -489,7 +468,7 @@ BigDecimal result = amount.divide(count, 2, RoundingMode.HALF_UP);
 
 **位运算的适用边界**：只在**性能敏感的热点路径**或**位图/状态压缩**场景使用。普通业务代码用位运算会显著降低可读性，收益却很有限——现代 JIT 对 `n % 2` 与 `n & 1` 的优化几乎无差别。
 
-**switch 与运算符配合**：《java实战演练35讲》里提到用位运算做状态压缩的经典模式：
+**switch 与运算符配合**：用位运算做状态压缩的经典模式：
 
 ```java
 // 用一个 int 表示 32 个开关
@@ -602,13 +581,12 @@ it.forEachRemaining(System.out::println);
 
 用 switch 表达式实现一个"计算器"，用标签循环在二维数组中查找第一个负数并输出其坐标。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 Java 基础篇》《二哥修订版《30天速通Java》暗黑版》《面试题-01-Java基础知识面试题》《二哥的 Java 进阶之路暗黑版》对本节有覆盖。
 
 **switch 表达式相比传统 switch 的改进**
 
-《二哥修订版《30天速通Java》暗黑版》指出 switch 表达式（JDK 14+）解决了传统 switch 的三个痛点：
+switch 表达式（JDK 14+）解决了传统 switch 的三个痛点：
 
 | 问题 | 传统 switch | switch 表达式 |
 | --- | --- | --- |
@@ -620,7 +598,7 @@ it.forEachRemaining(System.out::println);
 
 **模式匹配的演进**
 
-《二哥的 Java 进阶之路暗黑版》与《二哥修订版《30天速通Java》暗黑版》梳理了 Java 模式匹配的三个阶段：
+Java 模式匹配的三个阶段：
 
 ```java
 // Java 16 之前：必须强转 + 先判空
@@ -642,7 +620,7 @@ switch (obj) {
 }
 ```
 
-**《面试题-01-Java基础知识面试题》的高频 switch 问题**
+### 高频 switch 问题
 
 同一份资料把 switch 的考点集中在：
 
@@ -653,7 +631,7 @@ switch (obj) {
 
 **标签（label）的用法**
 
-《面渣逆袭 Java 基础篇》与《二哥修订版《30天速通Java》暗黑版》都给出了标签的规范用法：
+标签的规范用法：
 
 ```java
 search:
@@ -672,7 +650,7 @@ for (int i = 0; i < n; i++) {
 
 **do-while 的适用场景**
 
-《二哥修订版《30天速通Java》暗黑版》指出 do-while 的核心价值是「**保证至少执行一次**」：
+do-while 的核心价值是「**保证至少执行一次**」：
 
 ```java
 // 典型：菜单循环
@@ -692,7 +670,7 @@ do {
 
 **增强 for 的实现与陷阱**
 
-《面渣逆袭 Java 基础篇》指出增强 for 的限制：
+增强 for 的限制：
 
 ```java
 // 编译为
@@ -709,13 +687,13 @@ while (it.hasNext()) {
 - 不能在增强 for 中调用 `iterator.remove()` 之外的方式删除
 - 需要删除时用 `removeIf` 或显式迭代器
 
-**《Effective Java》第 47 条：不要用异常控制流程**
+### 不要用异常控制流程
 
-书中以「switch 转 switch」为例说明——把一个 switch 重写成另一个 switch 只是为了「统一代码风格」，这类改动没有价值且引入风险。
+以「switch 转 switch」为例说明——把一个 switch 重写成另一个 switch 只是为了「统一代码风格」，这类改动没有价值且引入风险。
 
-**《Effective Java》第 68 条与循环中的 break**
+### 循环中的 break
 
-书中提到一个性能细节：在循环中用 `break` 跳出比用条件判断 `return` 更快，因为 `break` 能让 JIT 更容易做循环优化。但这个差异通常不值得为此改变代码结构。
+一个性能细节：在循环中用 `break` 跳出比用条件判断 `return` 更快，因为 `break` 能让 JIT 更容易做循环优化。但这个差异通常不值得为此改变代码结构。
 
 ## 实战提示
 
@@ -857,19 +835,18 @@ int[] evens = Arrays.stream(nums).filter(n -> n % 2 == 0).toArray();
 
 实现一个二维数组的矩阵乘法，并对比用三重循环与用 Stream 的可读性差异。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Java编程思想第四版》《面渣逆袭 Java 基础篇》《二哥修订版《30天速通Java》暗黑版》《面试题-01-Java基础知识面试题》《hello-algo_1.2.0_zh_java.pdf》对本节有覆盖。
 
-**《Java编程思想第四版》第 8 章：数组**
+### 数组
 
-这本书把数组与「类型安全」作为核心议题，指出 Java 数组的最大特点是**类型安全且自动检查**（对比 C/C++）：
+Java 数组的最大特点是**类型安全且自动检查**（对比 C/C++）：
 
 - 数组只能是单一类型的对象或基本类型
 - 编译器确保数组里装的元素类型正确
 - 但数组**不是泛型**——`List<int>` 非法，只能用 `List<Integer>`
 
-书中指出数组的**协变**特性：
+数组的**协变**特性：
 
 ```java
 Object[] objects = new String[2];   // 合法
@@ -878,18 +855,18 @@ objects[0] = new Integer(1);        // 运行时 ArrayStoreException
 
 **为什么会有协变**：Java 的类型转换规则允许子类数组向上转型为父类数组（类似协变返回类型），代价是失去了编译期的完全检查。
 
-**《Java编程思想第四版》第 11 章：数组的初始化**
+### 数组的初始化
 
-书中指出「数组本质上就是一组相同类型的变量」，而**基本类型数组与对象数组的内存布局不同**：
+「数组本质上就是一组相同类型的变量」，而**基本类型数组与对象数组的内存布局不同**：
 
 - `int[]`：连续存放 int 值，无对象头
 - `Integer[]`：连续存放**引用**，每个 Integer 对象另占内存
 
-因此在处理大量数字时，`int[]` 比 `Integer[]` 省内存得多。书中给出的替代方案是 `ArrayList` 的特化版本 `IntArrayList`（Guava 提供）。
+因此在处理大量数字时，`int[]` 比 `Integer[]` 省内存得多。替代方案是 `ArrayList` 的特化版本 `IntArrayList`（Guava 提供）。
 
 **可变参数的实现**
 
-《面渣逆泽 Java 基础篇》与《二哥修订版《30天速通Java》暗黑版》指出：
+
 
 ```java
 void f(int... args) { }
@@ -901,7 +878,7 @@ void f(int[] args) { }
 
 **Arrays 工具类**
 
-《java实战演练35讲》与《二哥修订版《30天速通Java》暗黑版》都强调两个常用方法：
+两个常用方法：
 
 ```java
 // 二分查找：前提是已排序
@@ -913,9 +890,9 @@ int i = Arrays.binarySearch(arr, 7);      // 3
 int[] bigger = Arrays.copyOf(arr, 10);    // 后 5 个为 0
 ```
 
-**《hello-algo》对数组的定位**
+### 对数组的定位
 
-《hello-algo_1.2.0_zh_java》（算法教程）把数组定位为「最基础的数据结构」，并强调：
+
 
 - 数组元素在内存中**连续存放**，支持随机访问（O(1)）
 - 但「在中间插入/删除」需要移动后续元素，代价 O(n)
@@ -925,7 +902,7 @@ int[] bigger = Arrays.copyOf(arr, 10);    // 后 5 个为 0
 
 **数组排序**
 
-《面渣逆袭 Java 基础篇》指出 `Arrays.sort` 对基本类型与对象的行为不同：
+`Arrays.sort` 对基本类型与对象的行为不同：
 
 ```java
 int[] nums = {5, 2, 8};
@@ -940,7 +917,7 @@ Arrays.sort(names, (a, b) -> a.length() - b.length());   // 自定义比较器
 
 **数组的浅拷贝问题**
 
-《面渣逆袭Java基础篇V2.0（暗黑）》指出：
+
 
 ```java
 int[][] matrix = {{1, 2}, {3, 4}};
@@ -951,7 +928,7 @@ System.out.println(matrix[0][0]); // 99 —— 内层数组是共享的
 
 深拷贝需要逐层克隆或用 `Arrays.deepToString` / `deepEquals` 系列方法。
 
-**《面试题-01-Java基础知识面试题》的数组考点**
+### 数组考点
 
 同一份资料把数组相关的考点归纳为：
 
@@ -965,7 +942,7 @@ System.out.println(matrix[0][0]); // 99 —— 内层数组是共享的
 
 **数组与集合的转换**
 
-《二哥修订版《30天速通Java》暗黑版》与《面渣逆袭 Java 基础篇》给出双向转换：
+双向转换：
 
 ```java
 // 数组 → List
@@ -1143,23 +1120,22 @@ String sql = """
 
 写一个程序验证常量池行为、`split` 的边界差异，以及用 StringBuilder 与 `+=` 拼接 10 万次字符串的耗时差距。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Java编程思想第四版》《面渣逆袭 Java 基础篇》《二哥修订版《30天速通Java》暗黑版》《java实战演练35讲》《面试题-01-Java基础知识面试题》对本节有详细覆盖。
 
-**《Java编程思想第四版》第 13 章：字符串**
+### 字符串
 
-这本书把 String 列为「不可变对象」的经典范例，并指出不可变性的三个好处：
+String 是不可变对象。不可变性的三个好处：
 
 1. **可以安全共享**：多个线程可以同时访问同一个 String
 2. **可以安全缓存**：String 的 hashCode 被缓存
 3. **线程安全**：没有可变状态，不需要同步
 
-书中强调「不可变对象是安全的默认选择」——只有在性能确有必要时才考虑可变版本。
+「不可变对象是安全的默认选择」——只有在性能确有必要时才考虑可变版本。
 
 **字符串常量池的运行期机制**
 
-《面渣逆袭 Java 基础篇》与《二哥的 Java 进阶之路暗黑版》都详细讲了常量池：
+字符串常量池：
 
 ```java
 String s1 = "hello";
@@ -1168,11 +1144,11 @@ String s3 = new String("hello");  // 运行期 new，不进池
 String s4 = s3.intern();    // 运行期把 s3 的内容放进池，返回池引用
 ```
 
-书中强调 JDK 7 起的**重要变化**：字符串常量池从**永久代移到了堆**中，理由是永久代空间有限且难以调优（`String` 数量多容易 OOM）。这带来一个好处——堆 dumps 时能直接看到字符串。
+JDK 7 起的**重要变化**：字符串常量池从**永久代移到了堆**中，理由是永久代空间有限且难以调优（`String` 数量多容易 OOM）。这带来一个好处——堆 dumps 时能直接看到字符串。
 
 **字符串拼接的编译期优化**
 
-《二哥修订版《30天速通Java》暗黑版》给出的结论：
+结论：
 
 | 写法 | 编译后 |
 | --- | --- |
@@ -1181,11 +1157,11 @@ String s4 = s3.intern();    // 运行期把 s3 的内容放进池，返回池引
 | `s + var + s2` | 编译为 `StringBuilder`，只创建一次 |
 | `s += var` | 编译为 `new StringBuilder().append(s).append(var)` |
 
-书中同时指出 **JDK 9+ 的 indy 字符串拼接优化**：JEP 280 用 `invokedynamic` + `StringConcatFactory` 替代了 `StringBuilder` 方案，生成的字节码更小、在 JIT 优化下能生成更高效的拼接代码。
+**JDK 9+ 的 indy 字符串拼接优化**：JEP 280 用 `invokedynamic` + `StringConcatFactory` 替代了 `StringBuilder` 方案，生成的字节码更小、在 JIT 优化下能生成更高效的拼接代码。
 
 **StringBuilder vs StringBuffer**
 
-《Java编程思想第四版》给出的对比：
+对比：
 
 | | StringBuilder | StringBuffer |
 | --- | --- | --- |
@@ -1193,11 +1169,11 @@ String s4 = s3.intern();    // 运行期把 s3 的内容放进池，返回池引
 | 性能 | 更快 | 有锁开销 |
 | 适用 | 单线程（几乎总是） | 确实需要多线程共享 |
 
-书中明确指出：**几乎所有情况下都用 StringBuilder**，因为 StringBuffer 的同步开销只有在真正多线程共享同一个实例时才有意义，而这种场景本身就很罕见。
+**几乎所有情况下都用 StringBuilder**，因为 StringBuffer 的同步开销只有在真正多线程共享同一个实例时才有意义，而这种场景本身就很罕见。
 
-**《java实战演练35讲》的 String.format 性能陷阱**
+### String.format 性能陷阱
 
-一灰灰 blog 在实战中指出：
+实战要点：
 
 ```java
 // 循环里用 String.format —— 每次都解析格式串，很慢
@@ -1212,7 +1188,7 @@ for (int i = 0; i < 10000; i++) {
 
 **正则表达式的编译**
 
-《面试题-01-Java基础知识面试题》与《二哥修订版《30天速通Java》暗黑版》都提醒：
+
 
 ```java
 // 每次调用都重新编译正则 —— 浪费
@@ -1225,7 +1201,7 @@ boolean matches = NUM.matcher(input).matches();
 
 **split 的实现细节**
 
-《面渣逆袭 Java 基础篇》指出 `String.split` 的两个坑：
+`String.split` 的两个坑：
 
 ```java
 "a,b,,".split(",");        // → ["a", "b"]   末尾空串被丢弃
@@ -1237,7 +1213,7 @@ boolean matches = NUM.matcher(input).matches();
 
 **String 的其他实用方法**
 
-《java实战演练35讲》与《二哥修订版《30天速通Java》暗黑版》列举了高频方法：
+高频方法：
 
 ```java
 s.isBlank();                   // Java 11+，只含空白字符
@@ -1251,7 +1227,7 @@ String.valueOf(65);            // 转字符串
 
 **字符串与字符数组**
 
-《面渣逆袭 Java 基础篇》指出 `char` 与 `String` 的转换：
+`char` 与 `String` 的转换：
 
 ```java
 char c = ''a'';
@@ -1261,9 +1237,9 @@ String s3 = new String(new char[]{''a'',''b''});   // 从字符数组建字符�
 char[] chars = s.toCharArray();
 ```
 
-**《Effective Java》第 68 条：不要依赖 String 的 intern**
+### 不要依赖 String 的 intern
 
-《Effective Java》中文第二版（在知识库中）专门讲了 `intern`：
+`intern()` 的行为：
 
 - `intern` 的行为在 JDK 6 与 JDK 7 之间**发生过重大变化**
 - JDK 6 中 intern 会把字符串副本放进永久代，需要复制内容；JDK 7 改为直接引用池中对象
@@ -1399,13 +1375,12 @@ static int sum(int n, int acc) {
 
 写一个方法接收 List<Integer> 并原地排序，再写一个返回新 List 的版本，对比两者的语义差异与调用方感受。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 Java 基础篇》《面渣逆袭Java基础篇V2.0（暗黑）》《二哥修订版《30天速通Java》暗黑版》《Effective+Java+中文第二版》《面试题-01-Java基础知识面试题》对本节有完整覆盖。
 
 **Java 只有值传递**
 
-《面渣逆袭 Java 基础篇》与《Effective Java》第 53 条都强调这一点，很多教材说"Java 是引用传递"是**不准确的**。
+Java 的参数传递统一采用值传递。
 
 准确的说法：传递的是**引用值的拷贝**。因此：
 
@@ -1424,11 +1399,11 @@ static void change(Person p) {
 }
 ```
 
-《Effective Java》中把这种「引用值的拷贝」比作 **C++ 的引用**与 **Pascal 的指针**，但强调 Java 的差别在于**不能重新赋值**（Java 没有 `var x: T` 这样的引用形参语法）。
+Java 的差别在于**不能重新赋值**（Java 没有 `var x: T` 这样的引用形参语法）。
 
-**《Effective Java》第 51 条 / 第 52 条：方法签名与可变参数**
+### 方法签名与可变参数
 
-《Effective Java》给出的签名规则：
+签名规则：
 
 - **不要修改已发布 API 的方法签名**——包括参数类型、顺序、名称、返回值
 - **不要返回数组**——应该返回 List 或集合（数组可变，调用方能改坏内部状态）
@@ -1445,7 +1420,7 @@ arr[0] = 99;    // foo 内部看到的值也变了
 
 **重载与重写的判定**
 
-《面渣逆袭 Java 基础篇》给出的判定方法：
+判定方法：
 
 | | 重载 | 重写 |
 | --- | --- | --- |
@@ -1457,9 +1432,9 @@ arr[0] = 99;    // foo 内部看到的值也变了
 
 一个常见陷阱：**子类中定义了与父类同名但参数不同的方法，那不是重写而是重载**，且会「遮蔽」父类的同名方法。
 
-**《Effective Java》第 52 条：可变参数的防御性拷贝**
+### 可变参数的防御性拷贝
 
-书中给出的安全写法：
+安全写法：
 
 ```java
 static void foo(int... args) {
@@ -1470,7 +1445,7 @@ static void foo(int... args) {
 
 **尾递归与栈溢出**
 
-《面渣逆袭Java基础篇V2.0（暗黑）》指出 Java **不做尾递归优化**，所以尾递归同样会消耗栈帧：
+Java **不做尾递归优化**，所以尾递归同样会消耗栈帧：
 
 ```java
 // 深度 10000 的递归 → StackOverflowError
@@ -1480,7 +1455,7 @@ static int sum(int n, int acc) {
 }
 ```
 
-书中的建议是把递归改写成循环：
+可以把递归改写成循环：
 
 ```java
 static int sumIterative(int n) {
@@ -1490,9 +1465,9 @@ static int sumIterative(int n) {
 }
 ```
 
-**《Effective Java》第 4 条：不要设计长度为 0 的方法**
+### 不要设计长度为 0 的方法
 
-书中建议用静态工厂方法替代返回 null 的方法：
+用静态工厂方法替代返回 null 的方法：
 
 ```java
 // 不推荐
@@ -1507,7 +1482,7 @@ static Person findById(String id) {
 
 **方法引用与 Lambda 的等价性**
 
-《二哥修订版《30天速通Java》暗黑版》给出了对照：
+对照：
 
 ```java
 // 三者等价
@@ -1525,9 +1500,9 @@ BiFunction<String, String, Boolean> f2 = String::equals;      // 实例方法引
 Function<String, Integer> f3 = Integer::parseInt;            // 静态方法引用
 ```
 
-**《Effective Java》第 58 条：局部变量作用域最小化**
+### 局部变量作用域最小化
 
-书中给出的实践：
+实践：
 
 ```java
 // 不好：变量作用域过大
@@ -1543,7 +1518,7 @@ for (int i = 0; i < list.size(); i++) {
 }
 ```
 
-**《面试题-01-Java基础知识面试题》的方法相关考点**
+### 方法相关考点
 
 - 方法重载与重写的区别
 - Java 的参数传递机制（值传递）
@@ -1554,7 +1529,7 @@ for (int i = 0; i < list.size(); i++) {
 
 ## 实战提示
 
-**返回值设计的建议**（Effective Java 第 7 条）：
+**返回值设计的建议**：
 
 | 需求 | 返回 |
 | --- | --- |
@@ -1563,9 +1538,9 @@ for (int i = 0; i < list.size(); i++) {
 | 集合 | 返回 `List`/`Set`，不要返回数组 |
 | 布尔 | 直接返回 boolean，不要返回 Boolean |
 
-**方法长度的建议**（Effective Java 第 43 条）：方法应短小、职责单一。一个好用的检验标准是——**如果方法需要用注释来解释「哪几步在做什么」，就该拆分了**。
+**方法长度的建议**：方法应短小、职责单一。一个好用的检验标准是——**如果方法需要用注释来解释「哪几步在做什么」，就该拆分了**。
 
-**不要返回数组**（Effective Java 第 52 条）：
+**不要返回数组**：
 
 ```java
 // 不好：调用方能改坏内部状态
@@ -1637,18 +1612,16 @@ final class Period {
 
 实现一个不可变的 `Money` 类（金额 + 币种），重写 equals/hashCode，放入 HashSet 验证去重与查找。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Effective+Java+中文第二版》《二哥的 Java 进阶之路暗黑版》《面渣逆袭 Java 基础篇》《深入浅出Java+23种设计模式》对本节原则有系统论述。
 
-**Effective Java 第 3 条：永远不要覆盖 equals 和 hashCode**
+### equals 与 hashCode 的契约
 
-《Effective Java 中文第二版》共 57 条经验规则，第 3 条专门讲这件事。核心结论：
 
 - 覆盖 equals 时**必须同时覆盖 hashCode**，否则违反 hashCode 契约
-- 唯一的例外是**不可变对象**——因为它的哈希码计算结果不会变
+- 不可变对象同样遵循此契约：两个相等的对象必须返回相同的哈希码。
 
-书中给出的「equals 的实现套路」（Effective Java 第 3 条 + 第 12 条）：
+「equals 的实现套路」：
 
 ```java
 @Override
@@ -1662,17 +1635,17 @@ public boolean equals(Object o) {
 
 **为什么 instanceof 而不是 getClass()**
 
-《Effective Java》第 12 条（覆写 equals 时请遵循约定）与《二哥的 Java 进阶之路》都讨论了这个细节：
+这个细节：
 
 - `instanceof` 允许**子类与父类对称**（对称性）
 - `getClass() != o.getClass()` 严格相等，破坏了「父类引用指向子类对象」时的对称性
 - 但 `instanceof` 有个坑：若父类是可变的、且有额外字段，子类只比较父类字段就会漏判
 
-书中给出的最佳实践：**把类设计成 final，或者把 equals 声明为 final**，避免子类破坏契约。
+最佳实践：**把类设计成 final，或者把 equals 声明为 final**，避免子类破坏契约。
 
-**Effective Java 第 17 条：使对象不可变**
+**使对象不可变**
 
-《Effective Java 中文第二版》给出了不可变对象的五条设计准则：
+不可变对象的五条设计准则：
 
 1. 不要修改可观察到的对象状态
 2. 不要暴露内部可观察到的状态
@@ -1680,7 +1653,7 @@ public boolean equals(Object o) {
 4. 不要让被访问的字段成为可变对象
 5. 若类不可变，则所有可变组件的访问器都必须返回防御性拷贝
 
-**第 4 条与第 5 条的实用价值**：
+**控制对象的创建与复用**：
 
 ```java
 // 不可变类中持有可变字段时
@@ -1693,31 +1666,31 @@ public List<String> items() { return items; }
 public List<String> items() { return List.copyOf(items); }
 ```
 
-**第 13 条：避免使用可变对象作为字段**
+**避免使用可变对象作为字段**
 
-《Effective Java》第 13 条讨论了可变对象作为静态字段的风险：若可变对象被用作静态字段，它的状态会被整个 JVM 共享，任何线程都能修改它。书中建议：
+可变对象作为静态字段的风险：若可变对象被用作静态字段，它的状态会被整个 JVM 共享，任何线程都能修改它。
 
 - 不可变对象可安全共享
 - 可变对象应尽量限制为**单个线程**使用
 
-**Effective Java 第 15 条 / 第 16 条：防御性拷贝**
+**防御性拷贝**
 
-书中强调：即使类的组件是不可变的，把**可变对象**传入构造器或从方法返回时，仍应考虑防御性拷贝——因为我们无法保证调用方不会持有并修改那个引用。
+即使类的组件是不可变的，把**可变对象**传入构造器或从方法返回时，仍应考虑防御性拷贝——因为我们无法保证调用方不会持有并修改那个引用。
 
 **静态工厂方法的优势**
 
-《Effective Java》第 2 条（考虑用静态工厂方法替代构造器）列举了静态工厂的四个优势：
+静态工厂的四个优势：
 
 1. **可以有清晰的名字**——构造器只能与类同名
 2. **可以返回缓存实例**——`Integer.valueOf` 复用 -128~127 的缓存
 3. **可以返回子类型**——构造器做不到
 4. **可以绕过构造器的参数限制**——私有构造器 + 静态工厂可控制实例化
 
-《二哥的 Java 进阶之路》也提到 `valueOf` 的缓存机制。
+`valueOf` 的缓存机制。
 
 **不可变对象与享元模式**
 
-《深入浅出Java+23种设计模式》中的享元模式（Flyweight）与不可变对象天然契合：把可共享的部分做成不可变并共享，把不可共享的状态作为外部参数传入。《二哥的 Java 进阶之路》与《Effective Java》都提到 String 内部就是享元模式的经典实现。
+享元模式（Flyweight）与不可变对象天然契合：把可共享的部分做成不可变并共享，把不可共享的状态作为外部参数传入。String 内部就是享元模式的经典实现。
 
 ## 实战提示
 
@@ -1813,19 +1786,18 @@ class Car {
 
 用继承实现 `Animal → Dog / Cat`，再用组合重写同一个需求，对比两种方案在需求变更时的改动量。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Effective+Java+中文第二版》《深入浅出Java+23种设计模式》《深入设计模式》《二哥的 Java 进阶之路暗黑版》对本节原则有深度覆盖。
 
-**Effective Java 第 16 条：优先使用组合而非继承**
+**优先使用组合而非继承**
 
-《Effective Java 中文第二版》第 16 条讨论继承的缺陷：
+继承的缺陷：
 
 - **脆弱基类（Fragile Base Class）**：继承的实现细节可能变化，导致子类失效
 - **无法阻止子类破坏约定**：子类可以覆盖父类方法，破坏 Liskov 替换原则
 - **类的命名空间冲突**：继承会把父类的所有方法带入子类作用域
 
-书中给的组合替代方案：
+组合替代方案：
 
 ```java
 // 继承：is-a
@@ -1842,11 +1814,11 @@ class LoggingList<E> implements List<E> {
 }
 ```
 
-《Effective Java》第 18 条建议：**用组合代替继承**。
+**用组合代替继承**。
 
 **里氏替换原则的具体体现**
 
-《深入设计模式》与《Effective Java》都强调：继承必须保证「子类在语义上确实是父类」。反例是经典的「正方形不是矩形」：
+继承必须保证「子类在语义上确实是父类」。反例是经典的「正方形不是矩形」：
 
 ```java
 class Rectangle {
@@ -1858,11 +1830,11 @@ class Square extends Rectangle {
 }
 ```
 
-《深入浅出Java+23种设计模式》给出的解决方案是**组合 + 抽象接口**，让正方形不继承矩形。
+解决方案是**组合 + 抽象接口**，让正方形不继承矩形。
 
 **重写规则的完整清单**
 
-《二哥的 Java 进阶之路暗黑版》与《Effective Java》都整理了重写的约束：
+重写的约束：
 
 | 规则 | 说明 |
 | --- | --- |
@@ -1876,7 +1848,7 @@ class Square extends Rectangle {
 
 **重写与重载的判定**
 
-《二哥的 Java 进阶之路》给出的判断方法：
+判断方法：
 
 - **重写**：发生在父子类之间，方法签名相同，运行时动态分发
 - **重载**：同一类中，参数列表不同，编译期静态绑定
@@ -1885,7 +1857,7 @@ class Square extends Rectangle {
 
 **构造器中调用可重写方法的问题**
 
-《Effective Java》第 9 条（构造器调用可重写的类方法）指出：构造器中调用 `this` 或可被重写的方法时，子类的重写版本会被调用，而此时**子类的字段还没初始化**，会导致读到默认值（null / 0）。
+构造器中调用 `this` 或可被重写的方法时，子类的重写版本会被调用，而此时**子类的字段还没初始化**，会导致读到默认值（null / 0）。
 
 ```java
 class Bad extends Base {
@@ -1899,7 +1871,7 @@ class Bad extends Base {
 
 **模板方法模式（Template Method）**
 
-《深入浅出Java+23种设计模式》给出的经典解决方案是 Template Method：把可变步骤抽成抽象方法，由父类的模板流程控制调用顺序。
+经典解决方案是 Template Method：把可变步骤抽成抽象方法，由父类的模板流程控制调用顺序。
 
 ## 实战提示
 
@@ -2006,27 +1978,26 @@ class Bird implements Flyable, Comparable<Bird> {
 
 把「支付方式」建模成接口（支付宝/微信/银行卡），把「订单」建模成抽象类，观察两者的复用边界。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Effective+Java+中文第二版》《深入浅出Java+23种设计模式》《深入设计模式》《二哥的 Java 进阶之路暗黑版》《面渣逆袭 Java 基础篇》对本节有充分覆盖。
 
-**Effective Java 第 17/18 条与接口优先原则**
+### 接口优先原则
 
-《Effective Java 中文第二版》给出的明确建议：
+明确建议：
 
-| 场景 | 书中建议 |
+| 场景 | 设计建议 |
 | --- | --- |
 | 需要继承 | **优先考虑接口** |
 | 需要多继承 | 只能用接口 |
 | 需要可变状态 | 只能用抽象类 |
 | 需要非 public 成员 | 只能用抽象类 |
-| 多个实现类共享代码 | 书中明确反对——「不要为复用而继承」 |
+| 多个实现类共享代码 | 「不要为复用而继承」 |
 
-书中第 18 条的结论很直接：**优先使用接口，而不是抽象类**。理由是接口更灵活、实现类不受实现类层次结构的约束。
+**优先使用接口，而不是抽象类**。理由是接口更灵活、实现类不受实现类层次结构的约束。
 
-**《深入浅出Java+23种设计模式》对接口的定位**
+### 对接口的定位
 
-这本书把接口作为「策略模式」的基础。典型用法：
+接口可以作为「策略模式」的基础。典型用法：
 
 ```java
 // 策略模式：把可变行为抽到接口
@@ -2046,7 +2017,7 @@ class Order {
 
 **接口的 default 方法解决了什么问题**
 
-《Effective Java》第 18 条提到接口演化的难题：如果接口新增抽象方法，所有实现类都会编译失败。default 方法的出现解决了这个「**源码兼容**」问题：
+接口演化的难题：如果接口新增抽象方法，所有实现类都会编译失败。default 方法的出现解决了这个「**源码兼容**」问题：
 
 ```java
 interface Iterable {
@@ -2061,7 +2032,7 @@ JDK 8 给 `Collection`、`Iterable`、`List` 等加了大量 default 方法，�
 
 **接口多继承的冲突处理**
 
-《深入浅出Java+23种设计模式》指出，当一个类实现多个接口且它们有同名 default 方法时，会编译报错。解决方式有三：
+当一个类实现多个接口且它们有同名 default 方法时，会编译报错。解决方式有三：
 
 ```java
 interface A { default void hello() { System.out.println("A"); } }
@@ -2080,11 +2051,11 @@ interface C extends A, B {
 
 **抽象类与接口的运行时差异**
 
-《二哥的 Java 进阶之路暗黑版》指出一个性能与设计的细节：接口的 default 方法在编译后是**接口上的方法**，调用时是 `invokeinterface`；而抽象类的方法是 `invokevirtual`。在极热的调用路径上，抽象类可能有微小的性能优势——但这几乎从不构成选择抽象类的理由。
+一个性能与设计的细节：接口的 default 方法在编译后是**接口上的方法**，调用时是 `invokeinterface`；而抽象类的方法是 `invokevirtual`。在极热的调用路径上，抽象类可能有微小的性能优势——但这几乎从不构成选择抽象类的理由。
 
 **设计模式中的接口应用**
 
-《深入设计模式》（Refactoring 经典）指出：接口在重构中扮演「**目标类型**」的角色。原书讨论「用接口替代具体类」这一重构手法时的理由是：
+接口在重构中扮演「**目标类型**」的角色。「用接口替代具体类」这一重构手法时的理由是：
 
 - 降低客户端对具体实现的依赖
 - 可以在不修改客户端的前提下替换实现
@@ -2092,7 +2063,7 @@ interface C extends A, B {
 
 **接口常量**
 
-《二哥的 Java 进阶之路》指出接口中的字段隐式为 `public static final`，因此：
+接口中的字段隐式为 `public static final`，因此：
 
 ```java
 interface Config {
@@ -2100,7 +2071,7 @@ interface Config {
 }
 ```
 
-这类「常量接口」现在被广泛认为是不好的实践（Effective Java 第 19 条建议避免常量接口），因为它污染了实现类的命名空间。更好的做法是用枚举、final 类，或 `java.nio` 里的 `StandardCharsets` 这种独立常量类。
+这类「常量接口」现在被广泛认为是不好的实践，因为它污染了实现类的命名空间。更好的做法是用枚举、final 类，或 `java.nio` 里的 `StandardCharsets` 这种独立常量类。
 ' WHERE slug = 'interface-vs-abstract';
 
 -- final-static-immutable
@@ -2160,18 +2131,17 @@ enum Status {
 
 实现一个不可变的 `UserId` 类（含校验、缓存），放入 HashMap 验证作为 key 的正确性。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Effective+Java+中文第二版》《二哥的 Java 进阶之路暗黑版》《面渣逆袭 Java 基础篇》以及《Java编程思想第四版》对本节有细致论述。
 
-**Effective Java 第 17 条：不可变对象**
+**不可变对象**
 
-《Effective Java 中文第二版》第 17 条给出的五条准则（前文已列），其中最实用的是第 3 条与第 5 条：
+设计不可变对象时，先把握两个要点：
 
 - 构造器与字段都设为 final
 - 若类不可变，所有可变组件的访问器都必须返回防御性拷贝
 
-书中强调不可变对象的三重优势：
+不可变对象的三重优势：
 
 1. **线程安全**：不可变对象在多线程间共享是安全的，不需要同步
 2. **可安全发布**：不可变对象的状态在构造后永不改变，因此可以在构造后任意时间安全地发布（甚至不用 volatile）
@@ -2179,7 +2149,7 @@ enum Status {
 
 **final 字段的正确发布语义（JSR-133）**
 
-《二哥的 Java 进阶之路暗黑版》与《Effective Java》都提到 Java 5 引入的关键修复：**final 字段的安全发布保证**。
+Java 5 引入的关键修复：**final 字段的安全发布保证**。
 
 规则是：`this` 引用在构造函数中「逸出」之前，final 字段的值必须对其它线程可见。JMM 规定：
 
@@ -2202,9 +2172,9 @@ class Unsafe {
 }
 ```
 
-**《Effective Java》第 83 条：只在名字不变时才用 final**
+### 只在名字不变时才用 final
 
-书中提醒：`final` 用在可变对象上会造成误导——`final List<String> list` 看起来不可变，实际 list 的内容仍可改。正确做法是**不暴露可变集合**：
+`final` 用在可变对象上会造成误导——`final List<String> list` 看起来不可变，实际 list 的内容仍可改。正确做法是**不暴露可变集合**：
 
 ```java
 private final List<String> items = new ArrayList<>();
@@ -2220,7 +2190,7 @@ public List<String> items() { return List.copyOf(items); }
 
 **static 的语义与陷阱**
 
-《二哥的 Java 进阶之路暗黑版》与《面渣逆袭 Java 基础篇》覆盖了 static 的几个要点：
+static 的几个要点：
 
 - static 字段属于类，被所有实例共享，生命周期跟随类
 - static 方法只能访问 static 成员，不能用 `this` / `super`
@@ -2236,7 +2206,7 @@ static final int MAX = 100;
 
 **枚举优于单例常量**
 
-《Effective Java》第 22 条（用枚举代替常量）与《二哥的 Java 进阶之路》都推荐用 enum 表达一组常量：
+用 enum 表达一组常量：
 
 ```java
 // 优于 static final 常量
@@ -2248,7 +2218,7 @@ enum Operation {
 
 enum 的额外好处：天然单例、线程安全、可用于 switch。
 
-**《面渣逆袭 Java 基础篇》关于 final 的高频问题**
+### final 的高频问题
 
 同一份资料把「final 关键字」列为高频考点，结论可以概括为：
 
@@ -2386,13 +2356,12 @@ static String describe(Object o) {
 
 用 enum 实现一个支付渠道（含各自的手续费计算），用 record 表示订单行项目。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《二哥的 Java 进阶之路暗黑版》《Effective+Java+中文第二版》《二哥修订版《30天速通Java》暗黑版》《深入浅出Java+23种设计模式》对本节有相关内容。
 
 **enum 的内部实现**
 
-《二哥的 Java 进阶之路暗黑版》指出 enum 的字节码结构：
+enum 的字节码结构：
 
 - enum 类隐式继承 `java.lang.Enum`
 - 每个常量是 `public static final` 的 enum 实例
@@ -2403,7 +2372,7 @@ static String describe(Object o) {
 
 **enum 实现抽象方法的技巧**
 
-《Effective Java》与《二哥的 Java 进阶之路》都提到这个 enum 的独特能力——常量实现抽象方法：
+这个 enum 的独特能力——常量实现抽象方法：
 
 ```java
 enum Operation {
@@ -2421,7 +2390,7 @@ enum Operation {
 
 **EnumMap 与 EnumSet 的性能**
 
-《二哥的 Java 进阶之路暗黑版》指出这是 enum 的另一个实用优势：
+这是 enum 的另一个实用优势：
 
 | 场景 | 推荐 | 原因 |
 | --- | --- | --- |
@@ -2430,9 +2399,9 @@ enum Operation {
 
 `EnumMap` 内部就是一个 `Object[]`，key 通过 `ordinal()` 定位，所以查找是数组下标而非哈希。
 
-**《Effective Java》第 22 条：用枚举代替常量**
+### 用枚举代替常量
 
-书中第 22 条列举了 enum 相对 `static final` 的优势：
+ enum 相对 `static final` 的优势：
 
 1. 类型安全——只能传入 enum 类型的值
 2. 每个常量都有单例身份——`==` 比较可靠
@@ -2441,11 +2410,11 @@ enum Operation {
 
 **enum 的具体类不能有子类**
 
-《二哥的 Java 进阶之路》指出：enum 类隐式 final，不能被继承。若要针对不同常量有不同的行为，使用「常量特定类主体」（constant-specific class body）而不是继承。
+enum 类隐式 final，不能被继承。若要针对不同常量有不同的行为，使用「常量特定类主体」（constant-specific class body）而不是继承。
 
 **record 的编译器生成内容**
 
-《二哥修订版《30天速通Java》暗黑版》与《二哥的 Java 进阶之路》介绍 record 时列出编译器自动生成的部分：
+record 自动生成的成员：
 
 - `private final` 的组件字段
 - 规范构造器（canonical constructor）
@@ -2469,7 +2438,7 @@ record User(String name, String email) {
 
 **record 是名义 final 但可实现接口**
 
-《二哥的 Java 进阶之路暗黑版》强调：
+
 
 ```java
 record Point(int x, int y) implements Comparable<Point> {
@@ -2481,7 +2450,7 @@ record 不能 `extends`（已隐式继承 `java.lang.Record`），但可以实�
 
 **record 与可变性的取舍**
 
-《Effective Java》第 16/17 条的精神在 record 上依然适用：record 组件若是可变对象，仍需防御性拷贝：
+record 组件若是可变对象，仍需考虑防御性拷贝：
 
 ```java
 record Order(List<Item> items) {
@@ -2493,7 +2462,7 @@ record Order(List<Item> items) {
 
 **switch 模式匹配的演进**
 
-《二哥修订版《30天速通Java》暗黑版》提到 switch 的表达能力演进：
+switch 的表达能力演进：
 
 - Java 7：switch 只支持 int/short/byte/char/enum，case 标签必须是常量
 - Java 14：引入 switch 表达式（`yield` 返回值）
@@ -2652,13 +2621,12 @@ if (user == null) throw new IllegalArgumentException("user must not be null");
 
 实现一个健壮的配置解析器：区分格式错误（受检）与缺失字段（非受检），并保证原始异常信息不丢失。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面试题-03-Java异常面试题》《面渣逆袭 Java 基础篇》《二哥的 Java 进阶之路暗黑版》《Effective+Java+中文第二版》对本节有系统覆盖。
 
 **异常体系与面试高频结论**
 
-《面试题-03-Java异常面试题》开篇即梳理了异常体系：
+异常体系：
 
 ```
 Throwable
@@ -2679,14 +2647,14 @@ Throwable
         └── ClassNotFoundException
 ```
 
-**《面渣逆袭 Java 基础篇》给出的选型原则**：
+**选型原则**：
 
 - **受检异常**：异常发生原因可以由调用方处理，且不处理就无法继续 —— 如 IO 失败
 - **非受检异常**：程序逻辑错误 —— 如 NPE、数组越界
 
 **try-with-resources 的双重优势**
 
-《Effective Java》第 34 条专门讲这个主题，给出两个理由：
+两个理由：
 
 1. **自动关闭资源**，不需要 finally 块
 2. **保留被抑制的异常** —— 若 try 块抛异常 A、close() 抛异常 B，A 会被保留，B 作为「被抑制异常」附加到 A 上
@@ -2707,7 +2675,7 @@ try (Resource r = open()) {
 
 **finally 的执行时机**
 
-《二哥的 Java 进阶之路暗黑版》与《面渣逆袭 Java 基础篇》都强调：
+
 
 - finally 在方法正常结束、抛异常、return 三种情况下**都会执行**
 - **唯一不执行的情况是 JVM 退出**（`System.exit()`）或线程被强制终止
@@ -2723,11 +2691,11 @@ int f() {
 
 **异常不能用于控制流**
 
-《Effective Java》第 66 条指出：用异常做正常的控制流是性能反模式。构造异常需要**填充整个调用栈的栈帧**，代价是普通 return 的上百倍。书中建议用返回特殊值或 Optional 表达「预期内的失败」。
+用异常做正常的控制流是性能反模式。构造异常需要**填充整个调用栈的栈帧**，代价是普通 return 的上百倍。用返回特殊值或 Optional 表达「预期内的失败」。
 
 **自定义异常的设计**
 
-《二哥的 Java 进阶之路暗黑版》指出自定义异常的三条实践：
+自定义异常的三条实践：
 
 1. **总是调用 `super(message, cause)`** ——否则原始异常堆栈丢失
 2. **区分受检与非受检**：业务异常通常继承 RuntimeException（避免层层 throws 的样板代码）
@@ -2735,7 +2703,7 @@ int f() {
 
 **Spring 的全局异常处理**
 
-知识库中《深入浅出Java+23种设计模式》与《面渣逆袭 Spring 篇》覆盖了 Spring 的异常体系。核心注解：
+Spring 异常处理的核心注解：
 
 ```java
 @RestControllerAdvice
@@ -2753,12 +2721,12 @@ public class GlobalExceptionHandler {
 }
 ```
 
-《面渣逆袭 Spring 篇》强调「统一异常处理的三个好处」：统一返回格式、避免每个 Controller 写 try-catch、集中记录日志。
+「统一异常处理的三个好处」：统一返回格式、避免每个 Controller 写 try-catch、集中记录日志。
 
-**《Effective Java》第 47/48 条：不要忽略异常**
+### 不要忽略异常
 
-- 第 47 条：不要忽略异常——空 catch 块会掩盖问题
-- 第 48 条：不要捕获 Throwable 或 Error
+- 不要忽略异常——空 catch 块会掩盖问题
+- 不要捕获 Throwable 或 Error
 
 ## 实战提示
 
@@ -2870,13 +2838,12 @@ class StringComparator implements Comparator<String> {
 
 实现一个泛型的 `Result<T>` 容器（成功值或错误），并用 PECS 写一个能接收任意数字列表求和的方法。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《二哥的 Java 进阶之路暗黑版》《深入理解高并发编程（第 2 版）》《面渣逆袭 Java 基础篇》《面试题-01-Java基础知识面试题》对本节有相关论述。
 
 **类型擦除的规则**
 
-《二哥的 Java 进阶之路暗黑版》与《深入理解 JVM 核心技术》都覆盖了擦除的细节：
+类型擦除的几个细节：
 
 擦除规则：
 - 若类型参数无界 → 擦除为 `Object`
@@ -2892,7 +2859,7 @@ class Box<T extends Number> { }
 
 **桥方法的作用**
 
-《深入理解 JVM 核心技术》与《二哥的 Java 进阶之路》指出，编译器在泛型类中会生成**桥方法**（bridge method）以保持多态的正确性：
+编译器在泛型类中会生成**桥方法**（bridge method）以保持多态的正确性：
 
 ```java
 class StringComparator implements Comparator<String> {
@@ -2908,7 +2875,7 @@ class StringComparator implements Comparator<String> {
 
 **泛型数组为什么不能直接创建**
 
-《面渣逆袭 Java 基础篇》与《二哥的 Java 进阶之路》给出解释：数组在运行时必须知道**具体类型**才能做类型检查与内存布局。`new T[]` 中的 T 在运行时已被擦除，JVM 无从得知该分配什么类型的数组。
+解释：数组在运行时必须知道**具体类型**才能做类型检查与内存布局。`new T[]` 中的 T 在运行时已被擦除，JVM 无从得知该分配什么类型的数组。
 
 两种解法：
 
@@ -2926,7 +2893,7 @@ static <T> T[] create(T[] template, int size) {
 
 **堆污染与 unchecked 警告**
 
-《面试题-01-Java基础知识面试题》与《二哥的 Java 进阶之路》都解释了堆污染：
+堆污染：
 
 ```java
 // 堆污染示例
@@ -2943,7 +2910,7 @@ String s = (String) o;    // 运行时可能 ClassCastException
 
 **PECS 原则的完整表述**
 
-《二哥的 Java 进阶之路暗黑版》把 PECS 讲得很清楚：
+PECS 的用法：
 
 - **Producer Extends**：`List<? extends T>` 表示「这个列表里装的东西都是 T 的子类型」，所以**只能读**——读出来当 T 用是安全的
 - **Consumer Super**：`List<? super T>` 表示「这个列表能装 T 或 T 的父类型」，所以**可以写** T 进去
@@ -2966,7 +2933,7 @@ void fill(List<? super Integer> list) {
 
 **无界通配符 vs Object**
 
-《面渣逆袭 Java 基础篇》区分了这两个容易混淆的写法：
+这两个容易混淆的写法：
 
 | | `List<?>` | `List<Object>` |
 | --- | --- | --- |
@@ -2978,7 +2945,7 @@ void fill(List<? super Integer> list) {
 
 **泛型方法的类型推断**
 
-《二哥的 Java 进阶之路暗黑版》提到 JDK 7 与 JDK 8 的推断增强：
+JDK 7 与 JDK 8 的推断增强：
 
 ```java
 // JDK 7：菱形推断
@@ -2991,7 +2958,7 @@ Stream.of(1, 2, 3).map(String::valueOf).forEach(System.out::println);
 
 **泛型的边界：不能用基本类型**
 
-《Java编程思想第四版》指出泛型不支持基本类型——`List<int>` 非法，必须写 `List<Integer>`。原因是类型擦除后 `int` 要装箱成 `Integer`，编译器会做自动装箱，但会带来装箱开销与可能的 NPE（缓存范围外的 `Integer`）。
+泛型不支持基本类型——`List<int>` 非法，必须写 `List<Integer>`。原因是类型擦除后 `int` 要装箱成 `Integer`，编译器会做自动装箱，但会带来装箱开销与可能的 NPE（缓存范围外的 `Integer`）。
 
 ## 实战提示
 
@@ -3096,13 +3063,12 @@ Service proxy = (Service) Proxy.newProxyInstance(
 
 实现一个极简的「注解 + 反射」依赖注入：自定义 `@Inject` 注解，扫描字段并自动赋值。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《SpringIOC核心技术-冰河》《Spring源码深度解析（第 2 版）》《深入浅出Java+23种设计模式》《二哥的 Java 进阶之路暗黑版》对本节机制有原理性支撑。
 
 **注解的 Retention 与生命周期**
 
-《二哥的 Java 进阶之路暗黑版》指出注解的三种保留策略决定了它能活多久：
+注解的三种保留策略决定了它能活多久：
 
 | Retention | 生命周期 | 典型用途 |
 | --- | --- | --- |
@@ -3114,7 +3080,7 @@ Service proxy = (Service) Proxy.newProxyInstance(
 
 **Spring 的注解驱动本质**
 
-《SpringIOC核心技术-冰河》系统讲解了 Spring 的 IOC 实现原理，核心链路正是「注解 + 反射」：
+Spring IoC 的核心链路包含注解与反射：
 
 ```
 @Component 扫描 → 解析出 bean 定义 → 实例化（反射调用构造器）
@@ -3122,13 +3088,13 @@ Service proxy = (Service) Proxy.newProxyInstance(
     → AOP 代理（动态代理 / 字节码增强）
 ```
 
-知识库中《Spring 源码深度解析（第 2 版）》与《SpringIOC核心技术》都指出：Spring 的注解本身只是**元数据**，真正干活的是 `AnnotationBeanNameGenerator`、`AutowiredAnnotationBeanPostProcessor` 这些后置处理器——它们通过反射读取注解并执行相应操作。
+Spring 的注解本身只是**元数据**，真正干活的是 `AnnotationBeanNameGenerator`、`AutowiredAnnotationBeanPostProcessor` 这些后置处理器——它们通过反射读取注解并执行相应操作。
 
 这正是理解反射价值的最佳案例：**注解本身什么都不做，是反射让它产生效果**。
 
 **动态代理 JDK 与 CGLIB**
 
-《深入浅出Java+23种设计模式》与《SpringIOC核心技术》都对比了两种 AOP 实现：
+两种 AOP 实现：
 
 | | JDK 动态代理 | CGLIB（字节码增强） |
 | --- | --- | --- |
@@ -3138,15 +3104,15 @@ Service proxy = (Service) Proxy.newProxyInstance(
 
 Spring Boot 2.x 之后默认用 CGLIB，因为 Spring 6 / Boot 3 起不再强制要求实现接口。
 
-**代理模式在《深入浅出Java+23种设计模式》中的位置**
+**代理模式的用途**
 
-这本书把代理模式分为三类：
+代理模式可分为三类：
 
 1. **静态代理**：编译期确定代理类，代码冗余
 2. **JDK 动态代理**：运行期基于接口生成 `Proxy` 子类
 3. **CGLIB 动态代理**：运行期基于类生成子类
 
-《SpringIOC核心技术-冰河》特别指出 JDK 动态代理的调用链：
+JDK 动态代理的调用链：
 
 ```java
 // Proxy 内部持有 InvocationHandler
@@ -3156,7 +3122,7 @@ Object result = method.invoke(this, args);   // 转调 handler.invoke()
 
 **MethodHandle 与反射的对比**
 
-《二哥的 Java 进阶之路暗黑版》提到 JDK 7 引入的 `MethodHandle`：
+JDK 7 引入的 `MethodHandle`：
 
 - 反射：Method 对象在运行时**查找**得到，有访问检查
 - MethodHandle：可以**提前绑定**（`bindTo`），执行时无查找开销
@@ -3165,7 +3131,7 @@ JDK 内部的 lambda 实现就基于 `LambdaMetafactory` + `MethodHandle`，这�
 
 **反射的性能真相**
 
-《二哥的 Java 进阶之路暗黑版》与《深入浅出Java+23种设计模式》都指出：现代 JVM 对反射做了大量优化（JDK 18+ 的 `MethodHandle` 反射、JDK 21+ 的 hidden classes），热点反射调用的性能差距已大幅缩小。但仍有开销：
+现代 JVM 对反射做了大量优化（JDK 18+ 的 `MethodHandle` 反射、JDK 21+ 的 hidden classes），热点反射调用的性能差距已大幅缩小。但仍有开销：
 
 - 参数装箱/拆箱
 - 每次调用的访问权限检查
@@ -3175,7 +3141,7 @@ JDK 内部的 lambda 实现就基于 `LambdaMetafactory` + `MethodHandle`，这�
 
 **setAccessible 的限制**
 
-《二哥的 Java 进阶之路暗黑版》指出 JDK 9+ 引入模块系统后：
+JDK 9+ 引入模块系统后：
 
 - `setAccessible(true)` 对**本模块**与**开放模块**有效
 - 对 JDK 内部类（如 `java.lang`）会抛 `InaccessibleObjectException`
@@ -3330,13 +3296,12 @@ List<String> fixed = Collections.unmodifiableList(list);
 
 把一组字符串分别存入 List、Set、Map，统计去重前后数量与查找耗时。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 Java 集合框架篇》《面试题-02-Java集合容器面试题》《Java编程思想第四版》《二哥的 Java 进阶之路》对本节覆盖完整。
 
 **List / Set / Map 的三大分支定位**
 
-《面渣逆袭 Java 集合框架篇》把 Java 集合分为三类：
+Java 集合的三种常见类型：
 
 | | 有序 | 可重复 | 可按索引 | 键值对 |
 | --- | --- | --- | --- | --- |
@@ -3346,7 +3311,7 @@ List<String> fixed = Collections.unmodifiableList(list);
 
 **为什么要有 Iterable**
 
-《二哥的 Java 进阶之路》与《Java编程思想第四版》都强调：增强 for 循环是编译器提供的语法糖，编译后等价于 Iterator 循环：
+增强 for 循环是编译器提供的语法糖，编译后等价于 Iterator 循环：
 
 ```java
 for (String s : list) { ... }
@@ -3359,11 +3324,11 @@ while (it.hasNext()) { String s = it.next(); ... }
 
 **Map 为什么不是 Collection 的子接口**
 
-《面渣逆袭 Java 集合框架篇》指出，`Collection` 表达的是「一组元素」，而 Map 表达的是「键值对的映射」，语义不同。历史上 Java 团队承认这是设计失误（Map 没有 `add` 而有 `put`），但改动代价太大，只能保留。
+`Collection` 表达的是「一组元素」，而 Map 表达的是「键值对的映射」，语义不同。历史上 Java 团队承认这是设计失误（Map 没有 `add` 而有 `put`），但改动代价太大，只能保留。
 
 **Queue 与 Deque 的实现选择**
 
-《Java编程思想第四版》第 11 章「集合"》详细对比了各实现的性能：
+各实现的性能：
 
 | 实现 | 结构 | 允许 null | 迭代顺序 | 随机访问 |
 | --- | --- | --- | --- | --- |
@@ -3382,11 +3347,11 @@ while (it.hasNext()) { String s = it.next(); ... }
 
 **HashMap 与 TreeMap 的选择**
 
-《面渣逆袭 Java 集合框架篇》给出决策依据：只需要 key 无序且快速查找 → HashMap；需要 key 有序或范围查询（`subMap`、`headMap`）→ TreeMap；需要维护插入顺序或 LRU → LinkedHashMap。
+决策依据：只需要 key 无序且快速查找 → HashMap；需要 key 有序或范围查询（`subMap`、`headMap`）→ TreeMap；需要维护插入顺序或 LRU → LinkedHashMap。
 
 **Collections 工具类的常用方法**
 
-《Java编程思想第四版》介绍了 `Collections` 的三类方法：
+`Collections` 的三类方法：
 
 ```java
 Collections.sort(list);                       // 排序
@@ -3400,7 +3365,7 @@ Collections.frequency(list, "a");              // 统计出现次数
 
 **Queue 的阻塞与非阻塞**
 
-《Java编程思想第四版》区分了 `Queue`（java.util）与 `BlockingQueue`（java.util.concurrent）：后者额外提供 `put`/`take`（阻塞）与 `offer`/`poll`（超时版本），是线程池与生产者-消费者模式的基础。
+`Queue`（java.util）与 `BlockingQueue`（java.util.concurrent）：后者额外提供 `put`/`take`（阻塞）与 `offer`/`poll`（超时版本），是线程池与生产者-消费者模式的基础。
 
 ## 实战提示
 
@@ -3483,13 +3448,12 @@ public int size() { return size; }
 
 预置容量 10 依次 add 30 个元素，用调试器观察 elementData.length 的变化次数。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 Java 集合框架篇》《面试题-02-Java集合容器面试题》《二哥的 Java 进阶之路》《Java编程思想第四版》对本节覆盖详细。
 
 **为什么扩容是 1.5 倍**
 
-《二哥的 Java 进阶之路》与《面试题-02-Java集合容器面试题》都给出了这个经典分析：
+这个经典分析：
 
 - 扩容 **2 倍**：内存浪费严重（扩容后可用空间可能远超需要），且大数组拷贝成本高
 - 扩容 **1.5 倍**：空间与拷贝成本的折中。JDK 8 起用 `oldCap + (oldCap >> 1)` 替代 `oldCap * 1.5`（后者会溢出），结果一致
@@ -3498,7 +3462,7 @@ public int size() { return size; }
 
 **RandomAccess 标记接口**
 
-《Java编程思想第四版》指出 `RandomAccess` 是一个**标记接口**（marker interface），没有任何方法。`ArrayList` 实现它、`LinkedList` 不实现。作用是让算法代码能区分：
+`RandomAccess` 是一个**标记接口**（marker interface），没有任何方法。`ArrayList` 实现它、`LinkedList` 不实现。作用是让算法代码能区分：
 
 ```java
 if (list instanceof RandomAccess) {
@@ -3508,11 +3472,11 @@ if (list instanceof RandomAccess) {
 }
 ```
 
-《Java编程思想第四版》明确建议：**不要把 LinkedList 当作 ArrayList 的替代品**——虽然接口相同，但把 ArrayList 换成 LinkedList 会让大量代码从 O(1) 退化成 O(n)。
+**不要把 LinkedList 当作 ArrayList 的替代品**——虽然接口相同，但把 ArrayList 换成 LinkedList 会让大量代码从 O(1) 退化成 O(n)。
 
 **ArrayList 与 Vector 的区别**
 
-《面试题-02-Java集合容器面试题》对比了历史遗留类：
+历史遗留类：
 
 | | ArrayList | Vector | Stack |
 | --- | --- | --- | --- |
@@ -3524,7 +3488,7 @@ if (list instanceof RandomAccess) {
 
 **Arrays.asList 的坑**
 
-《面试题-02》专门提到这个高频陷阱：
+这个高频陷阱：
 
 ```java
 List<String> list = Arrays.asList("a", "b");
@@ -3540,7 +3504,7 @@ List<String> list = new ArrayList<>(Arrays.asList("a", "b"));
 
 **subList 的视图性质**
 
-《面渣逆袭 Java 集合框架篇》指出 `subList` 返回的也是**视图**，不是拷贝：
+`subList` 返回的也是**视图**，不是拷贝：
 
 ```java
 List<String> sub = list.subList(0, 3);
@@ -3551,7 +3515,7 @@ sub.clear();          // 会清空原 list 的前 3 个元素！
 
 **序列化机制**
 
-《二哥的 Java 进阶之路》提到 ArrayList 的 `writeObject` 做了定制：它不直接用默认序列化，而是逐个写入元素并记录 size，元素本身为 null 时写 -1 占位。这让反序列化时能精确还原 size 而不需要试探。
+ArrayList 的 `writeObject` 做了定制：它不直接用默认序列化，而是逐个写入元素并记录 size，元素本身为 null 时写 -1 占位。这让反序列化时能精确还原 size 而不需要试探。
 
 ## 实战提示
 
@@ -3628,13 +3592,12 @@ static final int hash(Object key) {
 
 构造一组 key，让 hashCode 只差 1，插入 10 个观察链表是否树化（需包级访问或反射）。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《二哥的 Java 进阶之路暗黑版》《面渣逆袭 Java 集合框架篇》《面试题-02-Java集合容器面试题》《深入理解高并发编程（第 2 版）》对本节覆盖最详尽。
 
 **putVal 的三条路径**
 
-《二哥的 Java 进阶之路》把 `putVal` 的逻辑拆得很清楚：
+`putVal` 的主要步骤：
 
 1. **桶为空** → 直接 new Node 放入（无锁竞争时用 CAS）
 2. **桶内首节点 hash 匹配且 key 相同**（`==` 或 `equals`）→ 覆盖 value
@@ -3644,7 +3607,7 @@ static final int hash(Object key) {
 
 **红黑树的转换条件与过程**
 
-《深入理解高并发编程（第 2 版）》与《二哥的 Java 进阶之路》都给出了「转换为红黑树链表转换为红黑树过程」：
+桶内链表转成红黑树的过程：
 
 - **树化阈值 8**：为什么不是 7 或 9？泊松分布下，桶中元素达到 8 个的概率约为千万分之六，正常使用几乎不可能触发。树化主要针对**恶意构造的哈希碰撞攻击**——攻击者可以构造出所有 key 落同一桶的数据集，把查找退化成 O(n)。
 - **退化阈值 6**：树缩回链表需要 ≥ 6，因为扩容时链表可能被拆成两段（树化会保持相对顺序），若阈值与 8 太近会导致转换抖动。
@@ -3652,7 +3615,7 @@ static final int hash(Object key) {
 
 **扩容机制与高位参与**
 
-《面渣逆袭 Java 集合框架篇》与《二哥的 Java 进阶之路》解释了为什么容量必须是 2 的幂，以及 JDK 8 的优化：
+为什么容量必须是 2 的幂，以及 JDK 8 的优化：
 
 - 容量为 2 的幂 → `hash & (n-1)` 等价于取模，但快得多
 - JDK 7 扩容时需要**重算每个 key 的 hash**（`h ^ (h >>> 20) ^ (h >>> 12)`），因为新旧容量取模结果不同
@@ -3662,15 +3625,15 @@ JDK 8 的 `hash()` 简化成 `h ^ (h >>> 16)`，正是为了让高 16 位参与�
 
 **ConcurrentHashMap 的扩容控制**
 
-《深入理解高并发编程（第 2 版）》提到「ConcurrentHashMap 扩容操作控制」——JDK 8 的 ConcurrentHashMap 在扩容时采用**协助扩容**机制：某个线程发现要扩容，就标记 `transfer` 状态并推进一个 transferIndex，其他线程发现自己也在扩容且未参与，就会协助搬运桶。这比 JDK 7 的分段锁扩容高效得多。
+「ConcurrentHashMap 扩容操作控制」——JDK 8 的 ConcurrentHashMap 在扩容时采用**协助扩容**机制：某个线程发现要扩容，就标记 `transfer` 状态并推进一个 transferIndex，其他线程发现自己也在扩容且未参与，就会协助搬运桶。这比 JDK 7 的分段锁扩容高效得多。
 
 **get 方法的遍历顺序**
 
-《面渣逆袭 Java 集合框架篇》指出 `get` 的查找顺序是：先查数组槽 → 若为红黑树节点则走 `find` → 否则遍历链表。并强调 **HashMap 的 key 应同时重写 hashCode 与 equals**，只重写 equals 会导致两个"逻辑相等"的 key 落到不同桶，get 找不到。
+`get` 的查找顺序是：先查数组槽 → 若为红黑树节点则走 `find` → 否则遍历链表。如果键类重写 `equals`，也要重写 `hashCode`，只重写 equals 会导致两个"逻辑相等"的 key 落到不同桶，get 找不到。
 
 **面试高频结论**
 
-《面试题-02-Java集合容器面试题》给出的对比结论：
+对比结论：
 
 | | HashMap | LinkedHashMap | TreeMap |
 | --- | --- | --- | --- |
@@ -3813,13 +3776,12 @@ while (it.hasNext()) {
 
 复现一次 ConcurrentModificationException，再用迭代器 remove 修正，对比结果。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Java编程思想第四版》《面渣逆袭 Java 集合框架篇》《二哥的 Java 进阶之路》对本节有深入论述。
 
 **fail-fast 的实现原理**
 
-《Java编程思想第四版》第 11 章给出了 fail-fast 的源码级解释：
+fail-fast 的源码级解释：
 
 ```java
 public Iterator<E> iterator() {
@@ -3840,11 +3802,11 @@ private class Itr implements Iterator<E> {
 }
 ```
 
-**《Java编程思想第四版》特别强调：fail-fast 只是一项「尽力而为」的服务，JDK 承诺尽力检测并发修改，但不保证一定检测到。** 也就是说：CME 出现说明一定有并发修改，但没出现不代表没有并发修改。
+**fail-fast 只是一项「尽力而为」的服务，JDK 承诺尽力检测并发修改，但不保证一定检测到。** 也就是说：CME 出现说明一定有并发修改，但没出现不代表没有并发修改。
 
 **结构性修改的定义**
 
-《二哥的 Java 进阶之路》与《面试题-02-Java集合容器面试题》都列出了哪些操作会触发 modCount 变化：
+哪些操作会触发 modCount 变化：
 
 | 操作 | 是否结构性修改 |
 | --- | --- |
@@ -3856,7 +3818,7 @@ private class Itr implements Iterator<E> {
 
 **CopyOnWriteArrayList 的快照迭代器**
 
-《面渣逆袭 Java 集合框架篇》指出 CopyOnWriteArrayList 的迭代器持有的是**创建迭代器那一刻**的数组快照：
+CopyOnWriteArrayList 的迭代器持有的是**创建迭代器那一刻**的数组快照：
 
 ```java
 public Iterator<E> iterator() {
@@ -3872,7 +3834,7 @@ public Iterator<E> iterator() {
 
 **ConcurrentHashMap 的弱一致迭代器**
 
-《二哥的 Java 进阶之路》与《面渣逆袭 Java 集合框架篇》指出，ConcurrentHashMap 的迭代器是**弱一致（weakly consistent）**的：
+ConcurrentHashMap 的迭代器是**弱一致（weakly consistent）**的：
 
 - 遍历过程中若有并发修改，迭代器可能看到、也可能看不到被修改的元素
 - 但**不会抛 CME**，也不会导致无限循环
@@ -3880,7 +3842,7 @@ public Iterator<E> iterator() {
 
 **增强 for 与迭代器的等价关系**
 
-《Java编程思想第四版》明确指出增强 for 循环编译后就是 Iterator 循环，因此**在增强 for 里删除元素同样会 CME**：
+增强 for 循环编译后就是 Iterator 循环，因此**在增强 for 里删除元素同样会 CME**：
 
 ```java
 for (String s : list) {
@@ -3890,7 +3852,7 @@ for (String s : list) {
 
 **并发集合与 fail-fast 的取舍**
 
-《面渣逆袭 Java 集合框架篇》给出结论：并发集合选择**弱一致性**而非 fail-fast，因为在真实并发场景下，「检测到并发修改就抛异常」几乎无法恢复——你无法通过捕获 CME 来安全地继续处理。弱一致性牺牲了实时准确性，换来的是可用的并发语义。
+结论：并发集合选择**弱一致性**而非 fail-fast，因为在真实并发场景下，「检测到并发修改就抛异常」几乎无法恢复——你无法通过捕获 CME 来安全地继续处理。弱一致性牺牲了实时准确性，换来的是可用的并发语义。
 
 ## 实战提示
 
@@ -3979,13 +3941,12 @@ orders.parallelStream()
 
 把一个订单列表按用户分组，输出每个用户的订单数与总金额。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《二哥的 Java 进阶之路暗黑版》《深入理解高并发编程（第 2 版）》《Java多线程开发最佳实践手册》《面渣逆袭Java并发编程》对本节的方法论有支撑。
 
 **Stream 的惰性求值与流水线**
 
-《二哥的 Java 进阶之路暗黑版》与《深入理解高并发编程（第 2 版）》都强调 Stream 的处理链路是**惰性**的：
+Stream 的处理链路是**惰性**的：
 
 ```
 数据源 → filter → map → sorted → collect
@@ -4001,7 +3962,7 @@ orders.parallelStream()
 
 **Collectors 的分组能力**
 
-《二哥的 Java 进阶之路》与《面渣逆袭Java并发编程》都演示了 groupingBy 的三种形式：
+groupingBy 的三种形式：
 
 ```java
 // 1. 按 key 分组，value 是列表
@@ -4024,7 +3985,7 @@ Map<Boolean, List<Order>> big = orders.stream()
 
 **toMap 的两个坑**
 
-《二哥的 Java 进阶之路》特别提醒 `Collectors.toMap` 的两个问题：
+`Collectors.toMap` 的两个问题：
 
 ```java
 // 坑1：value 为 null 会抛 NPE
@@ -4039,7 +4000,7 @@ Collectors.toMap(Order::getUserId, Order::getId)  // 同用户多单 → 异常
 
 **下游收集器（Downstream Collector）**
 
-《深入理解高并发编程（第 2 版）》与《Java多线程开发最佳实践手册》都介绍了 `collectingAndThen` 的组合模式：
+`collectingAndThen` 的组合模式：
 
 ```java
 // 先收集，再对结果做一次转换
@@ -4052,7 +4013,7 @@ Map<Long, String> userNames = orders.stream()
 
 **并行流与 Collectors 的线程安全**
 
-《Java多线程开发最佳实践手册》指出，并行流中 Collectors 的实现必须**线程安全**——JDK 提供的实现（`toList`、`groupingBy`）都用了并发容器合并结果，但自定义 Collector 时必须自己保证 `combiner()` 的正确性：
+并行流中 Collectors 的实现必须**线程安全**——JDK 提供的实现（`toList`、`groupingBy`）都用了并发容器合并结果，但自定义 Collector 时必须自己保证 `combiner()` 的正确性：
 
 ```java
 // 自定义 Collector 的 combiner 负责合并两个分片的结果
@@ -4066,7 +4027,7 @@ Collector<Order, ?, Map<Long, List<Order>>> myCollector =
 
 **Stream 与循环的取舍**
 
-《二哥的 Java 进阶之路》与《深入浅出Java+23种设计模式》都提到 Stream 的真正价值在**可读性**而非性能：
+Stream 的真正价值在**可读性**而非性能：
 
 - 简单遍历：for 循环更直白
 - 多步变换 + 聚合：Stream 表达力明显更强
@@ -4208,24 +4169,24 @@ void recurse() { recurse(); }           // 栈溢出：StackOverflowError
 
 写一个递归方法让它栈溢出，再写一个死循环往 List 里加对象让它堆溢出，观察报错差异。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-本节要点参考了知识库中的《doocs-jvm》《深入理解 JVM 核心技术》《二哥的 JVM 进阶之路》《深入理解 Java 虚拟机（第 3 版）》与《面渣逆袭 JVM》等资料，可对照以下知识点自查：
+可对照以下知识点自查：
 
 **运行时数据区的完整划分**
 
-知识库中《doocs-jvm》开篇即给出 JVM 内存空间的五个部分：程序计数器、虚拟机栈、本地方法栈、堆、方法区。与本节相比，最容易被忽略的是**本地方法栈**——它并非可有可无，而是 JVM 规范中独立划分的区域，只是 HotSpot 实现把它与虚拟机栈合并为同一块内存。
+JVM 内存空间的五个部分：程序计数器、虚拟机栈、本地方法栈、堆、方法区。与本节相比，最容易被忽略的是**本地方法栈**——它并非可有可无，而是 JVM 规范中独立划分的区域，只是 HotSpot 实现把它与虚拟机栈合并为同一块内存。
 
 **JDK 8 的关键变化：元空间取代永久代**
 
-《doocs-jvm》明确指出：JDK 1.8 相对 1.7 最大的差别就是元数据区取代了永久代。元空间的本质与永久代类似，都是对 JVM 规范中方法区的实现，但**元空间并不在虚拟机中，而是使用本地内存**。这一点直接决定了生产环境的调优姿势不同：
+JDK 1.8 相对 1.7 最大的差别就是元数据区取代了永久代。元空间的本质与永久代类似，都是对 JVM 规范中方法区的实现，但**元空间并不在虚拟机中，而是使用本地内存**。这一点直接决定了生产环境的调优姿势不同：
 
 - 永久代时代用 `-XX:PermSize` / `-XX:MaxPermSize` 控制上限
 - 元空间时代改用 `-XX:MetaspaceSize`（首次触发元空间 GC 的阈值）与 `-XX:MaxMetaspaceSize`
 
 **对象访问方式：句柄访问与直接指针**
 
-《doocs-jvm》在讲对象访问时指出，堆中需要有一块叫做「句柄池」的区域。这对应 JVM 规范里的两种对象访问方式：
+堆中需要有一块叫做「句柄池」的区域。这对应 JVM 规范里的两种对象访问方式：
 
 | 访问方式 | 栈帧中存什么 | 优点 | 缺点 |
 | --- | --- | --- | --- |
@@ -4236,7 +4197,7 @@ HotSpot 默认使用**直接指针**。这个知识点常被跳过，但它解�
 
 **GC Roots 与可达性分析**
 
-GC 并非扫描整个堆，而是从一组 GC Roots 出发做可达性分析。《二哥的 JVM 进阶之路》给出的 GC Roots 清单是：
+GC 并非扫描整个堆，而是从一组 GC Roots 出发做可达性分析。GC Roots 清单是：
 
 - 虚拟机栈中引用的对象
 - 方法区中静态属性引用的对象
@@ -4245,11 +4206,10 @@ GC 并非扫描整个堆，而是从一组 GC Roots 出发做可达性分析。�
 
 **常量池与类型卸载**
 
-《doocs-jvm》提到方法区回收的两个目标：对常量池的回收，以及**对类型的卸载**。类型卸载的条件相当苛刻：必须满足「该类的所有实例都已被回收」「加载该类的 ClassLoader 已被回收」「该类对应的 Class 对象没有被任何地方引用」。这解释了为什么动态生成类（如大量使用 CGLIB 代理、脚本引擎）的应用容易出现元空间泄漏——每次代理都会生成一个新的类，元空间只增不减。
+方法区回收的两个目标：对常量池的回收，以及**对类型的卸载**。类型卸载的条件相当苛刻：必须满足「该类的所有实例都已被回收」「加载该类的 ClassLoader 已被回收」「该类对应的 Class 对象没有被任何地方引用」。这解释了为什么动态生成类（如大量使用 CGLIB 代理、脚本引擎）的应用容易出现元空间泄漏——每次代理都会生成一个新的类，元空间只增不减。
 
 **内存区域概览速查**
 
-《深入理解 JVM 核心技术》把「JVM 内存区域概览」作为独立小节展开，可作为画图记忆的骨架；《深入理解 Java 虚拟机（第 3 版）》第 2 章标题即「Java 内存区域与内存溢出异常」，第 3 章讲「垃圾收集」，两者构成本节的权威对照。
 
 ## 实战提示
 
@@ -4304,13 +4264,12 @@ class B { int i; int j; }          // 12 + 8 = 20 -> 对齐到 24
 
 用 JOL（Java Object Layout）工具打印多个类的实例大小，观察字段排列与补齐。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-本节的知识点在知识库中可对照《doocs-jvm》《深入理解 Java 虚拟机（第 3 版）》第 2 章、以及《面渣逆袭 JVM》中「8. 能说一下对象的内存布局吗？」一节。
 
 **对象头里的锁状态标志**
 
-《doocs-jvm》明确指出对象头中存有「**锁状态标志**」。这是对象布局与并发最直接的交叉点：Mark Word 里预留了 4 位（实际更多）用于标记偏向锁、轻量级锁、重量级锁的状态。理解它就能明白：
+对象头中存有「**锁状态标志**」。这是对象布局与并发最直接的交叉点：Mark Word 里预留了 4 位（实际更多）用于标记偏向锁、轻量级锁、重量级锁的状态。理解它就能明白：
 
 - 无锁状态：Mark Word 存 identity hashCode + 分代年龄
 - 偏向锁状态：Mark Word 存线程 ID（偏向锁已在 JDK 15 后废弃，默认关闭）
@@ -4319,7 +4278,7 @@ class B { int i; int j; }          // 12 + 8 = 20 -> 对齐到 24
 
 **class 文件结构中的 u2/u4/u8**
 
-《doocs-jvm》在讲 class 文件格式时给出了「u2、u4、u8 分别代表……」的说明，这正是理解对象内存布局的另一半——JVM 需要先从 class 文件里读出字段描述，才能算出实例数据占多少字节：
+JVM 需要先从 class 文件里读出字段描述，才能算出实例数据占多少字节：
 
 | 类型 | 字节数 | 含义 |
 | --- | --- | --- |
@@ -4330,11 +4289,11 @@ class B { int i; int j; }          // 12 + 8 = 20 -> 对齐到 24
 
 **对象的创建过程**
 
-《doocs-jvm》提到「调用对象的构造函数方法进行初始化」。完整的对象创建链路是：分配内存 → 内存零初始化 → 设置对象头（类型指针、哈希码、GC 年龄）→ 执行 `<init>` 方法。设置对象头这一步正对应本节讲的对象头布局。
+「调用对象的构造函数方法进行初始化」。完整的对象创建链路是：分配内存 → 内存零初始化 → 设置对象头（类型指针、哈希码、GC 年龄）→ 执行 `<init>` 方法。设置对象头这一步正对应本节讲的对象头布局。
 
 **锁升级与对象头的关系**
 
-《二哥的 JVM 进阶之路》与《深入理解 JVM 核心技术》都提到「锁状态标志」与「转换为红黑树链表转换为红黑树过程」等运行时状态变化。对象头里的这几位标志位不是装饰——JVM 通过修改它们来记录对象当前被哪种锁保护。这也解释了 `synchronized` 的锁升级路径：无锁 → 偏向锁（已废弃）→ 轻量级锁 → 重量级锁，每一步都只改 Mark Word 的几个位，不改对象本身的结构。
+对象头里的这几位标志位不是装饰——JVM 通过修改它们来记录对象当前被哪种锁保护。这也解释了 `synchronized` 的锁升级路径：无锁 → 偏向锁（已废弃）→ 轻量级锁 → 重量级锁，每一步都只改 Mark Word 的几个位，不改对象本身的结构。
 
 ## 实战提示
 
@@ -4394,13 +4353,12 @@ protected Class<?> loadClass(String name, boolean resolve) {
 
 自定义一个 ClassLoader，把某个 class 文件字节数组 define 进去，独立加载一份与主类同名的类。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《JVM 类加载器详解》《doocs-jvm》《深入理解 JVM 核心技术》《深入理解 Java 虚拟机（第 3 版）》对本节覆盖非常完整，其中《JVM 类加载器详解》开篇就给出了一张「类加载器作用 / 加载路径 / 范围 / 实现」的对照表。
 
 **四类类加载器及各自的加载范围**
 
-《JVM 类加载器详解》给出的实现清单是：
+实现清单是：
 
 | 类加载器 | 实现语言 | 加载范围 | 典型路径 |
 | --- | --- | --- | --- |
@@ -4413,18 +4371,18 @@ protected Class<?> loadClass(String name, boolean resolve) {
 
 **类加载的时机与初始化条件**
 
-《doocs-jvm》专门列出「类加载的时机」，而《深入理解 JVM 核心技术》则给出了更精确的「类初始化的条件」：
+更精确的「类初始化的条件」：
 
 - 主动使用：new、访问/赋值静态字段、反射调用、初始化子类时先初始化父类、启动类（main 方法所在类）
 - **被动使用**（不触发初始化）：通过子类引用父类静态字段、父类 Class 对象、引用常量（编译期常量会被直接内联到调用方，不触发加载）
 
 **双亲委派的破坏**
 
-知识库中《深入理解 Java 虚拟机（第 3 版）》与《深入浅出 Java 多线程》都提到自定义类加载器的存在意义。SPI 是最典型的例子：`ServiceLoader` 从 `META-INF/services` 读实现类名，而 `java.sql.DriverManager` 由 Bootstrap 加载器加载，它无法找到应用层的驱动实现——**这正是主动打破双亲委派的地方**，自定义的线程上下文类加载器（Thread Context ClassLoader）负责加载 SPI 实现。
+自定义类加载器的存在意义。SPI 是最典型的例子：`ServiceLoader` 从 `META-INF/services` 读实现类名，而 `java.sql.DriverManager` 由 Bootstrap 加载器加载，它无法找到应用层的驱动实现——**这正是主动打破双亲委派的地方**，自定义的线程上下文类加载器（Thread Context ClassLoader）负责加载 SPI 实现。
 
 **类卸载的条件**
 
-《doocs-jvm》指出方法区回收的两个目标是对常量池的回收与**对类型的卸载**。类型卸载需要同时满足三个条件：
+方法区回收的两个目标是对常量池的回收与**对类型的卸载**。类型卸载需要同时满足三个条件：
 
 1. 该类的所有实例都已被回收（堆中不再存在该类的对象）
 2. 加载该类的 ClassLoader 已被回收
@@ -4495,13 +4453,12 @@ UPDATE lesson SET content = '## 本节要点
 
 用 JVisualVM 或 Arthas 的 dashboard 观察分代大小变化，对比两次 GC 之间的分配速率。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《doocs-jvm》《深入理解 Java 虚拟机（第 3 版）》《二哥的 JVM 进阶之路》《面渣逆袭 JVM》以及《面试题-08-Java虚拟机(JVM)面试题》对本节覆盖非常完整。
 
 **三种基本回收算法的适用场景**
 
-《doocs-jvm》把回收算法与分代直接对应：
+把回收算法与分代直接对应：
 
 | 算法 | 思路 | 优点 | 缺点 | 适用 |
 | --- | --- | --- | --- | --- |
@@ -4509,11 +4466,10 @@ UPDATE lesson SET content = '## 本节要点
 | 复制 | 复制存活对象到另一空间 | 无碎片，分配快 | 空间浪费一半 | 新生代 |
 | 标记整理 | 标记存活对象并向一端移动 | 无碎片 | 移动对象成本高 | 老年代 |
 
-《doocs-jvm》中标注「标记-整理算法（老年代）」，正是这个对应关系的出处。
 
 **G1 与 CMS 的对比**
 
-《深入理解 Java 虚拟机（第 3 版）》中专门讨论了「G1 收集器常会被拿来与 CMS」做对比，两者的关键差异：
+G1 与 CMS 的关键差异：
 
 - **内存布局**：CMS 要求连续的新生代/老年代分区；G1 把堆划分为大小相等的 Region，逻辑上仍分代但物理上不连续
 - **回收粒度**：CMS 以「老年代」为单位；G1 以 Region 为单位，可以只回收垃圾最多的那部分
@@ -4523,18 +4479,18 @@ UPDATE lesson SET content = '## 本节要点
 
 **并发回收时的线程数**
 
-《深入理解 JVM 核心技术》提到「并发回收时垃圾收集线程不少于……」这一细节——CMS 的并发阶段由若干 GC 线程与用户线程同时运行，这意味着 GC 会与业务线程**争抢 CPU**。在高 QPS 场景下，这一点常被忽视：CPU 核数不多时，并发 GC 反而会拖慢业务线程。
+「并发回收时垃圾收集线程不少于……」这一细节——CMS 的并发阶段由若干 GC 线程与用户线程同时运行，这意味着 GC 会与业务线程**争抢 CPU**。在高 QPS 场景下，这一点常被忽视：CPU 核数不多时，并发 GC 反而会拖慢业务线程。
 
 **STW 的两类**
 
-《面渣逆袭 JVM》与《面试题-08》都强调「并行」与「并发」在 GC 中的不同含义：
+「并行」与「并发」在 GC 中的不同含义：
 
 - **并行（Parallel）**：GC 线程之间并行工作，但仍然会 STW（暂停所有 Java 线程）
 - **并发（Concurrent）**：GC 线程与用户线程同时工作，只有部分阶段 STW（如初始标记、最终标记）
 
 **主动触发 GC 的方式**
 
-《面试题-08-Java虚拟机(JVM)面试题》把「垃圾回收器可以马上回收内存吗？有什么办法主动通知虚拟机进行垃圾回收？」列为高频问答题，答案是通过 `System.gc()`（提示，非强制）与 `Runtime.getRuntime().gc()`。生产环境应慎用，因为它会触发 Full GC。
+把「垃圾回收器可以马上回收内存吗？有什么办法主动通知虚拟机进行垃圾回收？」列为高频问答题，答案是通过 `System.gc()`（提示，非强制）与 `Runtime.getRuntime().gc()`。生产环境应慎用，因为它会触发 Full GC。
 
 **引用类型与可达性判定**
 
@@ -4614,13 +4570,12 @@ Thread.sleep(200);
 
 用 Arthas 的 dashboard 命令观察进程运行状态，并尝试用 trace 命令观察某个方法的耗时分布。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《JVM 调优工具》《二哥的 JVM 进阶之路》《深入理解 Java 虚拟机（第 3 版）》对本节工具链有直接覆盖。
 
 **jstat 各选项的用途**
 
-《JVM 调优工具》开篇就给出了 jstat 的常用命令，是本节最直接的操作依据：
+jstat 的常用命令，是本节最直接的操作依据：
 
 ```bash
 # 合并显示各列
@@ -4640,11 +4595,11 @@ jstat 输出的关键列：
 | FGC / FGCT | Full GC 次数 / 总耗时 | **只要有就要查原因** |
 | GCCS | GC 后使用量 | 与 OU 对比可判断回收是否有效 |
 
-《JVM 调优工具》特别强调用 `jstat -gcutil` 时关注各列的**比率**（如 O、YGC 的变化趋势），比看绝对值更能反映问题。
+用 `jstat -gcutil` 时关注各列的**比率**（如 O、YGC 的变化趋势），比看绝对值更能反映问题。
 
 **jstack 与线程状态**
 
-《二哥的 JVM 进阶之路》与《深入浅出 Java 多线程》都涉及线程 dump 的分析。jstack 输出中每个线程都带状态标记，排查时的关注点：
+jstack 输出中每个线程都带状态标记，排查时的关注点：
 
 - `BLOCKED` → 死锁或锁竞争（看 `-Deadlock` 段落）
 - `WAITING (on object monitor)` → 等待释放锁
@@ -4653,7 +4608,7 @@ jstat 输出的关键列：
 
 **死锁的四个必要条件**
 
-《面试题-04-并发编程面试题》把「什么是线程死锁，形成死锁的四个必要条件」列为高频题：
+高频题：
 
 1. 互斥条件
 2. 不可剥夺条件
@@ -4664,12 +4619,12 @@ jstat 输出的关键列：
 
 **内存泄漏与内存溢出的区别**
 
-《面试题-08-Java虚拟机(JVM)面试题》与《面渣逆袭 JVM》都明确区分了这两个概念：
+这两个概念：
 
 - **内存泄漏**：内存占用持续增长，GC 无法回收，最终 OOM。是**现象**
 - **内存溢出（OOM）**：分配内存时超出可用上限。是**结果**
 
-典型泄漏源（知识库中《面渣逆袭 JVM》与《面渣逆袭 Java 集合框架篇》都提到）：
+典型泄漏源：
 
 - 静态集合持有对象引用（最常见）
 - 监听器注册后未注销
@@ -4698,7 +4653,7 @@ MAT 中打开 hprof 后，第一步看 **Leak Suspects Report**，第二步看 *
 
 排查 CPU 飙高则是另一条路径：`top -H -p <pid>` 拿到占用最高的线程 TID（十进制转十六进制）→ `jstack` 里 grep 该 nid → 找到具体方法栈。
 
-**关于 Arthas**：知识库中《二哥的 JVM 进阶之路》的《Java多线程开发实战手册》提到过它。相比命令行工具，Arthas 的 `dashboard`、`thread -n 3`、`trace`、`watch` 让排查过程无需重启进程，在生产环境更适合；但它自身有性能开销，压测环境需谨慎开启。
+**关于 Arthas**：相比命令行工具，Arthas 的 `dashboard`、`thread -n 3`、`trace`、`watch` 让排查过程无需重启进程，在生产环境更适合；但它自身有性能开销，压测环境需谨慎开启。
 ' WHERE slug = 'jvm-tuning-tools';
 
 -- bytecode
@@ -4745,13 +4700,12 @@ int add(int x, int y) {
 
 用 `javap -c -v` 反编译一个方法，逐行对照字节码与栈帧中局部变量表、操作数栈的变化。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《doocs-jvm》《深入理解 Java 虚拟机（第 3 版）》《二哥的 JVM 进阶之路》对本节有系统覆盖。
 
 **class 文件结构的字段宽度**
 
-《doocs-jvm》给出了「u2、u4、u8 分别代表……」的说明，这是读懂 class 文件格式的必备前提：
+class 文件中无符号数的宽度：
 
 | 类型 | 字节 | 典型用途 |
 | --- | --- | --- |
@@ -4760,7 +4714,7 @@ int add(int x, int y) {
 | u4 | 4 | 常量池索引、字段名索引、属性名索引 |
 | u8 | 8 | CONSTANT_Long、CONSTANT_Double 的实际值 |
 
-class 文件的整体布局（依据《doocs-jvm》）：
+class 文件的整体布局：
 
 ```
 ClassFile {
@@ -4779,11 +4733,11 @@ ClassFile {
 
 **常量池是 class 文件的核心**
 
-《doocs-jvm》指出常量池里存了两类东西：**字面量**（如字符串、整数常量）与**符号引用**（字段/方法/类的符号引用）。符号引用在解析阶段被替换为直接引用，这正是「动态链接」的含义——运行时才知道要调用哪个方法的具体地址。
+常量池里存了两类东西：**字面量**（如字符串、整数常量）与**符号引用**（字段/方法/类的符号引用）。符号引用在解析阶段被替换为直接引用，这正是「动态链接」的含义——运行时才知道要调用哪个方法的具体地址。
 
 **字节码指令的分类**
 
-《深入理解 Java 虚拟机（第 3 版）》第 6 章专门讲字节码指令，可归纳为 8 类：
+字节码指令可归纳为 8 类：
 
 - 加载与存储：`iload`、`aload`、`istore`、`astore`
 - 运算：`iadd`、`isub`、`imul`、`idiv`、`irem`
@@ -4798,11 +4752,11 @@ ClassFile {
 
 **invokedynamic 与 Lambda**
 
-知识库中《深入浅出 Java + 23 种设计模式》与《二哥的 Java 进阶之路》都在讲 Lambda 与函数式接口时提到 `invokedynamic`。它是 JDK 7 引入的指令，用于在运行期决定调用哪个方法——Lambda 表达式正是靠它在运行期生成实现类并绑定方法引用，这是「Lambda 不产生额外类文件」的技术原因。
+`invokedynamic`。它是 JDK 7 引入的指令，用于在运行期决定调用哪个方法——Lambda 表达式正是靠它在运行期生成实现类并绑定方法引用，这是「Lambda 不产生额外类文件」的技术原因。
 
 **栈帧的结构**
 
-《深入理解 Java 虚拟机（第 3 版）》给出的栈帧结构是：
+栈帧结构是：
 
 | 局部 | 说明 |
 | --- | --- |
@@ -4885,18 +4839,17 @@ System.out.println(ref.get() == null ? "已回收" : "仍可达");
 
 写一个模拟静态集合泄漏的程序，用 `jcmd <pid> GC.heap_dump` 抓快照，在 MAT 中找出 dominator 最大的对象并定位其 GC Root 路径。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭 JVM》《深入理解 Java 虚拟机（第 3 版）》《面试题-08-Java虚拟机(JVM)面试题》以及《Java多线程开发最佳实践手册》对本节给出了完整的排查视角。
 
 **内存泄漏与内存溢出的关系**
 
-《面试题-08-Java虚拟机(JVM)面试题》把这两个问题放在一起对比：
+
 
 - 「内存溢出异常」——「Java 会存在内存泄漏吗？请简单描述」
 - 「Java 会存在内存泄漏吗？」的答案：**内存泄漏是指内存空间被占满却无法回收**，持续累积最终导致 OOM
 
-知识库中列举的典型泄漏场景：
+典型泄漏场景：
 
 1. **静态集合**：往静态 List/Map 里塞对象且不清理
 2. **监听器**：注册了监听器但没有反注册
@@ -4906,13 +4859,13 @@ System.out.println(ref.get() == null ? "已回收" : "仍可达");
 
 **类型卸载与类加载器泄漏**
 
-《doocs-jvm》指出方法区回收的目标之一是**对类型的卸载**，而卸载需要三个条件同时满足：类的所有实例都被回收、加载它的 ClassLoader 被回收、Class 对象没被引用。
+方法区回收的目标之一是**对类型的卸载**，而卸载需要三个条件同时满足：类的所有实例都被回收、加载它的 ClassLoader 被回收、Class 对象没被引用。
 
-这条链在容器环境里格外重要——《二哥的 JVM 进阶之路》与《深入浅出 Java 多线程》都提到自定义类加载器的生命周期管理。Tomcat 中每个 Web 应用有独立 ClassLoader，若应用中有大量动态代理、脚本引擎或频繁热部署，ClassLoader 无法被回收 => 对应的元空间也无法回收 => `OutOfMemoryError: Metaspace`。
+这条链在容器环境里格外重要，尤其是自定义类加载器的生命周期管理。Tomcat 中每个 Web 应用有独立 ClassLoader，若应用中有大量动态代理、脚本引擎或频繁热部署，ClassLoader 无法被回收 => 对应的元空间也无法回收 => `OutOfMemoryError: Metaspace`。
 
 **并发场景下的泄漏源**
 
-《Java多线程开发最佳实践手册》覆盖了线程创建与生命周期管理、同步机制、JUC 工具、线程池配置优化、CompletableFuture 异步编程等 30 多个实战示例，其中线程池相关的实践正是泄漏高发区：
+线程池中的典型泄漏场景：
 
 ```java
 // 错误：ThreadLocal 未 remove，线程复用导致 value 残留
@@ -4935,7 +4888,7 @@ executor.submit(() -> {
 
 **排查工具链**
 
-《JVM 调优工具》与《二哥的 JVM 进阶之路》覆盖的工具正好构成本节的实操路径：
+常用的排查工具：
 
 - `jstat -gcutil <pid> 1000` — 观察老年代是否持续增长
 - `jcmd <pid> GC.heap_dump /path/heap.hprof` — 抓堆快照（比 `jmap` 更安全）
@@ -4943,7 +4896,7 @@ executor.submit(() -> {
 
 **软引用、弱引用与缓存**
 
-《面渣逆袭Java并发编程》与《面渣逆袭 Java 集合框架篇》在讲缓存实现时对比了三种引用：
+三种引用：
 
 | 引用 | 回收时机 | 典型用途 |
 | --- | --- | --- |
@@ -5035,13 +4988,12 @@ daemon.start();
 
 用 `Thread.getState()` 打印一个线程从创建到结束的全部状态转换，观察线程在 WAITING 与 RUNNABLE 之间切换。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《面渣逆袭Java并发编程》《面试题-04-并发编程面试题》《深入浅出 Java 多线程-RedSpider》《Java多线程开发实战手册》《由浅入深Java并发》对本节覆盖非常完整。
 
 **并发编程三要素**
 
-《面试题-04-并发编程面试题》开篇即列出「并发编程三要素是什么？」：
+「并发编程三要素是什么？」：
 
 1. **原子性**：一个操作不可被中断，要么全执行要么全不执行
 2. **可见性**：一个线程修改了变量，其他线程能立即看到
@@ -5051,7 +5003,7 @@ daemon.start();
 
 **并发 vs 并行的图示**
 
-《面渣逆袭Java并发编程》用一张图区分二者：并行是同一时刻两个线程都在执行（需要两个 CPU）；并发是同一时刻只有一个在执行，但一段时间内两个都执行过。**并发的实现依赖于 CPU 切换线程，因为切换时间特别短，用户基本无感知。**
+二者：并行是同一时刻两个线程都在执行（需要两个 CPU）；并发是同一时刻只有一个在执行，但一段时间内两个都执行过。**并发的实现依赖于 CPU 切换线程，因为切换时间特别短，用户基本无感知。**
 
 **死锁的四个必要条件**
 
@@ -5066,11 +5018,11 @@ daemon.start();
 
 **创建线程的四种方式与 Runnable / Callable 的区别**
 
-《面试题-04》对比了两者：Runnable 没有返回值、不能抛受检异常；Callable 有泛型返回值、可以抛异常、还能通过 FutureTask 拿到结果。实践中 `Runnable` 更常用（配合线程池），需要结果时才用 `Callable`。
+两者：Runnable 没有返回值、不能抛受检异常；Callable 有泛型返回值、可以抛异常、还能通过 FutureTask 拿到结果。实践中 `Runnable` 更常用（配合线程池），需要结果时才用 `Callable`。
 
 **Java 线程与操作系统线程的关系**
 
-《深入理解高并发编程：核心原理与案例实战》的思维导图第 1 章第 1.4 节专门讲「Java 线程与操作系统线程的关系」，同时覆盖了：
+Java 线程与操作系统线程的关系：
 
 - 冯诺依曼计算机模型与 CPU 架构
 - 单核 CPU 的不足、多核 CPU 架构、多 CPU 架构
@@ -5080,7 +5032,7 @@ Java 采用的是**一对一映射**（一个 Java 线程对应一个 OS 线程�
 
 **线程状态与线程优先级**
 
-《深入浅出 Java 多线程-RedSpider》的目录显示其"基础篇"第 3 章讲线程组与线程优先级，第 4 章讲「Java 线程的状态及主要转化方法」，第 5 章讲线程间通信。它把线程状态分为 6 种：
+Java 将线程状态分为 6 种：
 
 | 状态 | 含义 |
 | --- | --- |
@@ -5093,11 +5045,11 @@ Java 采用的是**一对一映射**（一个 Java 线程对应一个 OS 线程�
 
 **守护线程与用户线程**
 
-同一份资料指出：守护线程是为辅助服务用户线程而存在的，其生命周期依附于用户线程，**用户线程结束，守护线程随之结束**。典型守护线程有垃圾回收线程、编译器线程等。
+守护线程是为辅助服务用户线程而存在的，其生命周期依附于用户线程，**用户线程结束，守护线程随之结束**。典型守护线程有垃圾回收线程、编译器线程等。
 
 **查找高 CPU 线程的方法**
 
-《面试题-04》还提到「如何在 Windows 和 Linux 上查找哪个线程 CPU 利用率最高？」，这在实战排查中非常有用：
+「如何在 Windows 和 Linux 上查找哪个线程 CPU 利用率最高？」，这在实战排查中非常有用：
 
 ```bash
 # Linux：top -H 找出线程级 CPU 占用最高的 TID
@@ -5114,7 +5066,7 @@ jstack <pid> | grep -A 20 ''<nid>''
 - **CPU 密集型**（计算、加解密、压缩）：线程数 ≈ 核数 + 1
 - **IO 密集型**（数据库、RPC、文件）：线程数 ≈ 核数 × (1 + 等待时间/计算时间)
 
-《Java多线程开发实战手册》在"线程池配置优化"一节给出的思路正是如此：先压测确定基线，再按任务类型调整，而不是拍脑袋给一个 200。
+思路正是如此：先压测确定基线，再按任务类型调整，而不是拍脑袋给一个 200。
 
 另一个容易被忽略的细节：**不要在持锁期间调用可能阻塞或耗时长的操作**（如远程调用、打印日志）。这既是死锁的高发原因，也让锁的粒度白白变大。
 ' WHERE slug = 'thread-basics';
@@ -5191,13 +5143,12 @@ private final Condition notFull = lock.newCondition();
 
 用 `jstack` 观察一个因锁竞争进入 BLOCKED 状态的线程栈，分析它卡在哪个 monitor 上。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《深入理解高并发编程（第 2 版）》《二哥的并发编程进阶之路》《极致经典（卷 1/2/3）：Java 高并发核心编程》《面渣逆袭Java并发编程》对本节有深入覆盖。
 
 **synchronized 的锁对象**
 
-《深入理解 JVM 核心技术》给出一条关键规则：「普通同步方法，锁是当前实例对象锁」。完整的锁对象表：
+一条关键规则：「普通同步方法，锁是当前实例对象锁」。完整的锁对象表：
 
 | 同步形式 | 锁对象 |
 | --- | --- |
@@ -5208,7 +5159,7 @@ private final Condition notFull = lock.newCondition();
 
 **锁升级路径**
 
-知识库中《二哥的 JVM 进阶之路》与《深入浅出 Java 多线程》都覆盖了锁升级。要点：
+锁升级的要点：
 
 - **无锁 → 偏向锁**：只有一个线程访问时，把线程 ID 写入 Mark Word，后续该线程访问无需 CAS。JDK 15 起偏向锁被废弃（JEP 374），JDK 18 彻底移除。
 - **偏向锁 → 轻量级锁**：出现第二个线程访问时，撤销偏向锁，升级为轻量级锁。
@@ -5218,7 +5169,7 @@ private final Condition notFull = lock.newCondition();
 
 **AQS 与两种锁的实现差异**
 
-《深入理解高并发编程（第 2 版）》与《二哥的并发编程进阶之路》都指出：「锁、非公平锁底层采用 AQS 实现」。AQS 的核心结构：
+`ReentrantLock` 的公平锁和非公平锁都基于 AQS。AQS 的核心结构：
 
 ```java
 private volatile int state;                 // 同步状态
@@ -5236,7 +5187,7 @@ private volatile Node head, tail;           // CLH 双向队列
 
 **ReentrantLock 的额外能力**
 
-知识库中《面渣逆袭Java并发编程》对比了 `synchronized` 与 `ReentrantLock`：
+`synchronized` 与 `ReentrantLock`：
 
 | 能力 | synchronized | ReentrantLock |
 | --- | --- | --- |
@@ -5248,7 +5199,7 @@ private volatile Node head, tail;           // CLH 双向队列
 
 **wait / notifyAll 与 Condition**
 
-《深入浅出 Java 多线程-RedSpider》"基础篇"第 5 章讲线程间通信。`Object.wait()` 的三个约束：
+线程间通信中，`Object.wait()` 有三个约束：
 
 1. 必须在 `synchronized` 块中调用
 2. 必须持有该监视器的锁
@@ -5265,7 +5216,7 @@ while (queue.isEmpty()) notEmpty.await();
 
 **避免死锁的工程实践**
 
-《面试题-04-并发编程面试题》给出的死锁四个必要条件中，最实用的是打破**循环等待条件**——全局固定加锁顺序：
+死锁四个必要条件中，最实用的是打破**循环等待条件**——全局固定加锁顺序：
 
 ```java
 // 所有地方都按 userId -> orderId 的顺序加锁，杜绝交叉
@@ -5365,24 +5316,23 @@ pool.execute(() -> {
 
 用自定义 ThreadPoolExecutor 模拟任务队列打满，观察 CallerRunsPolicy 下调用方线程被迫执行任务的效果。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《深入浅出 Java 多线程-RedSpider》《Java多线程开发最佳实践手册》《二哥的并发编程进阶之路》《深入理解高并发编程（第 2 版）》以及《面渣逆袭Java并发编程》对本节覆盖完整。
 
 **线程池的复用机制**
 
-《二哥的并发编程进阶之路》指出，线程池的核心是「池中的空闲线程异步提交任务」的复用模型。完整执行链路（与《深入浅出 Java 多线程》一致）：
+线程池的核心是「池中的空闲线程异步提交任务」的复用模型。完整执行链路：
 
 1. 线程池为空 → 创建核心线程执行
 2. 核心线程已满 → 任务进入工作队列
 3. 队列满 → 创建非核心线程（直到 maximumPoolSize）
 4. 线程数达上限且队列满 → 执行拒绝策略
 
-《深入理解 JVM 核心技术》提到一个设计要点：「丢弃任务可重用固定线程数的线程池」——这正是 `CallerRunsPolicy` 的思路：宁可让提交方自己跑，也不丢任务，从而把压力反传给上游。
+一个设计要点：「丢弃任务可重用固定线程数的线程池」——这正是 `CallerRunsPolicy` 的思路：宁可让提交方自己跑，也不丢任务，从而把压力反传给上游。
 
 **线程池参数的经验值**
 
-《Java多线程开发最佳实践手册》的"线程池配置优化"章节给出了系统的建议：
+系统的建议：
 
 - **CPU 密集型**：N+1（N 为核数），因为线程大部分时间在计算，额外一个用于处理突发
 - **IO 密集型**：N × (1 + WT/CT)，WT 为等待时间，CT 为计算时间
@@ -5391,7 +5341,7 @@ pool.execute(() -> {
 
 **RejectedExecutionHandler 的四种策略**
 
-知识库中《深入浅出 Java 多线程》列出了完整的策略表：
+完整的策略表：
 
 | 策略 | 行为 | 适用场景 |
 | --- | --- | --- |
@@ -5402,7 +5352,7 @@ pool.execute(() -> {
 
 **默认实现与推荐的差异**
 
-《二哥的并发编程进阶之路》与《面渣逆袭Java并发编程》都提醒：`Executors` 工厂方法提供了便捷但有隐患的实现：
+`Executors` 工厂方法提供了便捷但有隐患的实现：
 
 - `newFixedThreadPool(n)` / `newSingleThreadExecutor()` → `LinkedBlockingQueue` **无界队列**，任务堆积到 OOM
 - `newCachedThreadPool()` → `SynchronousQueue` + `maximumPoolSize = Integer.MAX_VALUE`，线程数无限增长到 OOM
@@ -5412,7 +5362,7 @@ pool.execute(() -> {
 
 **线程池的状态机**
 
-《深入浅出 Java 多线程》给出完整状态定义：
+完整状态定义：
 
 | 状态 | 说明 |
 | --- | --- |
@@ -5426,7 +5376,7 @@ pool.execute(() -> {
 
 **JUC 的同步工具**
 
-《Java多线程开发最佳实践手册》还覆盖了常用同步器，它们常常比 `synchronized` 更贴合场景：
+按场景选择同步器：
 
 - `CountDownLatch`：一个或多个线程等待其他线程完成（适合并行任务汇合）
 - `CyclicBarrier`：一组线程互相等待（适合分阶段计算）
@@ -5509,13 +5459,11 @@ queue.take();           // 空则阻塞
 
 压测对比 `AtomicLong` 与 `LongAdder` 在 16 线程累加下的耗时差异，并用 `ConcurrentHashMap` 实现一个线程安全的计数器。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《二哥的 Java 进阶之路暗黑版》《面渣逆袭 Java 集合框架篇》《面试题-02-Java集合容器面试题》《Java编程思想第四版》《深入理解高并发编程（第 2 版）》对本节覆盖完整。
 
 **ConcurrentHashMap 的结构演进**
 
-《二哥的 Java 进阶之路》与《深入理解高并发编程（第 2 版）》都提到「转换为红黑树链表转换为红黑树过程」与「ConcurrentHashMap 扩容操作控制」。
 
 JDK 7 → JDK 8 的变化：
 
@@ -5530,7 +5478,7 @@ JDK 8 的关键改进在于**扩容期间其他线程可以协助搬迁**，以�
 
 **红黑树转换条件**
 
-《面试题-02-Java集合容器面试题》与《二哥的 Java 进阶之路》给出了 HashMap 与 ConcurrentHashMap 共用的树化条件：
+HashMap 与 ConcurrentHashMap 共用的树化条件：
 
 - 链表长度 ≥ 8（TREEIFY_THRESHOLD）
 - 数组容量 ≥ 64（MIN_TREEIFY_CAPACITY），否则优先扩容
@@ -5539,7 +5487,7 @@ JDK 8 的关键改进在于**扩容期间其他线程可以协助搬迁**，以�
 
 **ConcurrentHashMap 的读为什么无锁**
 
-《深入理解 JVM 核心技术》与《二哥的 Java 进阶之路》都强调：JDK 8 中 `get` 方法不加锁，依靠三个 volatile 变量的内存语义保证可见性：
+JDK 8 中 `get` 方法不加锁，依靠三个 volatile 变量的内存语义保证可见性：
 
 - `table`：桶数组引用
 - `Node.val`：节点值
@@ -5549,7 +5497,7 @@ JDK 8 的关键改进在于**扩容期间其他线程可以协助搬迁**，以�
 
 **原子类与 CAS**
 
-《深入理解高并发编程（第 2 版）》系统讲解了 CAS（Compare And Swap）与 ABA 问题：
+CAS 与 ABA 问题：
 
 ```java
 // CAS 语义：期望值等于实际值才更新，否则返回 false
@@ -5566,15 +5514,15 @@ ref.compareAndSet("A", "B", 0, stamp[0] + 1);   // 带版本戳
 
 **LongAdder 为什么更快**
 
-《二哥的并发编程进阶之路》与《面渣逆袭Java并发编程》都提到热点分散的思想：`AtomicLong` 的所有线程 CAS 同一个变量，CAS 失败就自旋重试，高并发下成为热点；`LongAdder` 把值分散到多个 `Cell` 上，各线程 CAS 自己的 Cell，读时再求和。
+热点分散的思想：`AtomicLong` 的所有线程 CAS 同一个变量，CAS 失败就自旋重试，高并发下成为热点；`LongAdder` 把值分散到多个 `Cell` 上，各线程 CAS 自己的 Cell，读时再求和。
 
 **CopyOnWriteArrayList 的适用边界**
 
-《面渣逆袭 Java 集合框架篇》强调：写时复制的代价是每次写都 O(n) 拷贝数组 + O(n) 加锁。适合的场景是**集合小、读极多、几乎不写**（如监听器列表、配置白名单）。不适用于写频繁或元素很多的场景。
+写时复制的代价是每次写都 O(n) 拷贝数组 + O(n) 加锁。适合的场景是**集合小、读极多、几乎不写**（如监听器列表、配置白名单）。不适用于写频繁或元素很多的场景。
 
 **BlockingQueue 的四种实现**
 
-《深入浅出 Java 多线程》与《Java多线程开发最佳实践手册》覆盖了队列选型：
+队列选型：
 
 | 实现 | 结构 | 特点 |
 | --- | --- | --- |
@@ -5586,7 +5534,7 @@ ref.compareAndSet("A", "B", 0, stamp[0] + 1);   // 带版本戳
 
 **CopyOnWriteArraySet 与并发 Set**
 
-《面试题-02-Java集合容器面试题》指出，JDK 5 之后提供的 `CopyOnWriteArraySet` 基于 `CopyOnWriteArrayList` 实现，迭代器是**快照式**的——迭代期间不抛 `ConcurrentModificationException`，但也不反映后续修改。
+JDK 5 之后提供的 `CopyOnWriteArraySet` 基于 `CopyOnWriteArrayList` 实现，迭代器是**快照式**的——迭代期间不抛 `ConcurrentModificationException`，但也不反映后续修改。
 
 ## 实战提示
 
@@ -5685,13 +5633,12 @@ CompletableFuture.supplyAsync(() -> heavyIo(), bizPool);
 
 用 `CompletableFuture` 并行调用三个模拟接口，聚合结果后统一返回，并给整体加 2 秒超时与降级兜底。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《极致经典（卷 1/2/3）：Java 高并发核心编程》《Java多线程开发最佳实践手册》《深入理解高并发编程（第 2 版）》《实战高并发设计模式》对本节覆盖非常细致。
 
 **thenCompose 的定位**
 
-《极致经典（卷 2）》第 10.2.4 节专门讲「thenCompose() 方法」，这正是 CompletableFuture 家族最容易搞混的一组方法：
+CompletableFuture 的异步组合方法：
 
 | 方法 | 上一阶段返回 | 何时用 |
 | --- | --- | --- |
@@ -5700,11 +5647,11 @@ CompletableFuture.supplyAsync(() -> heavyIo(), bizPool);
 | `thenRun` | 普通值 T | 不关心结果 |
 | `thenCompose` | `CompletableFuture<U>` | **扁平化**，避免 `CF<CF<U>>` 嵌套 |
 
-《极致经典（卷 3）》与《卷 1》都提到「异步回调模式」是 CompletableFuture 的核心价值——它把传统的「阻塞等待结果」变成「结果到达后触发回调」，让线程不被占着。
+「异步回调模式」是 CompletableFuture 的核心价值——它把传统的「阻塞等待结果」变成「结果到达后触发回调」，让线程不被占着。
 
 **默认线程池的风险**
 
-《Java多线程开发最佳实践手册》在"CompletableFuture 异步编程"一节明确指出默认行为的问题：`supplyAsync` / `runAsync` 不传 Executor 时使用 `ForkJoinPool.commonPool()`。这个池是**全 JVM 共享**的：
+默认行为的问题：`supplyAsync` / `runAsync` 不传 Executor 时使用 `ForkJoinPool.commonPool()`。这个池是**全 JVM 共享**的：
 
 - 它的并行度默认是 `CPU 核数 - 1`
 - 所有未指定 Executor 的 CompletableFuture、以及 `parallelStream()` 都会用它
@@ -5714,7 +5661,7 @@ CompletableFuture.supplyAsync(() -> heavyIo(), bizPool);
 
 **任务编排模式**
 
-《实战高并发设计模式》第 4.2 节讲「任务编排」，《深入理解高并发编程（第 2 版）》提到「使用 CompletableFuture 来优化」这类场景。典型编排模式：
+「使用 CompletableFuture 来优化」这类场景。典型编排模式：
 
 ```java
 // 顺序执行（串行依赖）
@@ -5733,7 +5680,7 @@ userF.thenCombine(orderF, (u, os) -> merge(u, os))
 
 **异常处理的三个方法**
 
-《Java多线程开发最佳实践手册》对异常处理给了明确分工：
+对异常处理给了明确分工：
 
 | 方法 | 何时执行 | 是否改变结果 |
 | --- | --- | --- |
@@ -5745,7 +5692,7 @@ userF.thenCombine(orderF, (u, os) -> merge(u, os))
 
 **异步转同步的场景**
 
-《从零开始手写 RPC 框架》提到「异步转同步」这个经典问题——框架内部用异步模型，但对外暴露同步接口。典型实现是「一个 Future + 一个阻塞等待的队列」：
+「异步转同步」这个经典问题——框架内部用异步模型，但对外暴露同步接口。典型实现是「一个 Future + 一个阻塞等待的队列」：
 
 ```java
 // 思路：异步执行 + CountDownLatch 等待
@@ -5762,7 +5709,7 @@ latch.await();
 
 **超时与降级**
 
-《Java多线程开发实战手册》强调生产环境必须为每个异步链路设超时，否则下游卡住会一路传导把上游线程池打满：
+生产环境必须为每个异步链路设超时，否则下游卡住会一路传导把上游线程池打满：
 
 ```java
 // 超时抛异常
@@ -5871,13 +5818,12 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 
 用 parallelStream 与手写分治分别计算一千万个随机数的平方和，对比耗时并尝试不同的阈值。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《深入理解高并发编程：核心原理与案例实战-思维导图》《深入理解高并发编程（第 2 版）》《Java多线程开发最佳实践手册》《二哥的并发编程进阶之路》对本节方法论覆盖最全。
 
 **操作系统线程调度这一层基础**
 
-《深入理解高并发编程：核心原理与案例实战》思维导图的基础篇第 1 章是「操作系统线程调度」，其中 1.3 节「操作系统线程」覆盖了三种模型：
+操作系统线程的三种调度模型：
 
 - 用户级线程（UPLT）：由用户空间的库调度，内核感知不到，多个用户线程映射到一个内核线程
 - 内核级线程（KPLT）：由内核直接调度，一个对应一个
@@ -5894,7 +5840,7 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 
 **并行流的三个阶段**
 
-《Java多线程开发最佳实践手册》在"并行 Stream 性能调优"一节给出了并行流的完整执行模型：
+并行流的完整执行模型：
 
 1. **拆分（Spliterator）**：把数据源切分成多个 Stream
 2. **执行（ForkJoinPool）**：多个线程并行处理各个分片
@@ -5918,7 +5864,7 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 
 **并行归约的三参数 reduce**
 
-《深入理解高并发编程（第 2 版）》与手册都强调三参数版本：
+三参数版本：
 
 ```java
 .reduce(0L, Long::sum, Long::sum)
@@ -5945,7 +5891,7 @@ try {
 
 **CompletableFuture 做聚合**
 
-《极致经典（卷 2/3）》与《实战高并发设计模式》第 4.2 节「任务编排」给出了另一种并行聚合方式。相比 parallelStream 的优势是**可以指定不同线程池、可以对每个子任务单独设超时**：
+另一种并行聚合方式。相比 parallelStream 的优势是**可以指定不同线程池、可以对每个子任务单独设超时**：
 
 ```java
 // 三个来源并行，各自独立超时与降级
@@ -5955,7 +5901,7 @@ CompletableFuture<List<User>> uf = supplyAsync(this::fetchUsers, ioPool)
 
 **work-stealing 与任务粒度**
 
-《二哥的并发编程进阶之路》提到 ForkJoinPool 的核心机制是 **work-stealing**：每个线程有自己的双端队列，队列空了就去别的线程"偷"任务。这带来一个重要实践结论：**任务粒度不能太小**，否则偷任务的开销超过收益。这也是手写分治要有「阈值以下直接串行」的原因。
+ForkJoinPool 的核心机制是 **work-stealing**：每个线程有自己的双端队列，队列空了就去别的线程"偷"任务。这带来一个重要实践结论：**任务粒度不能太小**，否则偷任务的开销超过收益。这也是手写分治要有「阈值以下直接串行」的原因。
 
 ## 实战提示
 
@@ -6052,13 +5998,12 @@ public class RedisAutoConfig {
 
 写一个自定义 starter：包含 `XxxProperties`（`@ConfigurationProperties`）与 `XxxAutoConfiguration`（`@ConditionalOnMissingBean`），并在另一个项目中通过依赖引入。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《SpringIOC核心技术-冰河》《Spring源码深度解析（第 2 版）》《Spring 源码解析手册（星球专享）》《面渣逆袭 Spring 篇》《面试题-17-Spring Boot面试题》对本节原理有系统覆盖。
 
 **自动装配的完整机制**
 
-《SpringIOC核心技术-冰河》对 Spring 的 IOC 实现原理拆解得很细，与 Boot 的自动装配一脉相承：
+理解 Boot 自动配置可以从 Spring IoC 的装配流程入手：
 
 ```
 启动 → SpringApplication.run()
@@ -6070,11 +6015,11 @@ public class RedisAutoConfig {
   → refresh() → 实例化单例 → 属性注入 → AOP 代理
 ```
 
-《Spring源码深度解析（第 2 版）》与《Spring 源码解析手册》补充了 Spring Boot 2.7 之后的关键变化：**自动配置类注册文件的路径从 `META-INF/spring.factories` 改到了 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`**。原因是对 `spring.factories` 的自动配置支持被废弃，且一个文件只能声明一个自动配置类，新格式支持一行声明多个。
+Spring Boot 2.7 引入了一项变化：**自动配置类注册文件的路径从 `META-INF/spring.factories` 改到了 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`**。原因是对 `spring.factories` 的自动配置支持被废弃，且一个文件只能声明一个自动配置类，新格式支持一行声明多个。
 
 **条件注解体系**
 
-《面试题-17-Spring Boot面试题》与《面渣逆袭 Spring 篇》列出了常用条件注解：
+常用条件注解：
 
 | 注解 | 生效条件 |
 | --- | --- |
@@ -6088,7 +6033,7 @@ public class RedisAutoConfig {
 
 **@ConditionalOnMissingBean 的使用规范**
 
-《SpringIOC核心技术-冰河》与《面试题-17》强调这是 starter 开发的核心：
+这是 starter 开发的核心：
 
 ```java
 @Bean
@@ -6106,7 +6051,7 @@ public class MyConfig { ... }
 
 **Bean 的生命周期与 BeanPostProcessor**
 
-《SpringIOC核心技术-冰河》给出了完整生命周期：
+完整生命周期：
 
 ```
 实例化（构造器）
@@ -6119,11 +6064,11 @@ public class MyConfig { ... }
   → @PreDestroy → DisposableBean#destroy → 自定义 destroy 方法
 ```
 
-书中强调 **BeanPostProcessor 是 Spring 扩展的命脉**——AOP 代理、`@Autowired` 的注入、`@Async` 的异步化，全都在这里织入。
+**BeanPostProcessor 是 Spring 扩展的命脉**——AOP 代理、`@Autowired` 的注入、`@Async` 的异步化，全都在这里织入。
 
 **循环依赖的三级缓存**
 
-《Spring源码深度解析（第 2 版）》与《深入浅出Java+23种设计模式》都解释了三级缓存：
+三级缓存：
 
 ```
 一级：singletonObjects      —— 完全初始化好的单例
@@ -6133,7 +6078,7 @@ public class MyConfig { ... }
 
 三级缓存是为了处理「A 的构造需要 B，B 的构造需要 A」这种**构造器注入**的循环依赖——三级缓存能拿到**原始引用**（可能是代理对象前的裸对象）。
 
-**但字段注入的循环依赖是有害的**，《面试题-17》明确指出应当避免：
+**但字段注入的循环依赖是有害的**，明确指出应当避免：
 
 ```java
 // 不推荐：字段注入循环依赖
@@ -6146,7 +6091,7 @@ public class MyConfig { ... }
 
 **@Value vs @ConfigurationProperties**
 
-《面渣逆袭 Spring 篇》给出明确对比：
+明确对比：
 
 | | `@Value` | `@ConfigurationProperties` |
 | --- | --- | --- |
@@ -6156,7 +6101,7 @@ public class MyConfig { ... }
 | 元数据 | 无 | 可生成 IDE 提示（配置元数据） |
 | 写法 | `@Value("${a.b}")` | `@ConfigurationProperties(prefix="a.b")` |
 
-**推荐做法**（书中给出）：
+**推荐做法**：
 
 ```java
 @ConfigurationProperties(prefix = "app")
@@ -6170,9 +6115,9 @@ public record AppProperties(
 
 **AOP 与动态代理**
 
-《面渣逆袭 Spring 篇》指出 Spring AOP 的两种实现：JDK 动态代理（需接口）与 CGLIB（字节码增强）。Spring Boot 2.x 起默认 CGLIB。
+Spring AOP 的两种实现：JDK 动态代理（需接口）与 CGLIB（字节码增强）。Spring Boot 2.x 起默认 CGLIB。
 
-《Spring 源码解析手册》补充了一个易踩的坑：**CGLIB 代理下 `@Transactional` 自调用失效**——因为代理对象与目标对象是不同实例，内部 `this.method()` 调用不经过代理。
+常见误区：**CGLIB 代理下 `@Transactional` 自调用失效**——因为代理对象与目标对象是不同实例，内部 `this.method()` 调用不经过代理。
 
 ```java
 @Service
@@ -6187,7 +6132,7 @@ public class OrderService {
 
 **常见 Starter 依赖坐标**
 
-《面试题-17-Spring Boot面试题》提到官方 starter 的命名规范：
+官方 starter 的命名规范：
 
 ```
 spring-boot-starter-web
@@ -6200,7 +6145,7 @@ mybatis-spring-boot-starter
 
 **配置文件优先级**
 
-《面渣逆袭 Spring 篇》给出 Spring Boot 配置的优先级顺序（高到低）：
+Spring Boot 配置的优先级顺序（高到低）：
 
 1. 命令行参数 `--server.port=8081`
 2. `SPRING_APPLICATION_JSON` 环境变量
@@ -6215,7 +6160,7 @@ mybatis-spring-boot-starter
 
 **Actuator 端点**
 
-《面试题-17》列出了常用的 Actuator 端点：
+常用的 Actuator 端点：
 
 ```
 /actuator/health        健康检查
@@ -6375,23 +6320,22 @@ try (Connection conn = dataSource.getConnection()) {
 
 用 `EXPLAIN ANALYZE` 对比有索引与无索引的查询计划，观察 Seq Scan 与 Index Scan 的差异。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《MySQL技术内幕：InnoDB存储引擎》《MySQL是怎样运行的：从根儿上理解MySQL》《面试题-09-MySQL数据库面试题》《面渣逆袭 MySQL》对本节原理有很好的迁移价值（B-tree 索引、MVCC、锁机制在 PostgreSQL/Kingbase 中概念一致）。
 
 **B-tree 索引的原理**
 
-《MySQL技术内幕：InnoDB存储引擎》详细讲解了 B+ 树索引的组织方式，KingbaseES（PostgreSQL 内核）用的是 B-tree，原理相通：
+B+ 树和 B-tree 都通过树结构组织索引。KingbaseES（PostgreSQL 内核）用的是 B-tree，原理相通：
 
 - **叶子节点存放数据项并用双向链表串起来**，支持范围扫描的高效性
 - **非叶子节点只存键**，因此树更矮，磁盘 IO 次数少
 - 高度为 3 的 B-tree 能存约 2000 万条记录（千万级数据表的索引只有 3 层）
 
-《MySQL是怎样运行的》用大量图示讲解了 InnoDB 与 PostgreSQL 在索引实现上的差异：PostgreSQL 的索引项**直接指向堆表中的元组**（需要回表），且**堆表行不按顺序存储**（不像 MySQL 的聚簇索引），所以 PostgreSQL 下的范围查询更依赖索引本身有序。
+InnoDB 与 PostgreSQL 的索引实现有一个区别：PostgreSQL 的索引项**直接指向堆表中的元组**（需要回表），且**堆表行不按顺序存储**（不像 MySQL 的聚簇索引），所以 PostgreSQL 下的范围查询更依赖索引本身有序。
 
 **最左前缀原则**
 
-《面渣逆袭 MySQL》与《MySQL技术内幕》都强调联合索引 `(a, b, c)` 的使用规则：
+联合索引 `(a, b, c)` 的使用规则：
 
 | SQL 条件 | 是否能用上索引 |
 | --- | --- |
@@ -6404,7 +6348,7 @@ try (Connection conn = dataSource.getConnection()) {
 
 **覆盖索引**
 
-《面渣逆袭 MySQL》指出：当查询的所有列都在索引里时，数据库只需读索引不必回表，称为**覆盖索引**，能显著提升性能：
+当查询的所有列都在索引里时，数据库只需读索引不必回表，称为**覆盖索引**，能显著提升性能：
 
 ```sql
 -- 若有索引 idx(user_id, lesson_id, study_count)
@@ -6416,13 +6360,13 @@ SELECT lesson_id, study_count FROM learning_progress WHERE user_id = 1;
 
 **MVCC 与隔离级别**
 
-《MySQL是怎样运行的》系统讲解了多版本并发控制（MVCC），PostgreSQL/Kingbase 的实现思路类似：
+PostgreSQL 和 Kingbase 都通过 MVCC 实现并发控制：
 
 - 每行数据有 `xmin`（插入事务 ID）与 `xmax`（删除事务 ID）
 - 读操作不加锁，读取「对当前事务可见的版本」
 - 写操作会创建新版本
 
-《面试题-09-MySQL数据库面试题》列出了四种隔离级别与对应的并发问题：
+四种隔离级别与对应的并发问题：
 
 | 隔离级别 | 脏读 | 不可重复读 | 幻读 |
 | --- | --- | --- | --- |
@@ -6464,11 +6408,11 @@ FROM learning_progress;
 SELECT content::jsonb -> ''points'' FROM course WHERE id = 1;
 ```
 
-《面渣逆袭 MySQL》讲到 JSON 处理时会对比 MySQL 的 json 类型与 PostgreSQL 的 `jsonb`——KingbaseES 支持 `jsonb`，且支持 GIN 索引。
+MySQL 的 json 类型与 PostgreSQL 的 `jsonb`——KingbaseES 支持 `jsonb`，且支持 GIN 索引。
 
 **慢查询日志**
 
-《MySQL技术内幕》与《面渣逆袭 MySQL》都把慢查询日志列为性能排查第一手段。KingbaseES 中对应配置：
+慢查询日志可用于性能排查。KingbaseES 中对应配置：
 
 ```
 log_min_duration_statement = 500     # 记录超过 500ms 的语句
@@ -6477,7 +6421,7 @@ log_statement = ''all''                # 记录所有语句（临时排查用）
 
 **深分页问题**
 
-《面渣逆袭 MySQL》详细分析了深分页为什么慢：`LIMIT 100000, 20` 需要扫描 100020 行并丢弃前 100000 行，偏移量越大越慢。解决方案是**游标分页（keyset pagination）**：
+深分页为什么慢：`LIMIT 100000, 20` 需要扫描 100020 行并丢弃前 100000 行，偏移量越大越慢。解决方案是**游标分页（keyset pagination）**：
 
 ```sql
 -- 慢：偏移 100000
@@ -6646,13 +6590,13 @@ public record ApiResponse<T>(int code, String message, T data, long timestamp) {
 
 为课程设计一套 RESTful 接口：列出课时、查看详情、标记完成、收藏，并用 curl 验证状态码与幂等性。
 
-## 延伸阅读（来自「Java江湖」知识库）
+## 知识拓展
 
-知识库中的《Offer来了：Java面试核心知识点精讲. 原理篇》《面渣逆袭-分布式篇》《深入浅出Java+23种设计模式》《面试题-15-消息中间件MQ面试题》对 REST 规范、幂等性、分布式场景下的 API 设计有系统论述。
 
-**《Offer来了》原理篇的 RESTful 章节**
 
-《Offer来了：Java面试核心知识点精讲. 原理篇》开篇即讲 JVM 原理、Java 基础、多线程、数据结构、分布式缓存、设计模式等，其中 RESTful 设计给出的原则与本节一致：
+### RESTful 设计原则
+
+原则与本节一致：
 
 - **URL 用名词**：资源用复数形式（`/users` 而不是 `/user`、`/getUser`）
 - **HTTP 方法表达动作**：不用自定义动词（`/users/list` 改为 `GET /users?role=admin`）
@@ -6660,7 +6604,7 @@ public record ApiResponse<T>(int code, String message, T data, long timestamp) {
 
 **幂等性的工程价值**
 
-《面渣逆袭-分布式篇》把幂等性放在分布式章节里讨论，因为它是分布式可靠性的基石：
+幂等性让分布式系统可以安全重试：
 
 ```sql
 -- 幂等键实现（配合唯一约束）
@@ -6669,7 +6613,7 @@ VALUES (?, ?, ?)
 ON CONFLICT (idempotent_key) DO NOTHING;
 ```
 
-书中指出幂等键（Idempotency Key）的标准做法：
+幂等键（Idempotency Key）的标准做法：
 
 1. 客户端为每个业务操作生成唯一键（如 UUID）
 2. 服务端用该键做唯一约束插入
@@ -6679,7 +6623,7 @@ ON CONFLICT (idempotent_key) DO NOTHING;
 
 **HTTP 方法的安全性与幂等性对照**
 
-《深入浅出Java+23种设计模式》与《Offer来了》都给出这张表：
+常见 HTTP 方法的语义：
 
 | 方法 | 安全 | 幂等 | 典型用途 |
 | --- | --- | --- | --- |
@@ -6693,13 +6637,13 @@ ON CONFLICT (idempotent_key) DO NOTHING;
 
 **CAP 原则与 API 设计**
 
-《面渣逆袭-分布式篇》开篇讲 CAP 定理（一致性 C、可用性 A、分区容错性 P，最多满足两个），这与 API 设计的关系是：**在分区必然发生的分布式系统里，接口必须能处理「调用方重试」**。因此写接口时若不做幂等设计，等于把重试的风险推给了调用方。
+CAP 定理讨论分区发生时一致性和可用性的取舍。对 API 设计而言，**在分区必然发生的分布式系统里，接口必须能处理「调用方重试」**。因此写接口时若不做幂等设计，等于把重试的风险推给了调用方。
 
-书中还讲「异步确保型事务」（outbox / 事务消息）：先在本地事务里写消息表，再异步投递，保证「本地事务成功但消息发送失败」这类不一致不会发生。
+「异步确保型事务」（outbox / 事务消息）：先在本地事务里写消息表，再异步投递，保证「本地事务成功但消息发送失败」这类不一致不会发生。
 
 **REST 与状态码的实战约定**
 
-《面渣逆袭-分布式篇》在讨论消息队列的「幂等性」时也提到 HTTP 层的一致做法：
+消息队列和 HTTP 接口可采用类似的幂等处理：
 
 | 场景 | 状态码 | 说明 |
 | --- | --- | --- |
@@ -6719,7 +6663,7 @@ ON CONFLICT (idempotent_key) DO NOTHING;
 
 **HATEOAS 与超媒体**
 
-《深入浅出Java+23种设计模式》与《Offer来了》都提到 REST 的第六条约束（统一接口）背后的理念——**把状态机暴露给客户端**：
+REST 的第六条约束（统一接口）背后的理念——**把状态机暴露给客户端**：
 
 ```json
 {
@@ -6736,7 +6680,7 @@ ON CONFLICT (idempotent_key) DO NOTHING;
 
 **版本化的取舍**
 
-《面渣逆袭-分布式篇》与《Offer来了》都指出：
+
 
 - **URL 版本**（`/api/v1/users`）：直观、易调试、便于灰度，实践中最常用
 - **请求头版本**（`Accept: application/vnd.api.v1+json`）：更"纯粹"（同一资源多个表示），但调试与网关配置复杂
@@ -6744,7 +6688,7 @@ ON CONFLICT (idempotent_key) DO NOTHING;
 
 **Spring Boot 3 的 API 错误处理**
 
-本项目已在用 `@RestControllerAdvice` 做统一异常处理（见异常处理课时）。《面渣逆袭 Spring 篇》指出这与 REST 规范配合时的要点：
+本项目用 `@RestControllerAdvice` 统一处理 REST 接口的异常：
 
 - 业务异常 → 4xx + 业务错误码
 - 系统异常 → 500 + 通用提示（**不要把堆栈返回给客户端**）
