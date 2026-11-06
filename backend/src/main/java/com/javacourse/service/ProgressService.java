@@ -14,6 +14,8 @@ import java.util.Map;
 @Service
 public class ProgressService {
 
+    public enum SelfCheckResult { WRONG, PREDICTION_PASSED, PASSED, REVIEWED }
+
     private final ProgressRepository repo;
 
     public ProgressService(ProgressRepository repo) {
@@ -58,15 +60,32 @@ public class ProgressService {
     @Transactional
     public Map<String, Object> save(long userId, long lessonId,
                                     Integer progressPct, Integer lastSeconds,
-                                    Integer deltaSeconds, String sessionKey) {
+                                    Integer deltaSeconds, String sessionKey,
+                                    String readingSection, Long readingRecordedAt) {
         int pct = progressPct == null ? 0 : progressPct;
-        // 进度到 100% 自动视为完成，避免前端漏传 completed
-        boolean completed = pct >= 100;
-        repo.upsert(userId, lessonId, pct, completed,
+        long recordedAt = readingSection == null || readingRecordedAt == null
+                ? 0 : Math.min(readingRecordedAt, System.currentTimeMillis());
+        repo.upsert(userId, lessonId, pct,
                 lastSeconds == null ? 0 : lastSeconds,
                 deltaSeconds == null ? 0 : deltaSeconds,
-                sessionKey);
+                sessionKey, recordedAt == 0 ? null : readingSection, recordedAt);
         repo.recordActivity(userId,lessonId,lastSeconds==null?0:lastSeconds,sessionKey);
+        return get(userId, lessonId);
+    }
+
+    @Transactional
+    public Map<String, Object> recordSelfCheck(long userId, long lessonId, SelfCheckResult result) {
+        int stage = switch (result) {
+            case WRONG -> 0;
+            case PREDICTION_PASSED -> 1;
+            case PASSED, REVIEWED -> 2;
+        };
+        Integer review = switch (result) {
+            case WRONG -> 1;
+            case REVIEWED -> 0;
+            default -> null;
+        };
+        repo.recordSelfCheck(userId, lessonId, stage, review);
         return get(userId, lessonId);
     }
 

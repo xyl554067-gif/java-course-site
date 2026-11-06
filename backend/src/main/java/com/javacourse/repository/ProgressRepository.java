@@ -31,6 +31,10 @@ public class ProgressRepository {
         m.put("sortOrder", rs.getInt("sort_order"));
         m.put("progressPct", rs.getInt("progress_pct"));
         m.put("completed", rs.getInt("completed") == 1);
+        m.put("readingSection", rs.getString("reading_section"));
+        m.put("readingRecordedAt", rs.getLong("reading_recorded_at"));
+        m.put("selfCheckStage", rs.getInt("self_check_stage"));
+        m.put("reviewPending", rs.getInt("review_pending") == 1);
         m.put("lastSeconds", rs.getInt("last_seconds"));
         m.put("totalSeconds", rs.getInt("total_seconds"));
         m.put("studyCount", rs.getInt("study_count"));
@@ -41,6 +45,7 @@ public class ProgressRepository {
     private static final String SELECT_JOIN =
             "SELECT lp.lesson_id, lp.progress_pct, lp.completed, lp.last_seconds, "
                     + "lp.total_seconds, lp.study_count, lp.updated_at, "
+                    + "lp.reading_section, lp.reading_recorded_at, lp.self_check_stage, lp.review_pending, "
                     + "l.title, l.slug, l.sort_order, m.title AS module_title "
                     + "FROM learning_progress lp "
                     + "JOIN lesson l ON l.id = lp.lesson_id "
@@ -70,15 +75,18 @@ public class ProgressRepository {
      *   * study_count   学习次数 —— 同一 sessionKey 只计一次，避免刷新页面重复计数
      */
     public void upsert(long userId, long lessonId, int progressPct,
-                       boolean completed, int lastSeconds, int deltaSeconds,
-                       String sessionKey) {
+                       int lastSeconds, int deltaSeconds, String sessionKey,
+                       String readingSection, long readingRecordedAt) {
         jdbc.update(
                 "INSERT INTO learning_progress (user_id, lesson_id, progress_pct, completed, "
-                        + "last_seconds, total_seconds, study_count, last_session_key, updated_at) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+                        + "last_seconds, total_seconds, study_count, last_session_key, "
+                        + "reading_section, reading_recorded_at, updated_at) "
+                        + "VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
                         + "ON CONFLICT (user_id, lesson_id) DO UPDATE SET "
-                        + "progress_pct = EXCLUDED.progress_pct, "
-                        + "completed = EXCLUDED.completed, "
+                        + "progress_pct = GREATEST(learning_progress.progress_pct, EXCLUDED.progress_pct), "
+                        + "reading_section = CASE WHEN EXCLUDED.reading_recorded_at > learning_progress.reading_recorded_at "
+                        + "THEN EXCLUDED.reading_section ELSE learning_progress.reading_section END, "
+                        + "reading_recorded_at = GREATEST(learning_progress.reading_recorded_at, EXCLUDED.reading_recorded_at), "
                         + "last_seconds = EXCLUDED.last_seconds, "
                         + "total_seconds = learning_progress.total_seconds + CASE "
                         + "WHEN EXCLUDED.last_session_key IS NOT NULL "
@@ -92,9 +100,20 @@ public class ProgressRepository {
                         + "last_session_key = EXCLUDED.last_session_key, "
                         + "updated_at = CURRENT_TIMESTAMP",
                 userId, lessonId, Math.max(0, Math.min(100, progressPct)),
-                completed ? 1 : 0, Math.max(0, lastSeconds), Math.max(0, deltaSeconds),
+                Math.max(0, lastSeconds), Math.max(0, deltaSeconds),
                 sessionKey == null || sessionKey.isEmpty() ? 0 : 1,
-                sessionKey == null || sessionKey.isEmpty() ? null : sessionKey);
+                sessionKey == null || sessionKey.isEmpty() ? null : sessionKey,
+                readingSection, readingRecordedAt);
+    }
+
+    public void recordSelfCheck(long userId, long lessonId, int stage, Integer reviewPending) {
+        jdbc.update("""
+                INSERT INTO learning_progress (user_id, lesson_id, self_check_stage, review_pending)
+                VALUES (?, ?, ?, COALESCE(CAST(? AS SMALLINT), 0))
+                ON CONFLICT (user_id, lesson_id) DO UPDATE SET
+                    self_check_stage = GREATEST(learning_progress.self_check_stage, EXCLUDED.self_check_stage),
+                    review_pending = COALESCE(CAST(? AS SMALLINT), learning_progress.review_pending)
+                """, userId, lessonId, stage, reviewPending, reviewPending);
     }
 
     /** Record only newly observed seconds, so repeated heartbeats and midnight rollover stay exact. */
@@ -117,16 +136,14 @@ public class ProgressRepository {
 
     /** 标记完成/取消完成，保留进度百分比与已累计的学习时长 */
     public void markCompleted(long userId, long lessonId, boolean completed) {
-        int pct = completed ? 100 : 0;
         jdbc.update(
                 "INSERT INTO learning_progress (user_id, lesson_id, progress_pct, completed, "
                         + "last_seconds, total_seconds, study_count, updated_at) "
-                        + "VALUES (?, ?, ?, ?, 0, 0, 0, CURRENT_TIMESTAMP) "
+                        + "VALUES (?, ?, 0, ?, 0, 0, 0, CURRENT_TIMESTAMP) "
                         + "ON CONFLICT (user_id, lesson_id) DO UPDATE SET "
-                        + "progress_pct = EXCLUDED.progress_pct, "
                         + "completed = EXCLUDED.completed, "
                         + "updated_at = CURRENT_TIMESTAMP",
-                userId, lessonId, pct, completed ? 1 : 0);
+                userId, lessonId, completed ? 1 : 0);
         if (completed) {
             LocalDate today=LocalDate.now(ZoneId.of("Asia/Shanghai"));
             String marker = "__completed_" + today;
@@ -153,10 +170,10 @@ public class ProgressRepository {
                 "SELECT COUNT(*) FROM learning_progress WHERE user_id = ? AND completed = 1",
                 Integer.class, userId));
         m.put("inProgress", jdbc.queryForObject(
-                "SELECT COUNT(*) FROM learning_progress WHERE user_id = ? AND completed = 0 AND progress_pct > 0",
+                "SELECT COUNT(*) FROM learning_progress WHERE user_id = ? AND completed = 0 AND (progress_pct > 0 OR study_count > 0 OR self_check_stage > 0 OR review_pending = 1)",
                 Integer.class, userId));
         m.put("started", jdbc.queryForObject(
-                "SELECT COUNT(*) FROM learning_progress WHERE user_id = ? AND progress_pct > 0",
+                "SELECT COUNT(*) FROM learning_progress WHERE user_id = ? AND (completed = 1 OR progress_pct > 0 OR study_count > 0 OR self_check_stage > 0 OR review_pending = 1)",
                 Integer.class, userId));
         m.put("totalSeconds", jdbc.queryForObject(
                 "SELECT COALESCE(SUM(total_seconds), 0) FROM learning_progress WHERE user_id = ?",

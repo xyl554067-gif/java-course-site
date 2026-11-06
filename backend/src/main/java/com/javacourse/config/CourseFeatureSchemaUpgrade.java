@@ -12,6 +12,10 @@ public class CourseFeatureSchemaUpgrade implements ApplicationRunner {
     public CourseFeatureSchemaUpgrade(JdbcTemplate jdbc) { this.jdbc=jdbc; }
 
     @Override public void run(ApplicationArguments args) throws Exception {
+        jdbc.execute("ALTER TABLE learning_progress ADD COLUMN IF NOT EXISTS reading_section VARCHAR(24)");
+        jdbc.execute("ALTER TABLE learning_progress ADD COLUMN IF NOT EXISTS reading_recorded_at BIGINT NOT NULL DEFAULT 0");
+        jdbc.execute("ALTER TABLE learning_progress ADD COLUMN IF NOT EXISTS self_check_stage SMALLINT NOT NULL DEFAULT 0");
+        jdbc.execute("ALTER TABLE learning_progress ADD COLUMN IF NOT EXISTS review_pending SMALLINT NOT NULL DEFAULT 0");
         String textType;
         try(var c=jdbc.getDataSource().getConnection()) {
             String product=c.getMetaData().getDatabaseProductName().toLowerCase();
@@ -28,4 +32,3 @@ public class CourseFeatureSchemaUpgrade implements ApplicationRunner {
         jdbc.execute("CREATE TABLE IF NOT EXISTS user_ai_config (user_id BIGINT PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE, base_url VARCHAR(1000) NOT NULL, model VARCHAR(160) NOT NULL, encrypted_key VARCHAR(4096) NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)");
     }
 }
-

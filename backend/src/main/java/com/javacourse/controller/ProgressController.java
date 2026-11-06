@@ -6,6 +6,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,11 +50,13 @@ public class ProgressController {
         public Integer deltaSeconds;
         /** 会话标识：同一会话重复上报只计一次学习次数 */
         public String sessionKey;
+        @Pattern(regexp = "^(?:lesson-section-[1-9][0-9]{0,5})?$")
+        public String readingSection;
+        @Positive
+        public Long readingRecordedAt;
     }
 
-    public static class MarkRequest {
-        public Boolean completed;
-    }
+    public record SelfCheckRequest(@NotNull ProgressService.SelfCheckResult result) {}
 
     /** 总览：完成数、在学数、总进度百分比 */
     @GetMapping("/summary")
@@ -84,7 +89,15 @@ public class ProgressController {
                                                  @PathVariable long lessonId,
                                                  @Valid @RequestBody SaveRequest body) {
         return ApiResponse.ok(service.save(uid(req), lessonId,
-                body.progressPct, body.lastSeconds, body.deltaSeconds, body.sessionKey));
+                body.progressPct, body.lastSeconds, body.deltaSeconds, body.sessionKey,
+                body.readingSection, body.readingRecordedAt));
+    }
+
+    @PutMapping("/lesson/{lessonId}/self-check")
+    public ApiResponse<Map<String, Object>> selfCheck(HttpServletRequest req,
+                                                     @PathVariable long lessonId,
+                                                     @Valid @RequestBody SelfCheckRequest body) {
+        return ApiResponse.ok(service.recordSelfCheck(uid(req), lessonId, body.result()));
     }
 
     /** 标记完成 / 取消完成 */
