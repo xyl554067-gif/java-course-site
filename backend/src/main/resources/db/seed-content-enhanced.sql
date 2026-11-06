@@ -622,7 +622,7 @@ switch (obj) {
 
 ### 高频 switch 问题
 
-同一份资料把 switch 的考点集中在：
+switch 的常见考点：
 
 - `switch` 能否作用于 `byte`？**能**（会自动提升为 int）
 - 能否作用于 `long`？**不能**（只有 int/short/byte/char 可以）
@@ -930,7 +930,7 @@ System.out.println(matrix[0][0]); // 99 —— 内层数组是共享的
 
 ### 数组考点
 
-同一份资料把数组相关的考点归纳为：
+数组的常见考点：
 
 - 数组的定义与初始化方式
 - 数组的默认值
@@ -2220,7 +2220,7 @@ enum 的额外好处：天然单例、线程安全、可用于 switch。
 
 ### final 的高频问题
 
-同一份资料把「final 关键字」列为高频考点，结论可以概括为：
+final 关键字的要点：
 
 - final 修饰基本类型 → 值不可变
 - final 修饰引用 → **引用不可变**，指向的对象可变
@@ -3339,7 +3339,7 @@ while (it.hasNext()) { String s = it.next(); ... }
 | ArrayDeque | 循环数组 | 不允许 | FIFO | O(1) |
 | PriorityQueue | 二叉堆 | 不允许 | 优先级序 | O(1) |
 
-**关键结论：优先用 ArrayList 而非 LinkedList。** 大多数人从教材上学到"LinkedList 插入删除快"，但实际上：
+**关键结论：优先用 ArrayList 而非 LinkedList。** LinkedList 的插入和删除开销取决于是否已经定位到节点：
 
 - LinkedList 的每次插入/删除都要先定位到节点，O(n)
 - ArrayList 的尾部添加是**均摊 O(1)**，且**缓存友好**（连续内存）
@@ -4494,7 +4494,7 @@ G1 与 CMS 的关键差异：
 
 **引用类型与可达性判定**
 
-同一份面试题资料还问到「Java 中都有哪些引用类型？怎么判断对象是否可以被回收？」：
+引用类型与对象可回收性的判断：
 
 | 引用类型 | 回收时机 |
 | --- | --- |
@@ -5007,7 +5007,7 @@ daemon.start();
 
 **死锁的四个必要条件**
 
-同一份资料详细列出了死锁条件与规避方式：
+死锁的必要条件和规避方式：
 
 1. 互斥条件
 2. 不可剥夺条件
@@ -5833,7 +5833,7 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 
 **并发编程的基本概念**
 
-同一份思维导图第 2 章「并发编程概述」包含：
+并行聚合涉及以下并发概念：
 
 - 2.1 程序、进程、线程
 - 2.1.6 **同步与异步** —— 这正是本节并行聚合的方法论基础
@@ -5854,7 +5854,7 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 
 **有状态 vs 无状态操作**
 
-手册把操作分为两类：
+Stream 操作分为两类：
 
 | 类型 | 操作 | 并行特征 |
 | --- | --- | --- |
@@ -5875,7 +5875,7 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 
 **公共池的共享风险**
 
-手册在"线程池配置优化"一节强调：`ForkJoinPool.commonPool()` 是全 JVM 共享的，所有 parallelStream 与默认 CompletableFuture 都在用。因此：
+`ForkJoinPool.commonPool()` 是全 JVM 共享的，所有 parallelStream 与默认 CompletableFuture 都在用。因此：
 
 - **阻塞 IO 绝不能放进 parallelStream**——会占满公共池
 - 需要隔离时给 parallelStream 指定自定义 ForkJoinPool：
