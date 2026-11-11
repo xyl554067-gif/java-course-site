@@ -43,8 +43,4 @@ public class CourseController {
         return l == null ? ApiResponse.error(404, "课时不存在") : ApiResponse.ok(l);
     }
 
-    @GetMapping("/qa/list")
-    public ApiResponse<List<Map<String, Object>>> qa() {
-        return ApiResponse.ok(courseService.listQa());
-    }
 }

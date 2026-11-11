@@ -1,26 +1,56 @@
 -- Java 课程的内置课时正文
 -- 本脚本仅更新 lesson.content。
 -- ============================================================================
-UPDATE lesson SET content = '## 本节要点  认识 JDK、编译与运行，一分钟跑起你的第一个程序。    ## 核心概念  - JDK、JRE、JVM 三者的包含关系  - 源码到运行：javac 编译与 java 执行  - 为什么 Java 能跨平台    ## 关键代码  ```  public class HelloWorld {      public static void main(String[] args) {          System.out.println("Hello, Java!");      }  }  ```    > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。    ## 常见误区  - [''以为 JDK、JRE、JVM 是三选一，实际上是层层包含'', ''编译和运行用的是不同命令：javac 编译，java 运行'']    ## 动手练习  新建一个目录，用记事本写 HelloWorld.java，用 javac 编译后用 java 运行，亲眼看到 .class 文件是怎么生成的。  ' WHERE slug = 'hello-world';
+UPDATE lesson SET content = '## 本节要点
+
+写一个 `HelloWorld.java` 文件，先编译，再运行。终端会输出 `Hello, Java!`。
+
+## 核心概念
+
+- **JDK** 提供开发工具，例如编译器 `javac`，也包含运行 Java 程序所需的组件。
+- **JRE** 指 Java 的运行环境，由 JVM 和运行所需的库组成。
+- **JVM** 执行 `.class` 文件里的字节码。支持该版本字节码的 JVM 可以在不同平台上运行它。
+
+## 关键代码
+
+把代码保存为 `HelloWorld.java`。
+
+```java
+public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}
+```
+
+> 本课程使用 JDK 17 或更高版本。
+
+## 常见误区
+
+- `javac` 负责把源文件编译成字节码。
+- `java` 运行编译后的类，命令里写类名 `HelloWorld`。
+
+## 动手练习
+
+在文件所在的目录打开终端，依次执行下面两条命令。
+
+```bash
+javac HelloWorld.java
+java HelloWorld
+```
+
+编译后，目录里会出现 `HelloWorld.class`。把输出里的 `Hello, Java!` 改成自己的问候语，重新编译并运行一次。' WHERE slug = 'hello-world';
 
 -- variables-and-types
 UPDATE lesson SET content = '## 本节要点
 
-Java 有 8 种基本类型和 4 种引用类型。基本类型有固定的内存宽度与取值范围；包装类型则是对象，有缓存、有方法、能为 null。基本类型与包装类型之间的转换叫**装箱/拆箱**，自动装箱有缓存机制与性能代价。
+先用 `int`、`double` 和 `boolean` 表达不同的值，再看基本类型和包装类如何转换。
 
 ## 核心概念
 
 - **8 种基本类型**：`byte`(1) `short`(2) `int`(4) `long`(8) `float`(4) `double`(8) `char`(2) `boolean`(1)。
 - **整数范围**：byte -128~127，short -32768~32767，int 约 ±21 亿，long 约 ±922 亿亿。
 - **浮点精度**：float 约 7 位有效数字，double 约 15–16 位。**0.1 + 0.2 != 0.3**。
-- **字符编码**：char 是 UTF-16 code unit，**一个 char 存不下一个 emoji**（需两个 char）。
-- **包装类型**：Byte、Short、Integer、Long、Float、Double、Character、Boolean。
-- **自动装箱**：编译器在需要对象的地方自动 `valueOf`；自动拆箱自动调用 `xxxValue()`。
-- **Integer 缓存**：-128~127 缓存，范围外每次 new（`new Integer` 已废弃）。
-- **类型提升**：小类型参与运算自动提升为大类型（byte+byte → int）。
-- **强制类型转换**：大转小需显式，会截断（不是四舍五入）。
-- **常量池与编译期常量**：`final` 修饰的基本类型/String 编译期常量会被内联。
-- **整数常量后缀**：`L`/`l`（long）、`0x`（十六进制）、`0b`（二进制）、`_`（分隔符）。
 
 ## 关键代码
 
@@ -58,6 +88,17 @@ int bin = 0b1010;
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **字符编码**：char 是 UTF-16 code unit，**一个 char 存不下一个 emoji**（需两个 char）。
+- **包装类型**：Byte、Short、Integer、Long、Float、Double、Character、Boolean。
+- **自动装箱**：编译器在需要对象的地方自动 `valueOf`；自动拆箱自动调用 `xxxValue()`。
+- **Integer 缓存**：-128~127 缓存，范围外每次 new（`new Integer` 已废弃）。
+- **类型提升**：小类型参与运算自动提升为大类型（byte+byte → int）。
+- **强制类型转换**：大转小需显式，会截断（不是四舍五入）。
+- **常量池与编译期常量**：`final` 修饰的基本类型/String 编译期常量会被内联。
+- **整数常量后缀**：`L`/`l`（long）、`0x`（十六进制）、`0b`（二进制）、`_`（分隔符）。
 
 ## 常见误区
 
@@ -243,22 +284,13 @@ Integer[] boxArr = new Integer[1000]; // 约 4KB + 1000 个对象头（每个约
 -- operators
 UPDATE lesson SET content = '## 本节要点
 
-运算符分算术、关系、逻辑、位、赋值、其它六类。三个高频考点：**短路求值**（`&&`/`||`）、**运算符优先级**、**整数除法与取模**（除零抛异常、负数取模方向）。
+先判断表达式会怎样求值，再练习整数除法、运算优先级和逻辑短路。
 
 ## 核心概念
 
 - **算术运算符**：`+ - * / % ++ --`。
 - **整数除法**：两个整数相除结果取整（向零取整）。`5 / 2 == 2`，`-5 / 2 == -2`。
 - **取模**：结果符号跟随**被除数**。`-5 % 2 == -1`。
-- **除零**：整数除以 0 抛 `ArithmeticException`；浮点数除以 0 得 Infinity/NaN。
-- **短路求值**：`&&` 左边为 false 时右边不执行；`||` 左边为 true 时右边不执行。
-- **位运算符**：`& | ^ ~ << >> >>>`。
-- **移位**：`<<` 左移（低位补 0，相当于 ×2）；`>>` 算术右移（补符号位）；`>>>` 逻辑右移（补 0）。
-- **复合赋值**：`+= -= *= /= %= &= |= ^= <<= >>= >>>=` —— 左侧只求值一次。
-- **运算符优先级**（高到低）：一元 → 乘除模 → 加减 → 移位 → 关系 → 相等 → 按位与/异或/或 → 逻辑与 → 逻辑或 → 三元 → 赋值。
-- **类型提升**：二元算术运算前，操作数会被提升到共同类型。
-- **短路是三目运算符的基础**：`cond ? a : b` 只求值一个分支。
-- **浮点比较**：不要用 `==` 比较浮点数，应用 `Double.compare`。
 
 ## 关键代码
 
@@ -303,6 +335,18 @@ Double.compare(0.1 + 0.2, 0.3) != 0;   // 正确
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **除零**：整数除以 0 抛 `ArithmeticException`；浮点数除以 0 得 Infinity/NaN。
+- **短路求值**：`&&` 左边为 false 时右边不执行；`||` 左边为 true 时右边不执行。
+- **位运算符**：`& | ^ ~ << >> >>>`。
+- **移位**：`<<` 左移（低位补 0，相当于 ×2）；`>>` 算术右移（补符号位）；`>>>` 逻辑右移（补 0）。
+- **复合赋值**：`+= -= *= /= %= &= |= ^= <<= >>= >>>=` —— 左侧只求值一次。
+- **运算符优先级**（高到低）：一元 → 乘除模 → 加减 → 移位 → 关系 → 相等 → 按位与/异或/或 → 逻辑与 → 逻辑或 → 三元 → 赋值。
+- **类型提升**：二元算术运算前，操作数会被提升到共同类型。
+- **短路是三目运算符的基础**：`cond ? a : b` 只求值一个分支。
+- **浮点比较**：不要用 `==` 比较浮点数，应用 `Double.compare`。
 
 ## 常见误区
 
@@ -482,23 +526,13 @@ boolean thirdOn = (flags & (1 << 3)) != 0;
 -- control-flow
 UPDATE lesson SET content = '## 本节要点
 
-控制流分三类：**分支**（if/switch）、**循环**（for/while/do-while）、**跳转**（break/continue/return）。JDK 14+ 的 switch 表达式与 JDK 17 的模式匹配大幅增强了 switch 的能力，JDK 21 引入 `forEach` 与 `takeWhile`。
+用分支选择要执行的代码，用循环重复任务，再用 `break` 和 `continue` 控制循环。
 
 ## 核心概念
 
 - **if-else**：条件分支，遵循「先特殊后一般」或「先一般后特殊」的原则。
 - **switch**：只能用于 int/short/byte/char/enum/String（JDK 7+）/ 引用类型（JDK 14+ 模式匹配）。
 - **case 穿透（fall-through）**：不写 break 会继续执行下一个 case。
-- **switch 表达式**（JDK 14+）：用 `->` 语法，必须**穷尽**（有返回值时），可多个标签 `case A, B ->`。
-- **yield**（JDK 13+）：在 switch 表达式块中返回值。
-- **模式匹配**（JDK 16+）：`if (o instanceof String s)` 直接绑定变量。
-- **switch 模式匹配**（JDK 21）：`case String s -> ...`，配合 sealed 可做穷尽性检查。
-- **for / for-each / while / do-while**：四种循环，do-while 至少执行一次。
-- **增强 for**：编译为 Iterator 循环，遍历中删除会抛 CME。
-- **break / continue / 标签（label）**：`break label` 可跳出多层循环。
-- **条件的三元运算符**：`cond ? a : b`，只求值一个分支。
-- **循环的提前退出**：break 跳出、return 退出方法、continue 跳过本次。
-- **do-while 的典型用途**：至少执行一次的场景（菜单循环、输入校验）。
 
 ## 关键代码
 
@@ -568,6 +602,19 @@ it.forEachRemaining(System.out::println);
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **switch 表达式**（JDK 14+）：用 `->` 语法，必须**穷尽**（有返回值时），可多个标签 `case A, B ->`。
+- **yield**（JDK 13+）：在 switch 表达式块中返回值。
+- **模式匹配**（JDK 16+）：`if (o instanceof String s)` 直接绑定变量。
+- **switch 模式匹配**（JDK 21）：`case String s -> ...`，配合 sealed 可做穷尽性检查。
+- **for / for-each / while / do-while**：四种循环，do-while 至少执行一次。
+- **增强 for**：编译为 Iterator 循环，遍历中删除会抛 CME。
+- **break / continue / 标签（label）**：`break label` 可跳出多层循环。
+- **条件的三元运算符**：`cond ? a : b`，只求值一个分支。
+- **循环的提前退出**：break 跳出、return 退出方法、continue 跳过本次。
+- **do-while 的典型用途**：至少执行一次的场景（菜单循环、输入校验）。
 
 ## 常见误区
 
@@ -746,22 +793,30 @@ for (...) {
 -- arrays
 UPDATE lesson SET content = '## 本节要点
 
-数组是**定长**的同类元素容器，声明时类型就固定了。关键点：数组是引用类型（可以赋给 Object）、长度不可变、多维数组本质是「数组的数组」、数组元素没有类型安全检查（可存 null 与任意子类型）。
+数组把固定数量的元素放在有编号的位置里。本节先学会创建数组、按下标取值和避免越界。
 
 ## 核心概念
 
-- **定长**：创建后长度不可变，扩容需新建数组并拷贝。
-- **数组是引用类型**：`int[] a = new int[3]` 分配的是**引用**（对象），不是数组本身。
-- **默认值**：数值 0、char `\u0000`、boolean false、引用 null。
-- **数组变量 vs 数组对象**：`int[] a = new int[3]` 中 a 是引用，指向数组对象。
-- **一维数组**：连续内存，元素按下标访问 O(1)。
-- **多维数组**：`int[][] a = new int[2][3]` 实际是「一个长度为 2 的数组，每个元素是长度为 3 的数组」。**外层可为空，内层不可**（`new int[2][]` 合法但 `new int[2][3]` 不合法时内层不可 null 访问）。
-- **Arrays 工具类**：sort、binarySearch、copyOf、fill、equals、hashCode、stream。
-- **数组协变**：`Object[] arr = new String[1]` 合法，但 `arr[0] = 1` 会抛 ArrayStoreException。
-- **数组的 clone()**：浅拷贝（对基本类型是深拷贝，对引用元素是浅拷贝）。
-- **变长参数**：`void f(int... args)` 编译为 `void f(int[] args)`。
-- **数组不是泛型**：不能 `List<int>`，但可以用 `List<Integer>` 或 `Arrays.asList` 包装。
-- **Arrays.asList 的固定长度**：返回的是视图，不能 add/remove。
+- **定长**：创建时确定长度，之后可以改元素的值。
+- **下标**：从 `0` 开始。长度为 `3` 的数组，下标是 `0`、`1`、`2`。
+- **默认值**：`new int[3]` 的三个元素都是 `0`。`boolean` 元素默认是 `false`，引用类型元素默认是 `null`。
+
+把这两行放进 `main`，试着读取第一个元素。
+
+```java
+int[] scores = new int[3];
+System.out.println(scores[0]); // 输出 0
+```
+
+#### 进阶细节
+
+- **引用**：`int[] a = new int[3]` 创建数组对象，变量 `a` 保存指向它的引用。通过下标读取一个元素的时间复杂度是 O(1)。
+- **多维数组**：`new int[2][3]` 创建一个外层数组，里面放着两个长度为 `3` 的数组。`new int[2][]` 则先创建外层数组，两个内层引用初始为 `null`。
+- **工具方法**：用 `Arrays.sort` 排序、`Arrays.copyOf` 拷贝，或用 `Arrays.stream` 遍历和统计。
+- **数组协变**：`Object[] arr = new String[1]` 可以编译，但执行 `arr[0] = 1` 会抛出 `ArrayStoreException`。
+- **浅拷贝**：`clone()` 创建新数组。基本类型元素的值会被复制，引用类型元素仍可指向原来的对象。
+- **变长参数**：`void f(int... args)` 的 `args` 在方法体里是 `int[]`。
+- **数组和集合**：`List<int>` 无效。`Arrays.asList` 返回固定大小的列表，不能增删元素。直接传 `int[]` 时，整个数组会成为列表中的一个元素。
 
 ## 关键代码
 
@@ -995,7 +1050,8 @@ if (grid != null && grid[0] != null) { ... }
 
 -- project-guess-number
 UPDATE lesson SET content = '## 本节要点
-综合运用分支与循环，写一个可交互的小游戏。
+
+写一个猜数字游戏。每次猜错时提示偏高或偏低，猜中时结束游戏。
 
 ## 核心概念
 - 用Random.nextInt 生成随机数的正确姿势
@@ -1039,22 +1095,13 @@ public class GuessNumber {
 -- string
 UPDATE lesson SET content = '## 本节要点
 
-String 是**不可变类**——一旦创建内容不可变，这既是它的安全性来源，也是它性能问题的根源。字符串常量池、`intern()`、`StringBuilder` 与 `StringBuffer` 的取舍是本节核心。
+观察字符串拼接后原来的值有没有改变，再练习用 `StringBuilder` 累积多段文本。
 
 ## 核心概念
 
 - **不可变性**：String 的字符数据存放在 `final byte[] value` 中，且不暴露引用。所有「修改」操作都返回新对象。
 - **字符串常量池**：运行期数据结构，位于堆中。字面量会进池，`new String(...)` 不会。
 - **intern()**：把字符串放进池并返回池中引用。
-- **StringBuilder**：可变、可重复追加、**非线程安全**，单线程拼接首选。
-- **StringBuffer**：可变、**线程安全**（方法级 synchronized），但有锁开销。
-- **编译期拼接优化**：`"a" + "b"`（两个常量）编译期折叠成 `"ab"`；含变量时编译成 `StringBuilder`（或 JDK 9+ 的 `invokedynamic` + `StringConcatFactory`）。
-- **final 修饰的 String**：常量池中的引用，编译期内联。
-- **正则中的 String**：正则表达式本身建议用常量（避免重复编译）。
-- **String 的 equals 与 hashCode**：都基于字符内容，因此可安全作为 HashMap 的 key。
-- **String.split 的陷阱**：末尾空串会被丢弃；正则特殊字符需转义。
-- **String.join / formatted**：Java 8+ / 15+ 的实用方法。
-- **文本块**（Java 15+）：`"""` 包裹的多行字符串，适合写 SQL、JSON。
 
 ## 关键代码
 
@@ -1106,6 +1153,18 @@ String sql = """
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **StringBuilder**：可变、可重复追加、**非线程安全**，单线程拼接首选。
+- **StringBuffer**：可变、**线程安全**（方法级 synchronized），但有锁开销。
+- **编译期拼接优化**：`"a" + "b"`（两个常量）编译期折叠成 `"ab"`；含变量时编译成 `StringBuilder`（或 JDK 9+ 的 `invokedynamic` + `StringConcatFactory`）。
+- **final 修饰的 String**：常量池中的引用，编译期内联。
+- **正则中的 String**：正则表达式本身建议用常量（避免重复编译）。
+- **String 的 equals 与 hashCode**：都基于字符内容，因此可安全作为 HashMap 的 key。
+- **String.split 的陷阱**：末尾空串会被丢弃；正则特殊字符需转义。
+- **String.join / formatted**：Java 8+ / 15+ 的实用方法。
+- **文本块**（Java 15+）：`"""` 包裹的多行字符串，适合写 SQL、JSON。
 
 ## 常见误区
 
@@ -1294,22 +1353,13 @@ String json = """
 -- methods
 UPDATE lesson SET content = '## 本节要点
 
-方法是一段有名字、有参数、有返回值的代码块。Java 的方法传递**永远是值传递**——对象传的是引用值的拷贝。理解这一点，就理解了为什么在方法里"修改对象字段"有效，而"重新赋值形参"无效。
+把重复步骤抽成方法，并通过例子理解 Java 怎样传递基本类型的值和对象的引用值。
 
 ## 核心概念
 
 - **方法签名**：`方法名 + 参数列表`（不含返回类型）。`重载`由签名决定，`重写`由签名 + 继承关系决定。
 - **值传递（Java 只有值传递）**：基本类型传值的拷贝；对象传的是**引用值的拷贝**。
 - **重载（Overload）**：同一类中多个同名方法，参数列表不同。编译期确定。
-- **重写（Override）**：子类重新实现父类方法。运行时确定（多态）。
-- **可变参数（Varargs）**：`int... args` 等价于 `int[] args`，必须放最后。
-- **参数传递的"引用值拷贝"**：形参指向同一个对象，所以改字段有效；但给形参重新赋值不影响实参。
-- **final 参数**：方法内不可重新赋值（Lambda 捕获的前提）。
-- **静态方法**：属于类，this 不可用，不能重写（只能隐藏）。
-- **方法引用**：`::` 是 Lambda 的简写形式。
-- **递归**：自己调用自己，需要**递归终止条件**。
-- **返回值类型协变**：重写时子类可返回更具体的类型（JDK 5+）。
-- **调用栈**：每次方法调用压入一个栈帧，递归过深会 StackOverflowError。
 
 ## 关键代码
 
@@ -1361,6 +1411,18 @@ static int sum(int n, int acc) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **重写（Override）**：子类重新实现父类方法。运行时确定（多态）。
+- **可变参数（Varargs）**：`int... args` 等价于 `int[] args`，必须放最后。
+- **参数传递的"引用值拷贝"**：形参指向同一个对象，所以改字段有效；但给形参重新赋值不影响实参。
+- **final 参数**：方法内不可重新赋值（Lambda 捕获的前提）。
+- **静态方法**：属于类，this 不可用，不能重写（只能隐藏）。
+- **方法引用**：`::` 是 Lambda 的简写形式。
+- **递归**：自己调用自己，需要**递归终止条件**。
+- **返回值类型协变**：重写时子类可返回更具体的类型（JDK 5+）。
+- **调用栈**：每次方法调用压入一个栈帧，递归过深会 StackOverflowError。
 
 ## 常见误区
 
@@ -1556,19 +1618,13 @@ static List<String> getNames() { return List.of(names); }
 -- class-and-object
 UPDATE lesson SET content = '## 本节要点
 
-`equals` 与 `hashCode` 必须**同时重写且保持一致**——这是 Java 里最容易被违反的契约。不可变对象（Immutable）是设计的基石：天然线程安全、可安全共享、可作为缓存 key。
+用 `Student` 类创建两个对象，观察它们如何拥有各自的字段，并通过构造器初始化。
 
 ## 核心概念
 
 - **equals 契约**：自反性、对称性、传递性、一致性、非 null。
 - **hashCode 契约**：相等对象必须哈希码相等；哈希码相等的对象**不一定**相等（允许碰撞）。
 - **两者关系**：hashCode 相等是 equals 相等的**必要条件**（用于哈希桶定位），不是充分条件。
-- **对象标识 vs 值相等**：`==` 比较引用，`equals` 比较逻辑值。
-- **不可变对象**：所有字段 final、构造后状态不变、不暴露内部引用（防御性拷贝）。天然线程安全。
-- **防御性拷贝**：可变对象作为参数/返回值时拷贝一份，避免外部篡改内部状态。
-- **构造器不暴露 this**：构造器中不应调用可被重写的方法（this 尚未完全初始化）。
-- **静态工厂方法 vs 构造器**：可以返回缓存实例、可以有清晰命名、可绕过构造器限制。
-- **享元（Flyweight）**：不可变 + 共享实例 + 外部状态外置。
 
 ## 关键代码
 
@@ -1600,6 +1656,15 @@ final class Period {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **对象标识 vs 值相等**：`==` 比较引用，`equals` 比较逻辑值。
+- **不可变对象**：所有字段 final、构造后状态不变、不暴露内部引用（防御性拷贝）。天然线程安全。
+- **防御性拷贝**：可变对象作为参数/返回值时拷贝一份，避免外部篡改内部状态。
+- **构造器不暴露 this**：构造器中不应调用可被重写的方法（this 尚未完全初始化）。
+- **静态工厂方法 vs 构造器**：可以返回缓存实例、可以有清晰命名、可绕过构造器限制。
+- **享元（Flyweight）**：不可变 + 共享实例 + 外部状态外置。
 
 ## 常见误区
 
@@ -1720,21 +1785,13 @@ Map<UserKey, Profile> cache = new ConcurrentHashMap<>();
 -- oop-core
 UPDATE lesson SET content = '## 本节要点
 
-面向对象三大支柱是**封装、继承、多态**。Java 的实现机制：字段与方法用 `private` 隐藏（封装）、`extends` 建立 is-a 关系（继承）、方法重写 + 运行时多态（多态）。继承最大的问题是**脆弱基类**——基类改动会波及所有子类。
+用封装保护状态，用继承共享行为，再观察重写后的方法如何按实际对象选择实现。
 
 ## 核心概念
 
 - **封装**：隐藏内部实现，通过方法暴露访问。降低耦合、允许内部自由演进。
 - **继承**：复用代码 + 建立 is-a 关系。Java 单继承（类）+ 多实现（接口）。
 - **多态**：父类引用指向子类对象，调用同一方法表现出不同行为。前提是**方法被重写**。
-- **方法重写（Override）**：子类重新实现父类方法，签名相同。
-- **方法重载（Overload）**：同一类中多个同名不同参的方法，与继承无关。
-- **重写规则**：访问权限不能更严格、返回值协变、checked 异常不能更宽、final 不能重写、static 不能重写、private 不能重写。
-- **协变返回类型**：JDK 5+ 支持，子类可返回更具体的类型。
-- **组合优于继承**：用「has-a」组合代替「is-a」继承，避免脆弱基类。
-- **里氏替换原则（LSP）**：子类必须能替换父类 wherever 父类被使用。
-- **向上转型（Upcasting）** 与 **向下转型（Downcasting）**。
-- **重写与重载的区分**：重写发生在父子类之间（运行时多态），重载发生在同一类中（编译期多态）。
 
 ## 关键代码
 
@@ -1774,6 +1831,17 @@ class Car {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **方法重写（Override）**：子类重新实现父类方法，签名相同。
+- **方法重载（Overload）**：同一类中多个同名不同参的方法，与继承无关。
+- **重写规则**：访问权限不能更严格、返回值协变、checked 异常不能更宽、final 不能重写、static 不能重写、private 不能重写。
+- **协变返回类型**：JDK 5+ 支持，子类可返回更具体的类型。
+- **组合优于继承**：用「has-a」组合代替「is-a」继承，避免脆弱基类。
+- **里氏替换原则（LSP）**：子类必须能替换父类 wherever 父类被使用。
+- **向上转型（Upcasting）** 与 **向下转型（Downcasting）**。
+- **重写与重载的区分**：重写发生在父子类之间（运行时多态），重载发生在同一类中（编译期多态）。
 
 ## 常见误区
 
@@ -1918,20 +1986,13 @@ Child.s();    // 调 Child 的 static —— 编译期静态绑定
 -- interface-vs-abstract
 UPDATE lesson SET content = '## 本节要点
 
-接口描述「能力」，抽象类描述「is-a 的共同实现」。接口可以有 default 方法与静态方法，抽象类可以有状态与构造器。**面向接口编程**是 Java 的核心原则之一。
+用接口约定一种能力，用抽象类共享状态和实现。通过例子判断两者各适合什么场景。
 
 ## 核心概念
 
 - **接口（interface）**：一组抽象方法的集合（JDK 8+ 可有 default / static / private 方法）。不能有实例字段（只能有常量）。
 - **抽象类（abstract class）**：可以有抽象方法、实例字段、构造器。用 `abstract` 修饰。
 - **核心区别**：接口是「can-do」（能力/角色），抽象类是「is-a」（本质上的共同种类）。
-- **default 方法**：接口的默认实现，子类可重写。为接口演化留了后路（向后兼容）。
-- **接口中的 static 方法**：只能通过接口名调用，不能被实现类继承。
-- **接口中的 private 方法**（JDK 9+）：供 default 方法内部共享。
-- **多继承**：类只能单继承，但可以实现多个接口，因此接口成了「多继承」的唯一途径。
-- **抽象类不能多继承**：Java 单继承限制。
-- **何时用哪个**：需要共享状态/构造器/非public 成员 → 抽象类；只需要能力契约 → 接口。
-- **接口常量**：隐式 `public static final`。
 
 ## 关键代码
 
@@ -1966,6 +2027,16 @@ class Bird implements Flyable, Comparable<Bird> {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **default 方法**：接口的默认实现，子类可重写。为接口演化留了后路（向后兼容）。
+- **接口中的 static 方法**：只能通过接口名调用，不能被实现类继承。
+- **接口中的 private 方法**（JDK 9+）：供 default 方法内部共享。
+- **多继承**：类只能单继承，但可以实现多个接口，因此接口成了「多继承」的唯一途径。
+- **抽象类不能多继承**：Java 单继承限制。
+- **何时用哪个**：需要共享状态/构造器/非public 成员 → 抽象类；只需要能力契约 → 接口。
+- **接口常量**：隐式 `public static final`。
 
 ## 常见误区
 
@@ -2077,19 +2148,13 @@ interface Config {
 -- final-static-immutable
 UPDATE lesson SET content = '## 本节要点
 
-`final` 表示不可继承/不可重写，`static` 表示属于类而非实例，`不可变对象`（Immutable）指构造后状态不再改变。三者组合是 Java 中最稳健的设计手法——不可变对象天然线程安全。
+分清 `final` 限制什么、`static` 属于谁，以及怎样让对象构造后保持不变。
 
 ## 核心概念
 
 - **final 字段**：只能赋值一次。构造器中对 final 字段赋值，编译器保证**正确发布**（其他线程看到构造好的对象，不会看到半初始化状态）。
 - **final 与内存语义**：final 字段有「冻结」语义，JMM 保证构造完成后其它线程能看到正确值。这是 JSR-133 引入的关键修复。
 - **static**：属于类，全类共享一份。static 方法不能直接访问实例成员。
-- **static 初始化顺序**：静态字段与静态代码块按声明顺序执行，且在类加载（初始化）时执行一次。
-- **类初始化触发条件**：new、访问静态字段/方法、反射、初始化子类。
-- **不可变对象**：所有字段 final、不暴露内部状态、构造后不再变化。
-- **不可变对象的好处**：线程安全（无共享可变状态）、可安全缓存、可作为 Map key、易于推理。
-- **防御性拷贝**：可变对象进出不可变类时必须拷贝。
-- **枚举的隐藏单例**：enum 天然是不可变单例。
 
 ## 关键代码
 
@@ -2119,6 +2184,15 @@ enum Status {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **static 初始化顺序**：静态字段与静态代码块按声明顺序执行，且在类加载（初始化）时执行一次。
+- **类初始化触发条件**：new、访问静态字段/方法、反射、初始化子类。
+- **不可变对象**：所有字段 final、不暴露内部状态、构造后不再变化。
+- **不可变对象的好处**：线程安全（无共享可变状态）、可安全缓存、可作为 Map key、易于推理。
+- **防御性拷贝**：可变对象进出不可变类时必须拷贝。
+- **枚举的隐藏单例**：enum 天然是不可变单例。
 
 ## 常见误区
 
@@ -2275,21 +2349,13 @@ enum 可以有构造器、实例字段、方法——这是 `static final` 常�
 -- enum-and-record
 UPDATE lesson SET content = '## 本节要点
 
-`enum` 是 Java 特有的类型，天然是**单例**且**线程安全**。`record`（JDK 16+）是面向数据载体的语法糖，编译器自动生成构造器、访问器、equals/hashCode/toString。JDK 17 还引入了 **sealed 类**与**switch 模式匹配**。
+用 `enum` 表示固定选项，用 `record` 表示一组数据，再看它们各自生成哪些成员。
 
 ## 核心概念
 
 - **enum**：隐式继承 `java.lang.Enum`，每个常量是 enum 类型的单例实例。可有构造器、字段、方法，但不能有子类。
 - **enum 的构造器是 private**：只能由 enum 自己调用。
 - **抽象方法**：enum 可以实现抽象方法，每个常量分别实现——这是 enum 优于常量类的关键。
-- **EnumMap / EnumSet**：针对 enum 的高性能实现（用位向量或数组，优于 HashMap/HashSet）。
-- **record**：JDK 16 正式引入的不可变数据载体，隐式 `final`，组件是 `private final`。
-- **record 的紧凑构造器**：可做校验与归一化。
-- **record 是名义 final**：不能 extends，但可以实现接口。
-- **sealed 类**（JDK 17）：`sealed` + `permits` 显式列出允许的子类，编译期约束继承关系。
-- **sealed 的动机**：给「模式匹配 switch」提供穷尽性检查的前提。
-- **switch 模式匹配**（JDK 17 预览 / JDK 21 正式）：`case Circle c -> ...`，可按类型与 guard 分支。
-- **record 的限制**：不能继承其它类、不能声明额外实例字段（静态字段可以）。
 
 ## 关键代码
 
@@ -2344,6 +2410,17 @@ static String describe(Object o) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **EnumMap / EnumSet**：针对 enum 的高性能实现（用位向量或数组，优于 HashMap/HashSet）。
+- **record**：JDK 16 正式引入的不可变数据载体，隐式 `final`，组件是 `private final`。
+- **record 的紧凑构造器**：可做校验与归一化。
+- **record 是名义 final**：不能 extends，但可以实现接口。
+- **sealed 类**（JDK 17）：`sealed` + `permits` 显式列出允许的子类，编译期约束继承关系。
+- **sealed 的动机**：给「模式匹配 switch」提供穷尽性检查的前提。
+- **switch 模式匹配**（JDK 17 预览 / JDK 21 正式）：`case Circle c -> ...`，可按类型与 guard 分支。
+- **record 的限制**：不能继承其它类、不能声明额外实例字段（静态字段可以）。
 
 ## 常见误区
 
@@ -2521,7 +2598,8 @@ String render(PaymentResult r) {
 
 -- inner-class-and-lambda
 UPDATE lesson SET content = '## 本节要点
-四种内部类与函数式接口。
+
+看懂内部类和函数式接口，再用 Lambda 把一条比较规则传给排序方法。
 
 ## 核心概念
 - 四种内部类的访问权限差异
@@ -2560,21 +2638,13 @@ class Outer {
 -- exception-handling
 UPDATE lesson SET content = '## 本节要点
 
-Java 异常体系分两大类：**受检异常**（checked，编译器强制捕获）与**非受检异常**（unchecked，RuntimeException 及其子类）。设计原则是「能用受检就用受检，能用非受检就用非受检」——**受检异常用于可预期的、由调用方能处理的错误；非受检用于编程错误**。
+区分需要声明或处理的受检异常与非受检异常，再用 try-with-resources 自动关闭资源。
 
 ## 核心概念
 
 - **Throwable** → Error（严重错误，通常不处理）/ Exception（可预期错误）。
 - **受检异常**：Exception 的非 RuntimeException 子类。编译器要求 catch 或 throws。
 - **非受检异常**：RuntimeException 及其子类（NullPointerException、IllegalArgumentException、IllegalStateException、ArithmeticException、ClassCastException…）。
-- **Error**：StackOverflowError、OutOfMemoryError、NoClassDefFoundError。JVM 层面问题，不该 catch。
-- **异常链（cause）**：Throwable 的 `cause` 字段，包装异常时保留原始异常。
-- **try-with-resources**（JDK 7+）：自动关闭资源，**且被抑制的异常会被保留**（addSuppressed）。
-- **finally 的执行规则**：正常结束、抛异常、return —— 都会执行 finally。**但 System.exit / 致命错误不会**。
-- **try-catch 中 return 的坑**：finally 里的 return 会**吞掉** try 块里的 return 或异常。
-- **自定义异常**：继承 RuntimeException（不强制捕获）或 Exception（强制捕获）。
-- **异常不能用作控制流**：性能开销（构造异常要填栈帧）。
-- **全局异常处理器**：Spring 的 @ControllerAdvice、@RestControllerAdvice。
 
 ## 关键代码
 
@@ -2608,6 +2678,17 @@ if (user == null) throw new IllegalArgumentException("user must not be null");
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **Error**：StackOverflowError、OutOfMemoryError、NoClassDefFoundError。JVM 层面问题，不该 catch。
+- **异常链（cause）**：Throwable 的 `cause` 字段，包装异常时保留原始异常。
+- **try-with-resources**（JDK 7+）：自动关闭资源，**且被抑制的异常会被保留**（addSuppressed）。
+- **finally 的执行规则**：正常结束、抛异常、return —— 都会执行 finally。**但 System.exit / 致命错误不会**。
+- **try-catch 中 return 的坑**：finally 里的 return 会**吞掉** try 块里的 return 或异常。
+- **自定义异常**：继承 RuntimeException（不强制捕获）或 Exception（强制捕获）。
+- **异常不能用作控制流**：性能开销（构造异常要填栈帧）。
+- **全局异常处理器**：Spring 的 @ControllerAdvice、@RestControllerAdvice。
 
 ## 常见误区
 
@@ -2768,20 +2849,13 @@ log.error("处理订单失败", e);
 -- generics-type-erasure
 UPDATE lesson SET content = '## 本节要点
 
-Java 的泛型是**编译期**特性：编译器做类型检查，运行时被**擦除**（erasure）成原始类型。这解释了泛型数组不能直接创建、无法用 `instanceof` 判断泛型类型等问题。
+用泛型在编译期约束数据类型，再理解类型擦除怎样影响运行时检查。
 
 ## 核心概念
 
 - **泛型**：类型参数化，把「类型的不确定性」推迟到编译期。
 - **类型擦除**：编译后泛型信息被擦除成原始类型（无参或 Object），编译器在需要处插入**强制转换**。
 - **桥方法（Bridge Method）**：为保证多态（重写泛型方法）而由编译器生成的合成方法。
-- **泛型数组**：不能 `new T[]`，因为运行时不知道 T 的实际类型（无具体化）。可用 `Class<T>` 拿到再 new。
-- **堆污染（Heap Pollution）**：泛型类型与实际类型不一致的状态（如通过原始类型或未检查转换产生）。
-- **通配符**：上界 `? extends T`（只读，协变）、下界 `? super T`（写，反协变）、无界 `?`（只读任何类型）。
-- **PECS 原则**：Producer Extends, Consumer Super。生产用 `? extends`，消费用 `? super`。
-- **无界通配符 `?`**：表示「某个未知类型」，只能作为参数使用，不能作为字段/返回值。
-- **泛型方法的类型推断**：JDK 7 引入菱形 `<>`，JDK 8 引入目标类型推断。
-- **堆污染的防护**：`@SafeVarargs`、`@SuppressWarnings("unchecked")`。
 
 ## 关键代码
 
@@ -2825,6 +2899,16 @@ class StringComparator implements Comparator<String> {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **泛型数组**：不能 `new T[]`，因为运行时不知道 T 的实际类型（无具体化）。可用 `Class<T>` 拿到再 new。
+- **堆污染（Heap Pollution）**：泛型类型与实际类型不一致的状态（如通过原始类型或未检查转换产生）。
+- **通配符**：上界 `? extends T`（只读，协变）、下界 `? super T`（写，反协变）、无界 `?`（只读任何类型）。
+- **PECS 原则**：Producer Extends, Consumer Super。生产用 `? extends`，消费用 `? super`。
+- **无界通配符 `?`**：表示「某个未知类型」，只能作为参数使用，不能作为字段/返回值。
+- **泛型方法的类型推断**：JDK 7 引入菱形 `<>`，JDK 8 引入目标类型推断。
+- **堆污染的防护**：`@SafeVarargs`、`@SuppressWarnings("unchecked")`。
 
 ## 常见误区
 
@@ -2996,21 +3080,13 @@ ParameterizedTypeReference<List<Order>> ref =
 -- reflection-annotation
 UPDATE lesson SET content = '## 本节要点
 
-反射让程序在**运行时**检查和操作类型：读注解、创建实例、调用方法、访问字段。注解是给**编译器/JVM**看的元数据，`@Retention` 决定它的生命周期，运行时注解配合反射才能被读取。
+从一个类查找它的字段和方法，再用反射读取保留到运行时的注解。
 
 ## 核心概念
 
 - **Class 对象**：每个类在 JVM 中都有唯一的 Class 实例，持有该类的全部元信息。
 - **反射 API**：`Class`、`Method`、`Field`、`Constructor`、`Modifier`。
 - **注解的 Retention**：`SOURCE`（仅源码，编译丢弃）/ `CLASS`（编译进 class 文件，运行时不可读）/ `RUNTIME`（运行时可读，最常用）。
-- **注解的 Target**：`TYPE`、`METHOD`、`FIELD`、`PARAMETER` 等，限定可标注位置。
-- **@Inherited**：允许子类继承父类的注解（只对类有效）。
-- **重复注解**：`@Repeatable`（Java 8+）。
-- **元注解**：标注注解的注解（`@Retention`、`@Target`、`@Documented`、`@Inherited`）。
-- **动态代理**：`Proxy.newProxyInstance` 基于接口生成代理类，Spring AOP 的底层。
-- **性能代价**：反射比直接调用慢（需装箱、访问检查），但 JIT 会对热点反射做优化。
-- **setAccessible(true)**：突破访问控制，JDK 9+ 对 JDK 内部模块有强限制。
-- **MethodHandle**（Java 7+）：比反射更快，是 JDK 内部（如 lambda）的实现基础。
 
 ## 关键代码
 
@@ -3050,6 +3126,17 @@ Service proxy = (Service) Proxy.newProxyInstance(
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **注解的 Target**：`TYPE`、`METHOD`、`FIELD`、`PARAMETER` 等，限定可标注位置。
+- **@Inherited**：允许子类继承父类的注解（只对类有效）。
+- **重复注解**：`@Repeatable`（Java 8+）。
+- **元注解**：标注注解的注解（`@Retention`、`@Target`、`@Documented`、`@Inherited`）。
+- **动态代理**：`Proxy.newProxyInstance` 基于接口生成代理类，Spring AOP 的底层。
+- **性能代价**：反射比直接调用慢（需装箱、访问检查），但 JIT 会对热点反射做优化。
+- **setAccessible(true)**：突破访问控制，JDK 9+ 对 JDK 内部模块有强限制。
+- **MethodHandle**（Java 7+）：比反射更快，是 JDK 内部（如 lambda）的实现基础。
 
 ## 常见误区
 
@@ -3218,7 +3305,8 @@ private final Method cachedMethod = ...;
 
 -- project-grade-system
 UPDATE lesson SET content = '## 本节要点
-综合运用 OOP 思想完成一个完整小项目。
+
+把成绩管理拆成录入、校验和保存三部分，先实现新增和查询。
 
 ## 核心概念
 - 需求到类设计的推导过程
@@ -3253,18 +3341,13 @@ class GradeService {
 -- collection-overview
 UPDATE lesson SET content = '## 本节要点
 
-Java 集合框架分三大分支：**List**（有序可重复、有索引）、**Set**（不可重复）、**Map**（键值对，key 唯一）。所有分支的根都是 `Collection`（Map 不在其下），实现类最终都实现了 `Iterable`，从而支持 for-each。
+按使用场景选择集合。有顺序用 `List`，去重用 `Set`，按键查找用 `Map`。
 
 ## 核心概念
 
 - **Collection 接口**：List / Set / Queue / Deque 的父接口，定义了 size、isEmpty、contains、add、remove、iterator、stream 等通用操作。
 - **List**：有序、可重复、有索引。三个子接口：ArrayList（数组）、LinkedList（双向链表）、Vector/Stack（同步版，遗留）。
 - **Set**：不可重复。HashSet（哈希）、LinkedHashSet（哈希+插入序）、TreeSet（红黑树，有序，支持范围查询）。
-- **Map**：key 唯一。HashMap、LinkedHashMap（维护插入序或访问序）、TreeMap（红黑树，key 有序）、Hashtable（遗留）、ConcurrentHashMap。
-- **Queue / Deque**：Queue 是队列（FIFO），Deque 是双端队列（可当栈用），ArrayDeque 是主力实现。
-- **Iterable**：只有实现了 Iterable 才能被 for-each 遍历（增强 for 实际编译成 Iterator 循环）。
-- **Collections 工具类**：unmodifiableList、singletonList、shuffle、reverse 等包装与算法。
-- **选择依据**：看是否需要顺序、是否需要去重、是否需要按键查找、数据规模与读写比。
 
 ## 关键代码
 
@@ -3284,6 +3367,14 @@ List<String> fixed = Collections.unmodifiableList(list);
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **Map**：key 唯一。HashMap、LinkedHashMap（维护插入序或访问序）、TreeMap（红黑树，key 有序）、Hashtable（遗留）、ConcurrentHashMap。
+- **Queue / Deque**：Queue 是队列（FIFO），Deque 是双端队列（可当栈用），ArrayDeque 是主力实现。
+- **Iterable**：只有实现了 Iterable 才能被 for-each 遍历（增强 for 实际编译成 Iterator 循环）。
+- **Collections 工具类**：unmodifiableList、singletonList、shuffle、reverse 等包装与算法。
+- **选择依据**：看是否需要顺序、是否需要去重、是否需要按键查找、数据规模与读写比。
 
 ## 常见误区
 
@@ -3403,19 +3494,13 @@ while (it.hasNext()) {
 -- arraylist-source
 UPDATE lesson SET content = '## 本节要点
 
-ArrayList 底层是**动态数组**。`add` 是均摊 O(1)——平时尾插 O(1)，偶尔扩容时拷贝一次 O(n)。扩容策略在 JDK 8 之后改为 **1.5 倍**（`oldCapacity + (oldCapacity >> 1)`）。
+区分列表的元素数量和底层容量，再看看尾部添加、扩容与移动元素各自的开销。
 
 ## 核心概念
 
 - **elementData**：底层数组，JDK 8 起为 `Object[]`，**延迟初始化**（首次 add 才 new，默认空数组共享）。
 - **size**：实际元素个数（不是数组长度）。
 - **DEFAULT_CAPACITY = 10**：默认初始容量。
-- **扩容倍数**：JDK 7 及以前 1.5 倍，JDK 8 起 `oldCap + (oldCap >> 1)` 即 1.5 倍，**过大的数组浪费内存**，小于 1.5 倍则扩容过于频繁。
-- **modCount**：记录结构性修改次数，是 fail-fast 机制的基础（见迭代器课时）。
-- **Arrays.copyOf**：扩容时拷贝旧数组到新数组。
-- **RandomAccess 接口**：ArrayList 实现它，标记支持快速随机访问。
-- **ensureCapacity / trimToSize**：手动控制容量。
-- **System.arraycopy**：JDK 8+ 扩容用 native 方法，比循环拷贝快。
 
 ## 关键代码
 
@@ -3436,6 +3521,15 @@ public int size() { return size; }
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **扩容倍数**：JDK 7 及以前 1.5 倍，JDK 8 起 `oldCap + (oldCap >> 1)` 即 1.5 倍，**过大的数组浪费内存**，小于 1.5 倍则扩容过于频繁。
+- **modCount**：记录结构性修改次数，是 fail-fast 机制的基础（见迭代器课时）。
+- **Arrays.copyOf**：扩容时拷贝旧数组到新数组。
+- **RandomAccess 接口**：ArrayList 实现它，标记支持快速随机访问。
+- **ensureCapacity / trimToSize**：手动控制容量。
+- **System.arraycopy**：JDK 8+ 扩容用 native 方法，比循环拷贝快。
 
 ## 常见误区
 
@@ -3546,19 +3640,13 @@ list.parallelStream().forEach(this::process);
 -- hashmap-red-black-tree
 UPDATE lesson SET content = '## 本节要点
 
-HashMap = **数组 + 链表 + 红黑树**。`hash()` 做扰动把冲突降到最低，`putVal` 走「空桶直接放 / 桶内有 key 则覆盖 / 否则挂链表或树化」三条路径。链表长度 ≥ 8 且数组长度 ≥ 64 时转红黑树。
+沿着一次查找走完「算哈希、找桶、比对键」三个步骤，再看桶里何时会树化。
 
 ## 核心概念
 
 - **DEFAULT_CAPACITY = 16**：默认初始容量。
 - **LOAD_FACTOR = 0.75**：负载因子，元素数 > capacity × 0.75 时扩容。
 - **TREEIFY_THRESHOLD = 8**：链表长度达 8 转红黑树。
-- **UNTREEIFY_THRESHOLD = 6**：树缩回链表的阈值（留 2 的缓冲避免反复转换）。
-- **MIN_TREEIFY_CAPACITY = 64**：数组容量不足 64 时优先扩容而非树化。
-- **hash() 扰动函数**：`h ^ (h >>> 16)`，让高 16 位参与低位运算。Java 8 之前是 `h ^ (h >>> 20) ^ (h >>> 12)`，因为 HashMap 用 `h & (n-1)` 取模，只用到了低位。
-- **扩容**：容量翻倍为 2 的幂，取模可以用位运算 `& (n-1)` 替代 `%`。
-- **红黑树化**：解决链表过长导致的 O(n) 查找，主要对抗恶意哈希碰撞。
-- **节点类型**：链表节点 `Node`，树节点 `TreeNode`（多了 parent/left/right/prev）。
 
 ## 关键代码
 
@@ -3580,6 +3668,15 @@ static final int hash(Object key) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **UNTREEIFY_THRESHOLD = 6**：树缩回链表的阈值（留 2 的缓冲避免反复转换）。
+- **MIN_TREEIFY_CAPACITY = 64**：数组容量不足 64 时优先扩容而非树化。
+- **hash() 扰动函数**：`h ^ (h >>> 16)`，让高 16 位参与低位运算。Java 8 之前是 `h ^ (h >>> 20) ^ (h >>> 12)`，因为 HashMap 用 `h & (n-1)` 取模，只用到了低位。
+- **扩容**：容量翻倍为 2 的幂，取模可以用位运算 `& (n-1)` 替代 `%`。
+- **红黑树化**：解决链表过长导致的 O(n) 查找，主要对抗恶意哈希碰撞。
+- **节点类型**：链表节点 `Node`，树节点 `TreeNode`（多了 parent/left/right/prev）。
 
 ## 常见误区
 
@@ -3673,7 +3770,8 @@ Map<String, Object> map = new HashMap<>(1334);
 
 -- concurrenthashmap
 UPDATE lesson SET content = '## 本节要点
-分段锁到 CAS 的演进。
+
+理解并发 Map 的单次操作怎样保持安全，再用 `merge` 完成一次原子的单键更新。
 
 ## 核心概念
 - JDK7 分段锁与 JDK8 CAS + synchronized
@@ -3704,7 +3802,8 @@ else
 
 -- set-family
 UPDATE lesson SET content = '## 本节要点
-元素唯一性的实现原理。
+
+用同一组整数试试 `HashSet` 和 `TreeSet`，观察它们怎样去重，以及遍历顺序有什么区别。
 
 ## 核心概念
 - HashSet / LinkedHashSet / TreeSet 的差异
@@ -3732,19 +3831,13 @@ Set<String> ts = new TreeSet<>(Comparator.reverseOrder()); // 按规则排序
 -- iterator-cmc
 UPDATE lesson SET content = '## 本节要点
 
-迭代器的 fail-fast 机制靠 `modCount` 实现：集合每次结构性修改都递增它，迭代器创建时记录快照，遍历中若发现不一致就抛 `ConcurrentModificationException`。这是**尽力而为的错误检测**，不是并发安全保证。
+练习用迭代器删除当前元素，并理解直接修改集合为什么可能触发并发修改异常。
 
 ## 核心概念
 
 - **Iterator 接口**：四个方法 `hasNext()`、`next()`、`remove()`。
 - **modCount**：ArrayList / HashMap 等的字段，记录结构性修改次数。
 - **expectedModCount**：迭代器创建时记录的快照值。
-- **fail-fast**：遍历中检测到 modCount 变化立即抛 CME，**尽早暴露 bug**，而不是继续遍历出不确定结果。
-- **结构性修改**：改变元素个数或顺序的操作（add/remove/clear）。**修改元素内容不算**（如 `list.set(0, x)` 不触发）。
-- **ConcurrentModificationException**：fail-fast 的载体，是**运行时异常**（非受检）。
-- **CopyOnWriteArrayList 的迭代器**：**快照式**，遍历时不抛 CME，但也不反映后续修改。
-- **弱一致性迭代器**：ConcurrentHashMap 的迭代器，弱一致（可能看到也可能看不到并发修改），但不抛 CME。
-- **removeIf 的正确性**：`Collection.removeIf` 默认实现用迭代器，安全；ArrayList 覆写了它做批量优化。
 
 ## 关键代码
 
@@ -3764,6 +3857,15 @@ while (it.hasNext()) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **fail-fast**：遍历中检测到 modCount 变化立即抛 CME，**尽早暴露 bug**，而不是继续遍历出不确定结果。
+- **结构性修改**：改变元素个数或顺序的操作（add/remove/clear）。**修改元素内容不算**（如 `list.set(0, x)` 不触发）。
+- **ConcurrentModificationException**：fail-fast 的载体，是**运行时异常**（非受检）。
+- **CopyOnWriteArrayList 的迭代器**：**快照式**，遍历时不抛 CME，但也不反映后续修改。
+- **弱一致性迭代器**：ConcurrentHashMap 的迭代器，弱一致（可能看到也可能看不到并发修改），但不抛 CME。
+- **removeIf 的正确性**：`Collection.removeIf` 默认实现用迭代器，安全；ArrayList 覆写了它做批量优化。
 
 ## 常见误区
 
@@ -3894,19 +3996,13 @@ list.remove(Integer.valueOf(1));  // 删除值为 1 的元素
 -- stream-api
 UPDATE lesson SET content = '## 本节要点
 
-Stream 把集合操作从「描述怎么做」变成「描述要什么」。核心特征是**惰性求值**——中间操作只构建流水线，真正干活的是终端操作。`Collectors` 承担了分组、聚合、汇总三大职责。
+把一组数字送进筛选、转换和汇总的流水线，观察哪一步会启动实际计算。
 
 ## 核心概念
 
 - **Stream 不是集合**：不存储数据，是数据处理的视图。
 - **惰性求值**：中间操作（filter/map/sorted/limit）返回新 Stream，不立即执行；只有终端操作（collect/forEach/count/anyMatch）触发真正的遍历。
 - **流只能消费一次**：终端操作后流就关闭了，再用会抛 `IllegalStateException`。
-- **中间操作**：filter、map、flatMap、distinct、sorted、limit、skip、peek。
-- **终端操作**：collect、forEach、reduce、count、min/max、anyMatch/allMatch/noneMatch、findFirst/findAny。
-- **Collectors**：groupingBy（分组）、partitioningBy（按布尔分组）、toMap、counting、summing、averaging、joining、summarizing、mapping、collectingAndThen。
-- **短路操作**：findFirst、anyMatch、limit、takeWhile——找到结果即停止。
-- **并行流**：使用 ForkJoinPool.commonPool()，适合纯计算、大数据量、无共享状态。
-- **peek 的陷阱**：只有终端操作执行后 peek 才会真正跑，调试时容易误判。
 
 ## 关键代码
 
@@ -3929,6 +4025,15 @@ orders.parallelStream()
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **中间操作**：filter、map、flatMap、distinct、sorted、limit、skip、peek。
+- **终端操作**：collect、forEach、reduce、count、min/max、anyMatch/allMatch/noneMatch、findFirst/findAny。
+- **Collectors**：groupingBy（分组）、partitioningBy（按布尔分组）、toMap、counting、summing、averaging、joining、summarizing、mapping、collectingAndThen。
+- **短路操作**：findFirst、anyMatch、limit、takeWhile——找到结果即停止。
+- **并行流**：使用 ForkJoinPool.commonPool()，适合纯计算、大数据量、无共享状态。
+- **peek 的陷阱**：只有终端操作执行后 peek 才会真正跑，调试时容易误判。
 
 ## 常见误区
 
@@ -4090,7 +4195,8 @@ List<Order> prefix = orders.stream()
 
 -- project-stream-refactor
 UPDATE lesson SET content = '## 本节要点
-把一段 200 行的 for 循环改成 20 行 Stream。
+
+把一段订单统计循环改成 Stream，用同样的输入核对两种写法的输出。
 
 ## 核心概念
 - 从命令式到声明式的重构思路
@@ -4129,16 +4235,13 @@ List<String> result2 = orders.stream()
 -- jvm-memory
 UPDATE lesson SET content = '## 本节要点
 
-JVM 把内存划分为「线程私有区」与「线程共享区」两大部分：程序计数器、虚拟机栈、本地方法栈随线程生死；堆、方法区由所有线程共享，也正是 GC 的主战场。JDK 8 起方法区的实现从永久代换成了元空间，前者位于堆内、后者位于本地内存。
+先画出线程私有区和共享区，再把方法栈帧、对象实例和类元数据分别放到对应位置。
 
 ## 核心概念
 
 - **程序计数器（PC Register）**：线程私有，记录当前线程正在执行的字节码指令行号。执行 native 方法时它的值为 undefined，是唯一一个不会 OOM 的内存区域。
 - **虚拟机栈**：每次 Java 方法调用都创建一个**栈帧**（局部变量表、操作数栈、动态链接、方法引用），栈帧是基本单位。线程私有，深度不足抛 StackOverflowError。
 - **本地方法栈**：为 native 方法服务，HotSpot 中与虚拟机栈合二为一。
-- **堆**：所有线程共享，对象实例与数组的存放地，由各线程共享的 GC 管理。
-- **方法区**：存放类型信息、运行时常量池、方法数据。JDK 8 前是永久代（堆内 `-XX:PermSize`），JDK 8 后是**元空间**（本地内存 `-XX:MetaspaceSize`）。
-- **内存溢出的两种典型形态**：堆溢出 `OutOfMemoryError: Java heap space`（对象撑爆堆）；栈溢出 `StackOverflowError`（递归层数过深）。
 
 ## 关键代码
 
@@ -4158,6 +4261,12 @@ void recurse() { recurse(); }           // 栈溢出：StackOverflowError
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **堆**：所有线程共享，对象实例与数组的存放地，由各线程共享的 GC 管理。
+- **方法区**：存放类型信息、运行时常量池、方法数据。JDK 8 前是永久代（堆内 `-XX:PermSize`），JDK 8 后是**元空间**（本地内存 `-XX:MetaspaceSize`）。
+- **内存溢出的两种典型形态**：堆溢出 `OutOfMemoryError: Java heap space`（对象撑爆堆）；栈溢出 `StackOverflowError`（递归层数过深）。
 
 ## 常见误区
 
@@ -4224,17 +4333,13 @@ GC 并非扫描整个堆，而是从一组 GC Roots 出发做可达性分析。G
 -- object-layout
 UPDATE lesson SET content = '## 本节要点
 
-对象在堆中的内存布局由三部分组成：**对象头**（Mark Word + 类型指针）、**实例数据**、**对齐填充**。64 位 HotSpot 上对象头是 12 字节（压缩指针开启时）或 16 字节，整体大小还要按 8 字节对齐补齐。
+用 HotSpot 的对象头、实例数据和对齐填充理解对象占用空间，再看配置如何影响布局。
 
 ## 核心概念
 
 - **Mark Word**：64 位占 8 字节，存储对象的哈希码、GC 年龄、锁状态标志（无锁/偏向/轻量级/重量级）等；32 位只占 4 字节。
 - **类型指针（Klass Pointer）**：指向类元数据，用于确定对象类型，压缩指针开启时占 4 字节。
 - **实例数据**：字段的实际值，基本类型按字段声明顺序排列，引用类型 4 字节（压缩指针）。
-- **对齐填充**：为了对齐填充的字节，HotSpot 按 8 字节对齐。
-- **字段重排优化**：JVM 会把相同类型大小的字段排在一起，减少填充浪费。
-- **压缩指针（Compressed Oops）**：用 32 位表示对象引用（堆 ≤ 32GB 时生效），`-XX:+UseCompressedOops`。
-- **分代的意义**：对象朝朝代亡者占多数 => 少部分区域频繁回收。
 
 ## 关键代码
 
@@ -4253,6 +4358,13 @@ class B { int i; int j; }          // 12 + 8 = 20 -> 对齐到 24
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **对齐填充**：为了对齐填充的字节，HotSpot 按 8 字节对齐。
+- **字段重排优化**：JVM 会把相同类型大小的字段排在一起，减少填充浪费。
+- **压缩指针（Compressed Oops）**：用 32 位表示对象引用（堆 ≤ 32GB 时生效），`-XX:+UseCompressedOops`。
+- **分代的意义**：对象朝朝代亡者占多数 => 少部分区域频繁回收。
 
 ## 常见误区
 
@@ -4310,18 +4422,13 @@ System.out.println(ClassLayout.parseInstance(new B()).toPrintable());
 -- class-loading
 UPDATE lesson SET content = '## 本节要点
 
-类的生命周期要经历七个阶段：加载 → 验证 → 准备 → 解析 → 初始化 → 使用 → 卸载，其中前五个构成类加载过程。核心机制是**双亲委派模型**：类加载请求先委派给父加载器，父加载器无法完成才由自己加载。
+按顺序理解加载、连接和初始化，并区分静态字段的默认值与显式赋值何时出现。
 
 ## 核心概念
 
 - **加载（Loading）**：通过全限定名获取二进制字节流 → 定义为运行时数据区结构 → 生成 Class 对象。
 - **验证（Verification）**：确保字节码符合规范，不会危害虚拟机安全，且不会破坏正确性。
 - **准备（Preparation）**：为类变量分配内存并设置初始值。注意：这里的「初始值」是**零值**（int 为 0、引用为 null），不是源码里的赋值表达式。
-- **解析（Resolution）**：把常量池中的符号引用替换为直接引用（可以延后到真正使用时）。
-- **初始化（Initialization）**：执行类构造器 `<clinit>`，按源码顺序执行静态变量赋值与静态代码块。
-- **双亲委派模型**：Bootstrap → Extension → Application → 自定义，先问父，父不行才自己干。
-- **破坏双亲委派**：SPI、OSGi、热部署都依赖自定义 ClassLoader 打破委派顺序。
-- **类加载的时机**：首次主动使用（new、访问静态字段、反射、初始化子类等）时加载；解析可延后。
 
 ## 关键代码
 
@@ -4342,6 +4449,14 @@ protected Class<?> loadClass(String name, boolean resolve) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **解析（Resolution）**：把常量池中的符号引用替换为直接引用（可以延后到真正使用时）。
+- **初始化（Initialization）**：执行类构造器 `<clinit>`，按源码顺序执行静态变量赋值与静态代码块。
+- **双亲委派模型**：Bootstrap → Extension → Application → 自定义，先问父，父不行才自己干。
+- **破坏双亲委派**：SPI、OSGi、热部署都依赖自定义 ClassLoader 打破委派顺序。
+- **类加载的时机**：首次主动使用（new、访问静态字段、反射、初始化子类等）时加载；解析可延后。
 
 ## 常见误区
 
@@ -4412,18 +4527,13 @@ System.out.println(cl);       // null 表示已到 Bootstrap
 -- gc-algorithms
 UPDATE lesson SET content = '## 本节要点
 
-垃圾回收先判断「谁是垃圾」（可达性分析 + 三色标记），再决定「怎么回收」（标记清除、复制、标记整理）。分代收集把这两件事拆开：新生代用复制算法，老年代用标记清除或标记整理。CMS 与 G1 的差别，本质是**整理方式与并发程度**的差别。
+从 GC Roots 跟踪引用，判断对象是否可达，再比较清除、复制和整理回收空间的方式。
 
 ## 核心概念
 
 - **可达性分析**：从 GC Roots 出发遍历引用链，不可达的对象即为垃圾。解决了「引用计数无法处理循环引用」的问题。
 - **三色标记**：白 = 待扫描，灰 = 已标记但子节点未扫描，黑 = 已标记且子节点已扫描。GC 线程是**黑色 → 白色**的增量更新（SATB），用户线程是**黑色 → 黑色**（增量更新，CMS 用）。
 - **GC Roots**：虚拟机栈中引用的对象、静态字段引用的对象、常量池引用的对象、JNI 引用的对象。
-- **分代假说**：绝大多数对象朝生夕死；越老的对象存活越久。
-- **Minor GC / Young GC**：复制算法，只动 Eden + Survivor，把存活对象复制到另一个 Survivor。频繁、代价低。
-- **Full GC / Major GC**：老年代回收，标记清除或标记整理，STW 时间长。
-- **CMS（Concurrent Mark Sweep）**：并发标记清除，STW 时间短，但会产生**碎片**，且并发阶段与用户线程抢占 CPU。
-- **G1（Garbage First）**：把堆划分为 Region，按「垃圾含量」优先级回收，用 **Remembered Set** 记录跨 Region 引用，用 SATB 保证并发标记正确性。目标是可预测的停顿时间。
 
 ## 关键代码
 
@@ -4441,6 +4551,14 @@ UPDATE lesson SET content = '## 本节要点
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **分代假说**：绝大多数对象朝生夕死；越老的对象存活越久。
+- **Minor GC / Young GC**：复制算法，只动 Eden + Survivor，把存活对象复制到另一个 Survivor。频繁、代价低。
+- **Full GC / Major GC**：老年代回收，标记清除或标记整理，STW 时间长。
+- **CMS（Concurrent Mark Sweep）**：并发标记清除，STW 时间短，但会产生**碎片**，且并发阶段与用户线程抢占 CPU。
+- **G1（Garbage First）**：把堆划分为 Region，按「垃圾含量」优先级回收，用 **Remembered Set** 记录跨 Region 引用，用 SATB 保证并发标记正确性。目标是可预测的停顿时间。
 
 ## 常见误区
 
@@ -4527,17 +4645,13 @@ JDK 9+ 已把 Parallel GC 设为默认收集器。它在小堆、延迟敏感的
 -- jvm-tuning-tools
 UPDATE lesson SET content = '## 本节要点
 
-JVM 调优有两把钥匙：**GC 日志**告诉你「发生了什么」，**线程栈/堆快照**告诉你「为什么」。工具链上，`jstat` 看趋势、`jmap` 打快照、`jstack` 看线程、`jcmd` 聚合入口、`jconsole`/`VisualVM` 做可视化。
+根据现象选工具。看 GC 趋势、看线程等待和看堆对象需要不同的证据。
 
 ## 核心概念
 
 - **jstat**：按指定间隔输出类加载、垃圾回收、编译、运行时内存等统计，是排查「内存是否泄漏」的第一站。
 - **jmap**：生成堆转储（dump）、打印类信息、统计实例。是分析对象占用的核心工具。
 - **jstack**：打印各线程的堆栈快照，定位死锁、线程卡死、CPU 飙高。
-- **jcmd**：JDK 7+ 的统一诊断入口，`jcmd <pid> help` 列出全部能力。
-- **GC 日志**：JDK 9+ 统一为 `-Xlog:` 语法，是判断停顿原因最直接的证据。
-- **OOM 三类**：堆溢出、元空间溢出、线程创建失败——定位路径完全不同。
-- **堆转储分析**：MAT / VisualVM 看 dominator tree，能直接指出「谁占着内存」。
 
 ## 关键代码
 
@@ -4558,6 +4672,13 @@ Thread.sleep(200);
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **jcmd**：JDK 7+ 的统一诊断入口，`jcmd <pid> help` 列出全部能力。
+- **GC 日志**：JDK 9+ 统一为 `-Xlog:` 语法，是判断停顿原因最直接的证据。
+- **OOM 三类**：堆溢出、元空间溢出、线程创建失败——定位路径完全不同。
+- **堆转储分析**：MAT / VisualVM 看 dominator tree，能直接指出「谁占着内存」。
 
 ## 常见误区
 
@@ -4659,18 +4780,13 @@ MAT 中打开 hprof 后，第一步看 **Leak Suspects Report**，第二步看 *
 -- bytecode
 UPDATE lesson SET content = '## 本节要点
 
-Java 的「一次编译，到处运行」靠的是**字节码**：源码编译成与平台无关的 class 文件，由各平台的 JVM 解释或 JIT 编译成机器码。class 文件是一套严格定义的二进制格式，方法执行的核心单位是**栈帧**。
+用 `javap` 打开一个 `.class` 文件，认出版本号、常量池和方法的字节码。
 
 ## 核心概念
 
 - **字节码（Bytecode）**：中间指令集，与平台无关，是 JVM 的输入。
 - **class 文件结构**：以 u1/u2/u4/u8 描述的二进制格式，依次是魔数、版本号、常量池、访问标志、类/接口定义、字段表、方法表、属性表。
 - **常量池**：class 文件的「资源仓库」，存放字面量与符号引用，是索引化的（类似数组而非 Map）。
-- **方法表中的 Code 属性**：局部变量表、操作数栈、异常表、LineNumberTable 等。
-- **栈帧（Stack Frame）**：每次方法调用创建，包含局部变量表、操作数栈、动态链接、方法引用、返回地址。
-- **操作数栈**：JVM 的计算核心，字节码指令直接操作它。
-- **执行引擎**：解释器（逐条解释，慢）+ JIT（热点代码编译成本地代码，快）。
-- **即时编译器**：C1（Client，编译快、优化少）+ C2（Server，优化深），分层编译按调用次数与热度选择。
 
 ## 关键代码
 
@@ -4688,6 +4804,14 @@ int add(int x, int y) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **方法表中的 Code 属性**：局部变量表、操作数栈、异常表、LineNumberTable 等。
+- **栈帧（Stack Frame）**：每次方法调用创建，包含局部变量表、操作数栈、动态链接、方法引用、返回地址。
+- **操作数栈**：JVM 的计算核心，字节码指令直接操作它。
+- **执行引擎**：解释器（逐条解释，慢）+ JIT（热点代码编译成本地代码，快）。
+- **即时编译器**：C1（Client，编译快、优化少）+ C2（Server，优化深），分层编译按调用次数与热度选择。
 
 ## 常见误区
 
@@ -4792,17 +4916,13 @@ javap -c MyClass.class | sed -n ''/void foo()/,/^$/p''
 -- project-memory-leak
 UPDATE lesson SET content = '## 本节要点
 
-内存泄漏的本质是：**本该被回收的对象仍然可达**。排查要回答两个问题——哪些对象没被回收（dump 分析），以及为什么没被回收（GC Roots 路径分析）。常见的元凶是静态集合、监听器、ThreadLocal 与未关闭的连接。
+先确认 GC 后堆占用持续增长，再追踪哪些引用让对象一直可达。
 
 ## 核心概念
 
 - **内存泄漏 vs 内存溢出**：泄漏是「占用持续增长且无法回收」的现象，溢出（OOM）是「申请内存超出上限」的结果。
 - **静态集合**：最常见的泄漏源。`static` 集合随类加载器存活，只要类不被卸载，元素就永远可达。
 - **ThreadLocal**：线程池中的线程复用，ThreadLocalMap 里的 value 只有 remove 才会清。
-- **监听器/回调未注销**：注册进长生命周期对象（容器、静态集合）后不反注册。
-- **未关闭的连接**：JDBC Connection、文件流、Socket 占着堆外内存与 native 资源。
-- **类加载器泄漏**：动态生成的类无法卸载（元空间泄漏），Tomcat 热部署常见。
-- **dump 分析三板斧**：Leak Suspects → Dominator Tree → Path to GC Roots。
 
 ## 关键代码
 
@@ -4827,6 +4947,13 @@ System.out.println(ref.get() == null ? "已回收" : "仍可达");
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **监听器/回调未注销**：注册进长生命周期对象（容器、静态集合）后不反注册。
+- **未关闭的连接**：JDBC Connection、文件流、Socket 占着堆外内存与 native 资源。
+- **类加载器泄漏**：动态生成的类无法卸载（元空间泄漏），Tomcat 热部署常见。
+- **dump 分析三板斧**：Leak Suspects → Dominator Tree → Path to GC Roots。
 
 ## 常见误区
 
@@ -4933,19 +5060,13 @@ MAT 中：`Leak Suspects Report` 先看自动分析 → `Dominator Tree` 按 Ret
 -- thread-basics
 UPDATE lesson SET content = '## 本节要点
 
-线程是 CPU 调度的最小单位。Java 提供四种创建方式，但推荐 `Runnable` 或线程池。线程有六种状态，转换由 `Thread` 的方法驱动。并发编程要守住三个要素：**原子性、可见性、有序性**。
+用一个小例子启动线程，观察线程状态，并区分等待监视器和等待通知。
 
 ## 核心概念
 
 - **并发 vs 并行**：并发是「同一时刻多个任务交替推进」，并行是「同一时刻多个任务真正同时执行」。单核靠时间片轮转实现并发，多核才能真正并行。
 - **线程 vs 进程**：进程是资源分配的基本单位，线程是 CPU 调度的基本单位。同一进程的线程共享堆、方法区，但各自持有栈和程序计数器。
 - **四种创建方式**：`Thread` 子类、`Runnable`、`Callable`+`FutureTask`、`线程池`。后两者可返回结果、可抛异常。
-- **六种状态**：NEW、RUNNABLE、BLOCKED、WAITING、TIMED_WAITING、TERMINATED。注意 RUNNABLE 同时包含 OS 层面的就绪与运行两种状态。
-- **上下文切换**：线程从 CPU 上换下再换上，代价与栈深度成正比。
-- **原子性**：操作不可被中断。`i++` 实际是「读—改—写」三步，不是原子的。
-- **可见性**：一个线程的修改对其他线程可见。需靠 `volatile` / 同步机制保证。
-- **有序性**：程序执行顺序不因编译器/CPU 重排而改变。
-- **守护线程**：不影响 JVM 退出（GC 线程、IO 线程）。用户线程结束即触发 JVM 退出。
 
 ## 关键代码
 
@@ -4976,6 +5097,15 @@ daemon.start();
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **六种状态**：NEW、RUNNABLE、BLOCKED、WAITING、TIMED_WAITING、TERMINATED。注意 RUNNABLE 同时包含 OS 层面的就绪与运行两种状态。
+- **上下文切换**：线程从 CPU 上换下再换上，代价与栈深度成正比。
+- **原子性**：操作不可被中断。`i++` 实际是「读—改—写」三步，不是原子的。
+- **可见性**：一个线程的修改对其他线程可见。需靠 `volatile` / 同步机制保证。
+- **有序性**：程序执行顺序不因编译器/CPU 重排而改变。
+- **守护线程**：不影响 JVM 退出（GC 线程、IO 线程）。用户线程结束即触发 JVM 退出。
 
 ## 常见误区
 
@@ -5074,20 +5204,13 @@ jstack <pid> | grep -A 20 ''<nid>''
 -- lock-mechanisms
 UPDATE lesson SET content = '## 本节要点
 
-`synchronized` 是 JVM 层面的monitor（管程），靠对象头里的锁状态标志实现锁升级；`ReentrantLock` 是 JUC 的显式锁，底层基于 AQS 的 CAS。两者都可重入，区别在于后者支持**公平锁、可中断、超时获取、多条件变量**。
+用同一把锁保护共享状态，比较 `synchronized` 和 `ReentrantLock` 的使用方式。
 
 ## 核心概念
 
 - **monitorenter / monitorexit**：字节码指令，对应同步代码块与同步方法。
 - **锁状态标志**：对象头 Mark Word 中的几位，标记无锁 → 偏向锁 → 轻量级锁 → 重量级锁。
 - **锁升级（膨胀）**：无锁 → 偏向锁（已废弃）→ 轻量级锁（CAS 自旋）→ 重量级锁（操作系统互斥锁）。**只能升级不能降级**。
-- **轻量级锁**：用 CAS + 自旋实现，不涉及内核态切换，适合「多线程交替执行」的低竞争场景。
-- **重量级锁**：竞争激烈时膨胀为 monitor，线程进入 BLOCKED 状态，由 OS 负责调度。
-- **AQS（AbstractQueuedSynchronizer）**：JUC 同步器的骨架，用一个 volatile int state 表示同步状态 + 一个 CLH 变体的双向队列管理等待线程。
-- **CAS（Compare And Swap）**：无锁并发的基础，`compareAndSet` 原子更新。
-- **公平锁 vs 非公平锁**：公平锁按队列 FIFO 获取锁，非公平锁允许刚到位的线程"插队"（tryAcquire 的实现差异）。
-- **可重入**：同一线程可重复获取同一把锁（重入计数）。
-- **Condition**：每个 Lock 可new 出多个条件队列，比 `Object.wait/notifyAll` 更精确。
 
 ## 关键代码
 
@@ -5130,6 +5253,16 @@ private final Condition notFull = lock.newCondition();
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **轻量级锁**：用 CAS + 自旋实现，不涉及内核态切换，适合「多线程交替执行」的低竞争场景。
+- **重量级锁**：竞争激烈时膨胀为 monitor，线程进入 BLOCKED 状态，由 OS 负责调度。
+- **AQS（AbstractQueuedSynchronizer）**：JUC 同步器的骨架，用一个 volatile int state 表示同步状态 + 一个 CLH 变体的双向队列管理等待线程。
+- **CAS（Compare And Swap）**：无锁并发的基础，`compareAndSet` 原子更新。
+- **公平锁 vs 非公平锁**：公平锁按队列 FIFO 获取锁，非公平锁允许刚到位的线程"插队"（tryAcquire 的实现差异）。
+- **可重入**：同一线程可重复获取同一把锁（重入计数）。
+- **Condition**：每个 Lock 可new 出多个条件队列，比 `Object.wait/notifyAll` 更精确。
 
 ## 常见误区
 
@@ -5254,20 +5387,13 @@ jcmd <pid> Thread.print -l
 -- thread-pool
 UPDATE lesson SET content = '## 本节要点
 
-线程池通过复用线程降低创建销毁开销，并用**队列 + 拒绝策略**应对任务超出处理能力的情况。`ThreadPoolExecutor` 的四个关键参数（核心数、最大数、空闲存活时间、工作队列）决定了它的全部行为。
+跟踪新任务进入线程池后的去向，判断它会由线程执行、进入队列，还是触发拒绝策略。
 
 ## 核心概念
 
 - **核心线程数（corePoolSize）**：池中常驻线程数，任务优先由核心线程处理。
 - **最大线程数（maximumPoolSize）**：队列满后可创建的上限。
 - **空闲存活时间（keepAliveTime）**：非核心线程空闲多久后回收。
-- **工作队列（workQueue）**：核心线程忙时，任务在此排队。
-- **拒绝策略（rejectionHandler）**：线程数达上限且队列满时怎么办。
-- **执行流程**：核心线程 → 队列 → 扩到最大线程 → 拒绝策略。
-- **四种拒绝策略**：AbortPolicy（抛异常）、CallerRunsPolicy（调用方线程执行）、DiscardPolicy（丢弃）、DiscardOldestPolicy（丢最老的）。
-- **为什么不建议用 Executors**：newFixedThreadPool / newSingleThreadExecutor 用无界队列（OOM 风险）；newCachedThreadPool 用 SynchronousQueue 且最大线程数无限（同样 OOM 风险）。
-- **线程池状态**：RUNNING → SHUTDOWN → STOP → TIDYING → TERMINATED。
-- **任务类型**：Runnable 无返回值，Callable 有返回值可抛异常（需配合 FutureTask）。
 
 ## 关键代码
 
@@ -5304,6 +5430,16 @@ pool.execute(() -> {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **工作队列（workQueue）**：核心线程忙时，任务在此排队。
+- **拒绝策略（rejectionHandler）**：线程数达上限且队列满时怎么办。
+- **执行流程**：核心线程 → 队列 → 扩到最大线程 → 拒绝策略。
+- **四种拒绝策略**：AbortPolicy（抛异常）、CallerRunsPolicy（调用方线程执行）、DiscardPolicy（丢弃）、DiscardOldestPolicy（丢最老的）。
+- **为什么不建议用 Executors**：newFixedThreadPool / newSingleThreadExecutor 用无界队列（OOM 风险）；newCachedThreadPool 用 SynchronousQueue 且最大线程数无限（同样 OOM 风险）。
+- **线程池状态**：RUNNING → SHUTDOWN → STOP → TIDYING → TERMINATED。
+- **任务类型**：Runnable 无返回值，Callable 有返回值可抛异常（需配合 FutureTask）。
 
 ## 常见误区
 
@@ -5406,19 +5542,13 @@ public class MonitoredPool extends ThreadPoolExecutor {
 -- concurrent-collections
 UPDATE lesson SET content = '## 本节要点
 
-并发集合与原子类解决的是「集合在多线程下怎么用」的问题。`ConcurrentHashMap` 在 JDK 8 放弃分段锁，改用 **CAS + synchronized 锁单个桶**；`CopyOnWriteArrayList` 用写时复制换读性能；原子类靠 CAS 提供无锁的原子操作。
+比较并发集合的访问方式，再用一次 CAS 更新理解「比较成功才写入」。
 
 ## 核心概念
 
 - **ConcurrentHashMap（JDK 8+）**：数组 + Node链表/红黑树；读操作完全无锁（volatile 读），写操作 CAS 失败则锁住桶首节点。
 - **分段锁（Segment）**：JDK 7 的方案，ConcurrentHashMap 内部分段，每段一把锁。JDK 8 废弃。
 - **CopyOnWriteArrayList**：写时复制整个数组，读操作无锁。适合「读远多于写、集合不大」。
-- **AtomicInteger / AtomicLong / AtomicReference**：基于 CAS 的原子操作，`incrementAndGet()` 比 `synchronized` 轻得多。
-- **LongAdder / DoubleAdder**：分段累加，高并发下比 AtomicLong 强得多（Cell 分散热点）。
-- **原子类的 ABA 问题**：CAS 的经典缺陷，靠 `AtomicStampedReference` 解决。
-- **ConcurrentLinkedQueue**：基于 CAS 的无锁队列。
-- **BlockingQueue**：ArrayBlockingQueue（数组、有界）、LinkedBlockingQueue（链表、可有界）、SynchronousQueue（零容量直传）、PriorityBlockingQueue、DelayQueue。
-- **volatile 与原子性的区别**：volatile 保证可见性与有序性，但 `count++` 仍非原子。
 
 ## 关键代码
 
@@ -5446,6 +5576,15 @@ queue.take();           // 空则阻塞
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **AtomicInteger / AtomicLong / AtomicReference**：基于 CAS 的原子操作，`incrementAndGet()` 比 `synchronized` 轻得多。
+- **LongAdder / DoubleAdder**：分段累加，高并发下比 AtomicLong 强得多（Cell 分散热点）。
+- **原子类的 ABA 问题**：CAS 的经典缺陷，靠 `AtomicStampedReference` 解决。
+- **ConcurrentLinkedQueue**：基于 CAS 的无锁队列。
+- **BlockingQueue**：ArrayBlockingQueue（数组、有界）、LinkedBlockingQueue（链表、可有界）、SynchronousQueue（零容量直传）、PriorityBlockingQueue、DelayQueue。
+- **volatile 与原子性的区别**：volatile 保证可见性与有序性，但 `count++` 仍非原子。
 
 ## 常见误区
 
@@ -5567,20 +5706,13 @@ map.computeIfAbsent(key, k -> new Value());
 -- completablefuture
 UPDATE lesson SET content = '## 本节要点
 
-`CompletableFuture` 是 Java 8 引入的异步编排工具，用**回调 + 依赖**的方式替代 `Future.get()` 的阻塞等待。它支持串行依赖、并行执行、异常兜底与超时控制。
+把有先后依赖的任务串起来，把独立任务并行执行，再合并它们的结果。
 
 ## 核心概念
 
 - **核心思想**：把「等待结果」变成「拿到结果后继续做什么」。任务完成即回调，不阻塞线程。
 - **静态工厂**：`supplyAsync`（有返回值）、`runAsync`（无返回值）。
 - **默认线程池**：`ForkJoinPool.commonPool()`，是 JVM 共享的公共池。**生产环境要显式指定业务线程池**。
-- **串行依赖**：`thenApply`（转换）、`thenAccept`（消费）、`thenRun`（不关心结果）。
-- **扁平化组合**：`thenCompose`（返回 CompletableFuture 时用它，避免嵌套 Future）。
-- **并行 + 汇聚**：`allOf`（全部完成，返回 void）、`anyOf`（任一完成）。
-- **异常处理**：`exceptionally`（只处理异常）、`handle`（无论成败都执行）、`whenComplete`（观察但不改变结果）。
-- **超时控制**：`orTimeout`（超时抛 TimeoutException）、`completeOnTimeout`（超时给默认值）。
-- **手动完成**：`complete` / `completeExceptionally`，用于「外部回调驱动」的场景。
-- **注意**：`thenApply` 等方法在**上一步的线程**上执行；`thenApplyAsync` 在新线程（可指定 Executor）。
 
 ## 关键代码
 
@@ -5620,6 +5752,16 @@ CompletableFuture.supplyAsync(() -> heavyIo(), bizPool);
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **串行依赖**：`thenApply`（转换）、`thenAccept`（消费）、`thenRun`（不关心结果）。
+- **扁平化组合**：`thenCompose`（返回 CompletableFuture 时用它，避免嵌套 Future）。
+- **并行 + 汇聚**：`allOf`（全部完成，返回 void）、`anyOf`（任一完成）。
+- **异常处理**：`exceptionally`（只处理异常）、`handle`（无论成败都执行）、`whenComplete`（观察但不改变结果）。
+- **超时控制**：`orTimeout`（超时抛 TimeoutException）、`completeOnTimeout`（超时给默认值）。
+- **手动完成**：`complete` / `completeExceptionally`，用于「外部回调驱动」的场景。
+- **注意**：`thenApply` 等方法在**上一步的线程**上执行；`thenApplyAsync` 在新线程（可指定 Executor）。
 
 ## 常见误区
 
@@ -5761,18 +5903,13 @@ public <T> CompletableFuture<T> call(Supplier<T> supplier, long timeoutMs) {
 -- project-parallel-aggregate
 UPDATE lesson SET content = '## 本节要点
 
-并行聚合的核心是把大任务拆成小份并行执行再汇总。Java 提供的 `parallelStream`、分治递归、`CompletableFuture` 组合都是常见手段。真正的难点不在并行，而在**如何切分**与**如何控制线程数**。
+把聚合任务拆成多个小块，各自计算后再合并，并用串行结果核对正确性。
 
 ## 核心概念
 
 - **分治思想**：把问题拆成同类子问题并行求解，再合并结果（类似 `ForkJoinPool` 的 work-stealing）。
 - **parallelStream**：基于 `Spliterator` + `ForkJoinPool.commonPool()`，三段式：中间操作 → 终端操作 → 归并。
 - **Spliterator**：把流拆成可并行处理的片段，是并行流的底层抽象。
-- **有状态操作与无状态操作**：无状态操作（map/filter）可完全并行；有状态操作（sorted/distinct/limit）需要缓冲区与合并。
-- **短路操作**：`limit`、`findFirst`、`anyMatch` 会提前终止，可能导致任务未全部执行。
-- **归约（reduce）**：三参数版本 `reduce(identity, accumulator, combiner)` 中，combiner 是并行归并的关键。
-- **线程池占用**：parallelStream 默认使用 `ForkJoinPool.commonPool()`，并行度 = CPU 核数 - 1。
-- **背压与数据倾斜**：分片不均会导致长尾任务拖慢整体。
 
 ## 关键代码
 
@@ -5805,6 +5942,14 @@ CompletableFuture.allOf(uf, of, pf).thenRun(() -> {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **有状态操作与无状态操作**：无状态操作（map/filter）可完全并行；有状态操作（sorted/distinct/limit）需要缓冲区与合并。
+- **短路操作**：`limit`、`findFirst`、`anyMatch` 会提前终止，可能导致任务未全部执行。
+- **归约（reduce）**：三参数版本 `reduce(identity, accumulator, combiner)` 中，combiner 是并行归并的关键。
+- **线程池占用**：parallelStream 默认使用 `ForkJoinPool.commonPool()`，并行度 = CPU 核数 - 1。
+- **背压与数据倾斜**：分片不均会导致长尾任务拖慢整体。
 
 ## 常见误区
 
@@ -5934,22 +6079,13 @@ JMH 是唯一可信的 Java 基准测试工具——手写 `System.nanoTime()` �
 -- spring-boot-init
 UPDATE lesson SET content = '## 本节要点
 
-Spring Boot 的核心是**自动装配**：通过 `@SpringBootApplication` 触发扫描，读取 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（或旧版 `spring.factories`）里的配置类，按条件装配 Bean。理解这条链路，就理解了 Spring Boot 90% 的行为。
+从一个 starter 入手，观察 Spring Boot 怎样根据依赖和已有 Bean 决定是否启用默认配置。
 
 ## 核心概念
 
 - **@SpringBootApplication**：组合注解 = `@SpringBootConfiguration`（@Configuration）+ `@EnableAutoConfiguration` + `@ComponentScan`。
 - **自动装配的三个步骤**：① 读取候选配置类 → ② 按 `@Conditional` 系列注解过滤 → ③ 注册为 Bean 定义。
 - **条件注解**：`@ConditionalOnClass`（类路径有才装配）、`@ConditionalOnMissingBean`（用户没定义才装配）、`@ConditionalOnProperty`、`@ConditionalOnBean`。
-- **@ConditionalOnMissingBean 的顺序敏感**：用户自定义的 Bean 必须先注册，所以自定义配置要放在自动配置之前。
-- **starter 的作用**：一组依赖 + 一份自动配置类。
-- **IoC 容器**：BeanFactory → ApplicationContext（Bean 生命周期、事件、国际化等）。
-- **Bean 生命周期**：实例化 → 属性填充 → Aware 回调 → BeanPostProcessor 前置 → @PostConstruct → 初始化 → 后置 → @PreDestroy → 销毁。
-- **BeanPostProcessor**：最关键的扩展点，AOP、@Autowired 的注入都靠它。
-- **Bean 的作用域**：singleton（默认）、prototype、request、session。
-- **循环依赖**：Spring 用三级缓存解决单例的字段注入循环依赖（构造器注入无法解决）。
-- **配置方式**：application.yml > @ConfigurationProperties > @Value。
-- **Actuator**：健康检查、指标、环境信息。
 
 ## 关键代码
 
@@ -5985,6 +6121,18 @@ public class RedisAutoConfig {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **@ConditionalOnMissingBean 的顺序敏感**：用户自定义的 Bean 必须先注册，所以自定义配置要放在自动配置之前。
+- **starter 的作用**：一组依赖 + 一份自动配置类。
+- **IoC 容器**：BeanFactory → ApplicationContext（Bean 生命周期、事件、国际化等）。
+- **Bean 生命周期**：实例化 → 属性填充 → Aware 回调 → BeanPostProcessor 前置 → @PostConstruct → 初始化 → 后置 → @PreDestroy → 销毁。
+- **BeanPostProcessor**：最关键的扩展点，AOP、@Autowired 的注入都靠它。
+- **Bean 的作用域**：singleton（默认）、prototype、request、session。
+- **循环依赖**：Spring 用三级缓存解决单例的字段注入循环依赖（构造器注入无法解决）。
+- **配置方式**：application.yml > @ConfigurationProperties > @Value。
+- **Actuator**：健康检查、指标、环境信息。
 
 ## 常见误区
 
@@ -6231,24 +6379,13 @@ public class TaskService {
 -- kingbase-persistence
 UPDATE lesson SET content = '## 本节要点
 
-在 KingbaseES（PostgreSQL 内核）上持久化，核心技术点是 **JDBC + 事务 + 索引 + 分页**。本项目用 Spring JDBC 的 `JdbcTemplate` 直接操作 SQL——相比 ORM 性能可控，也更容易看清数据库真实行为。
+用参数化 JDBC 查询读取课时，练习绑定参数、释放资源和划定事务边界。
 
 ## 核心概念
 
 - **JDBC 流程**：加载驱动 → 建立连接 → 创建 Statement → 执行 SQL → 处理 ResultSet → 关闭资源。
 - **Connection**：代表一次会话。**必须关闭**，生产环境用连接池（HikariCP）。
 - **Statement / PreparedStatement / CallableStatement**：预编译语句能防 SQL 注入并复用执行计划。
-- **事务（ACID）**：原子性、一致性、隔离性、持久性。`setAutoCommit(false)` 开启事务。
-- **隔离级别**：读未提交 / 读已提交 / 可重复读 / 可串行化。Kingbase 支持 PostgreSQL 的四种隔离级别（读已提交为默认）。
-- **Savepoint**：事务内设置保存点，支持部分回滚。
-- **索引**：B-tree 索引加速等值与范围查询；**索引会拖慢写入**（每次 INSERT/UPDATE 都要维护）。
-- **联合索引的最左前缀规则**。
-- **覆盖索引**：查询列全在索引里，无需回表。
-- **分页**：OFFSET/LIMIT 深分页性能差（要扫描并丢弃前 N 行），用「游标分页」（keyset pagination）。
-- **执行计划**：EXPLAIN / EXPLAIN ANALYZE 看索引是否命中、是否全表扫描。
-- **慢查询日志**：定位性能问题的第一手段。
-- **批量操作**：JDBC 的 addBatch/executeBatch 显著提升批量插入性能。
-- **KingbaseES 与 PostgreSQL 兼容**：支持 `ON CONFLICT`、CTE、窗口函数、`jsonb` 类型。
 
 ## 关键代码
 
@@ -6306,6 +6443,20 @@ try (Connection conn = dataSource.getConnection()) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **事务（ACID）**：原子性、一致性、隔离性、持久性。`setAutoCommit(false)` 开启事务。
+- **隔离级别**：读未提交 / 读已提交 / 可重复读 / 可串行化。Kingbase 支持 PostgreSQL 的四种隔离级别（读已提交为默认）。
+- **Savepoint**：事务内设置保存点，支持部分回滚。
+- **索引**：B-tree 索引加速等值与范围查询；**索引会拖慢写入**（每次 INSERT/UPDATE 都要维护）。
+- **联合索引的最左前缀规则**。
+- **覆盖索引**：查询列全在索引里，无需回表。
+- **分页**：OFFSET/LIMIT 深分页性能差（要扫描并丢弃前 N 行），用「游标分页」（keyset pagination）。
+- **执行计划**：EXPLAIN / EXPLAIN ANALYZE 看索引是否命中、是否全表扫描。
+- **慢查询日志**：定位性能问题的第一手段。
+- **批量操作**：JDBC 的 addBatch/executeBatch 显著提升批量插入性能。
+- **KingbaseES 与 PostgreSQL 兼容**：支持 `ON CONFLICT`、CTE、窗口函数、`jsonb` 类型。
 
 ## 常见误区
 
@@ -6488,7 +6639,7 @@ ORDER BY seq_scan DESC;
 -- restful-api
 UPDATE lesson SET content = '## 本节要点
 
-RESTful 是一组**架构约束**，不是协议。核心约束是：资源用 URI 标识、用 HTTP 方法表达动作、用状态码表达结果、用 JSON 承载数据。好的 RESTful API 应该是**可预测**的——同一个 URI 在任何地方都表示同一个东西。
+围绕同一个课时资源设计读取、更新和删除接口，并判断哪些请求可以安全重试。
 
 ## 核心概念
 
@@ -6499,14 +6650,6 @@ RESTful 是一组**架构约束**，不是协议。核心约束是：资源用 U
   - 3xx 重定向：301 永久、302 临时、304 未修改（配合 ETag）
   - 4xx 客户端错误：400 参数错误、401 未认证、403 无权限、404 不存在、409 冲突、422 语义错误、429 限流
   - 5xx 服务端错误：500 内部错误、502 网关错误、503 服务不可用、504 网关超时
-- **HATEOAS**：通过响应中的链接告诉客户端下一步能做什么（`_links`）。
-- **版本化**：URL 路径（`/api/v1/...`）vs 请求头（`Accept: application/vnd.x.v1+json`）。路径版本更直观，实践更常用。
-- **幂等性**：同一请求执行多次与执行一次效果相同。PUT/DELETE 必须幂等，POST 默认不幂等（需幂等键）。
-- **分页**：offset 分页（简单但深分页慢）与 cursor 分页（keyset，深分页友好）。
-- **统一响应格式**：固定结构便于客户端处理。
-- **内容协商**：`Accept` 请求期望的格式，`Content-Type` 响应的格式。
-- **条件请求**：ETag + If-None-Match、Last-Modified + If-Modified-Since，实现 304。
-- **软删除**：DELETE 只标记 `deleted_at`，保留数据。
 
 ## 关键代码
 
@@ -6576,6 +6719,17 @@ public record ApiResponse<T>(int code, String message, T data, long timestamp) {
 ```
 
 > 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
+
+#### 进阶细节
+
+- **HATEOAS**：通过响应中的链接告诉客户端下一步能做什么（`_links`）。
+- **版本化**：URL 路径（`/api/v1/...`）vs 请求头（`Accept: application/vnd.x.v1+json`）。路径版本更直观，实践更常用。
+- **幂等性**：同一请求执行多次与执行一次效果相同。PUT/DELETE 必须幂等，POST 默认不幂等（需幂等键）。
+- **分页**：offset 分页（简单但深分页慢）与 cursor 分页（keyset，深分页友好）。
+- **统一响应格式**：固定结构便于客户端处理。
+- **内容协商**：`Accept` 请求期望的格式，`Content-Type` 响应的格式。
+- **条件请求**：ETag + If-None-Match、Last-Modified + If-Modified-Since，实现 304。
+- **软删除**：DELETE 只标记 `deleted_at`，保留数据。
 
 ## 常见误区
 

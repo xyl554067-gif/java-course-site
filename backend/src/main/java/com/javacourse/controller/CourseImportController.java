@@ -16,8 +16,20 @@ public class CourseImportController {
     private long uid(HttpServletRequest req) { return (Long) req.getAttribute("userId"); }
 
     @PostMapping("/import/file")
-    public ApiResponse<Map<String,Object>> file(HttpServletRequest req, @RequestParam("file") MultipartFile file) {
-        return ApiResponse.ok(service.importFile(uid(req), file));
+    public ApiResponse<Map<String,Object>> file(HttpServletRequest req, @RequestParam("file") MultipartFile file,
+            @RequestParam(name = "redact", defaultValue = "true") boolean redact) throws Exception {
+        return ApiResponse.ok(service.importFile(uid(req), file, redact));
+    }
+
+    @PostMapping("/import/file/preview")
+    public ApiResponse<Map<String,Object>> preview(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.ok(service.previewFile(file));
+    }
+
+    @PostMapping("/import/file/reviewed")
+    public ApiResponse<Map<String,Object>> reviewed(HttpServletRequest req, @RequestBody Map<String,String> body)
+            throws Exception {
+        return ApiResponse.ok(service.importReviewedFile(uid(req), body.get("format"), body.get("text")));
     }
     @PostMapping("/import/url")
     public ApiResponse<Map<String,Object>> url(HttpServletRequest req, @RequestBody Map<String,String> body) {

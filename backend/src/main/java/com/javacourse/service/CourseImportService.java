@@ -52,23 +52,58 @@ public class CourseImportService {
         this.mapper = mapper;
     }
 
-    public Map<String, Object> importFile(long ownerId, MultipartFile file) {
+    public Map<String, Object> importFile(long ownerId, MultipartFile file, boolean redact) throws Exception {
+        ExtractedFile source = extractFile(file);
+        if (!redact) return createDraft(ownerId, source.name(), null, source.text());
+        var clean = ImportRedaction.redact(source.text());
+        return createDraft(ownerId, privateFileName(source.format()), null, clean.text());
+    }
+
+    public Map<String, Object> previewFile(MultipartFile file) {
+        ExtractedFile source = extractFile(file);
+        var clean = ImportRedaction.redact(source.text());
+        return Map.of("sourceName", privateFileName(source.format()), "format", source.format(),
+                "text", bound(clean.text()), "matches", clean.matches());
+    }
+
+    public Map<String, Object> importReviewedFile(long ownerId, String format, String text) throws Exception {
+        String name = privateFileName(format);
+        if (text == null || text.isBlank() || text.length() > MAX_SOURCE_CHARS)
+            throw new IllegalArgumentException("预览正文不能为空且不能超过 60,000 字符");
+        // Apply the same rules to any text added while reviewing the preview.
+        return createDraft(ownerId, name, null, ImportRedaction.redact(text).text());
+    }
+
+    private record ExtractedFile(String name, String format, String text) {}
+
+    private String privateFileName(String format) {
+        if (format == null || !Set.of("pdf", "docx", "pptx").contains(format))
+            throw new IllegalArgumentException("未知的资料格式，请重新上传文件");
+        return "导入资料." + format;
+    }
+
+    private ExtractedFile extractFile(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("请选择 PDF、DOCX 或 PPTX 文件");
         if (file.getSize() > MAX_FILE_BYTES) throw new IllegalArgumentException("文件超过 20 MB 限制");
         String name = Optional.ofNullable(file.getOriginalFilename()).orElse("资料");
         if(name.length()>255) name=name.substring(name.length()-255);
+        int extension = name.lastIndexOf('.');
+        String format = extension < 0 ? "" : name.substring(extension + 1).toLowerCase(Locale.ROOT);
+        if (!Set.of("pdf", "docx", "pptx").contains(format))
+            throw new IllegalArgumentException("请选择文本型 PDF、DOCX 或 PPTX 文件");
+        String text;
         try {
-            String lower = name.toLowerCase(Locale.ROOT);
             byte[] bytes = file.getBytes();
-            String text;
-            if (lower.endsWith(".pdf")) text = extractPdf(bytes);
-            else if (lower.endsWith(".docx")) text = extractDocx(bytes);
-            else if (lower.endsWith(".pptx")) text = extractPptx(bytes);
-            else throw new IllegalArgumentException("首版支持文本型 PDF、DOCX、PPTX 文件");
-            if (text.isBlank()) throw new IllegalArgumentException("没有提取到文本；扫描版 PDF 暂不支持 OCR");
-            return createDraft(ownerId, name, null, text);
-        } catch (IllegalArgumentException e) { throw e; }
-        catch (Exception e) { throw new IllegalArgumentException("文件解析失败：" + safeMessage(e)); }
+            text = switch (format) {
+                case "pdf" -> extractPdf(bytes);
+                case "docx" -> extractDocx(bytes);
+                default -> extractPptx(bytes);
+            };
+        } catch (Exception e) {
+            throw new IllegalArgumentException("文件解析失败，请检查文件格式以及文件是否加密或损坏");
+        }
+        if (text.isBlank()) throw new IllegalArgumentException("没有提取到文本；扫描版 PDF 暂不支持 OCR");
+        return new ExtractedFile(name, format, text);
     }
 
     public Map<String, Object> importUrl(long ownerId, String rawUrl) {
@@ -83,7 +118,7 @@ public class CourseImportService {
     }
 
     private Map<String, Object> createDraft(long ownerId, String sourceName, String sourceUrl, String sourceText) throws Exception {
-        String bounded = sourceText.substring(0, Math.min(sourceText.length(), MAX_SOURCE_CHARS));
+        String bounded = bound(sourceText);
         String fallback = mapper.writeValueAsString(fallbackDraft(sourceName, bounded));
         ModelGateway.Result ai = gateway.generate(ownerId, SYSTEM_PROMPT,
                 "请把以下原始资料变成一套可编辑的自学课程草稿，并按要求输出 JSON。\n\n" + bounded, fallback);
@@ -193,15 +228,23 @@ public class CourseImportService {
         while(anchors.find()&&refs.size()<12) if(refs.isEmpty()||!refs.get(refs.size()-1).asText().equals(anchors.group())) refs.add(anchors.group());
         if(refs.isEmpty())refs.add("导入资料（请对照原文核对）");return root;
     }
+    private String bound(String text) {
+        int end = Math.min(text.length(), MAX_SOURCE_CHARS);
+        if (end < text.length() && Character.isHighSurrogate(text.charAt(end - 1))) end--;
+        return text.substring(0, end);
+    }
+
     private String extractPdf(byte[] bytes) throws Exception {
         StringBuilder b=new StringBuilder(); try(var doc=Loader.loadPDF(bytes)){ PDFTextStripper strip=new PDFTextStripper();
-            for(int p=1;p<=doc.getNumberOfPages() && b.length()<MAX_SOURCE_CHARS;p++){strip.setStartPage(p);strip.setEndPage(p);b.append("\n[PDF p.").append(p).append("]\n").append(strip.getText(doc));}}
+            for(int p=1;p<=doc.getNumberOfPages() && b.length()<MAX_SOURCE_CHARS;p++){strip.setStartPage(p);strip.setEndPage(p);String text = strip.getText(doc); if (!text.isBlank()) b.append("\n[PDF p.").append(p).append("]\n").append(text);}}
         return b.toString();
     }
     private String extractDocx(byte[] bytes) throws Exception { StringBuilder b=new StringBuilder();try(var d=new XWPFDocument(new ByteArrayInputStream(bytes))){int i=0;
         for(XWPFParagraph p:d.getParagraphs()){if(b.length()>MAX_SOURCE_CHARS)break;String t=p.getText();if(!t.isBlank())b.append("\n[DOCX 段落 ").append(++i).append("] ").append(t);}}return b.toString(); }
     private String extractPptx(byte[] bytes) throws Exception {StringBuilder b=new StringBuilder();try(var deck=new XMLSlideShow(new ByteArrayInputStream(bytes))){int page=0;
-        for(var slide:deck.getSlides()){if(b.length()>MAX_SOURCE_CHARS)break;b.append("\n[PPTX 第 ").append(++page).append(" 页]\n");for(XSLFShape shape:slide.getShapes())if(shape instanceof XSLFTextShape ts){String t=ts.getText();if(!t.isBlank())b.append(t).append('\n');}}}return b.toString();}
+        for(var slide:deck.getSlides()){if(b.length()>MAX_SOURCE_CHARS)break;page++; StringBuilder slideText = new StringBuilder();
+        for(XSLFShape shape:slide.getShapes())if(shape instanceof XSLFTextShape ts){String t=ts.getText();if(!t.isBlank())slideText.append(t).append('\n');}
+        if (!slideText.isEmpty()) b.append("\n[PPTX 第 ").append(page).append(" 页]\n").append(slideText);}}return b.toString();}
 
     private String fetchPublicPage(URI initial, int redirects) throws Exception {
         URI uri=initial;
@@ -238,4 +281,3 @@ public class CourseImportService {
     private String textOr(String value,String fallback){return value==null||value.isBlank()?fallback:value.trim();}
     private String safeMessage(Exception e){String s=e.getMessage();return s==null?e.getClass().getSimpleName():s.substring(0,Math.min(s.length(),160));}
 }
-

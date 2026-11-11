@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -20,6 +21,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Java 代码编译与执行服务。
@@ -262,6 +265,84 @@ public class CodeRunnerService {
         } finally {
             deleteRecursively(workDir);
         }
+    }
+
+    private static final String JAVA_IDENTIFIER = "[\\p{javaJavaIdentifierStart}][\\p{javaJavaIdentifierPart}]*";
+    private static final Pattern EXPORT_TYPE = Pattern.compile(
+            "(?m)^\\h*(?:(public)\\h+)?(?:(?:abstract|final|sealed|non-sealed|strictfp)\\h+)*"
+                    + "(?:class|record|enum|interface)\\h+(" + JAVA_IDENTIFIER + ")");
+    private static final Pattern EXPORT_PACKAGE = Pattern.compile(
+            "(?m)^\\h*package\\h+(" + JAVA_IDENTIFIER + "(?:\\." + JAVA_IDENTIFIER + ")*)\\h*;");
+
+    public byte[] exportProject(String code, String stdin) throws IOException {
+        if (code == null || code.isBlank()) throw new IllegalArgumentException("代码不能为空");
+        if (code.length() > props.getCode().getMaxSourceChars() || (stdin != null && stdin.length() > 60_000))
+            throw new IllegalArgumentException("代码或标准输入超过导出长度限制");
+
+        String declarations = code.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("(?m)//.*$", "");
+        Matcher types = EXPORT_TYPE.matcher(declarations);
+        String typeName = null;
+        while (types.find()) {
+            if (typeName == null || types.group(1) != null) typeName = types.group(2);
+            if (types.group(1) != null) break;
+        }
+
+        Matcher packages = EXPORT_PACKAGE.matcher(declarations);
+        String packageName = packages.find() ? packages.group(1) : "";
+        boolean isFragment = typeName == null && (!packageName.isEmpty()
+                || (!MAIN_METHOD.matcher(declarations).find() && TOP_LEVEL_METHOD.matcher(declarations).find()));
+        if (typeName == null && !isFragment) {
+            typeName = "SnippetMain";
+            code = wrapRunnableSnippet(code);
+        }
+
+        String packagePath = packageName.isEmpty() ? "" : packageName.replace('.', '/') + "/";
+        String sourcePath = isFragment ? "snippet.txt" : "src/main/java/" + packagePath + typeName + ".java";
+        String runHint = isFragment ? "当前代码包含未封装的声明。请打开 snippet.txt，补齐类和 main 后移入 src/main/java。"
+                : "打开 " + sourcePath + "。如果代码包含 main，可在 IDE 中直接运行或断点调试。";
+
+        var bytes = new ByteArrayOutputStream();
+        try (var zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+            writeEntry(zip, "pom.xml", """
+                    <project xmlns="http://maven.apache.org/POM/4.0.0">
+                        <modelVersion>4.0.0</modelVersion>
+                        <groupId>local.javacourse</groupId>
+                        <artifactId>lesson-lab</artifactId>
+                        <version>1.0.0</version>
+                        <properties>
+                            <maven.compiler.release>17</maven.compiler.release>
+                            <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+                        </properties>
+                        <build>
+                            <plugins>
+                                <plugin>
+                                    <groupId>org.apache.maven.plugins</groupId>
+                                    <artifactId>maven-compiler-plugin</artifactId>
+                                    <version>3.13.0</version>
+                                </plugin>
+                            </plugins>
+                        </build>
+                    </project>
+                    """);
+            writeEntry(zip, sourcePath, code);
+            writeEntry(zip, "stdin.txt", stdin == null ? "" : stdin);
+            writeEntry(zip, "README.md", """
+                    # Java 课程实验
+
+                    解压后，在 IntelliJ IDEA 中打开 pom.xml 并作为项目导入，或在安装了 Java 扩展的 VS Code 中打开工程目录。
+                    配置本机 JDK 17 或更新版本。如示例使用更新的 Java 特性，请调整 pom.xml 中的 Java 版本。
+                    %s
+                    stdin.txt 保存了导出时的标准输入。运行时可在终端粘贴，或在 IDEA 的运行配置中设置输入重定向。
+                    需要第三方库的代码请在 pom.xml 中添加相应依赖。
+                    """.formatted(runHint));
+        }
+        return bytes.toByteArray();
+    }
+
+    private static void writeEntry(ZipOutputStream zip, String name, String content) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(content.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
     }
 
     /** Make statement-only lesson examples executable without changing the text shown in the editor. */
@@ -515,4 +596,3 @@ public class CodeRunnerService {
         return m == null ? c.getClass().getSimpleName() : m;
     }
 }
-

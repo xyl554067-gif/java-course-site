@@ -5,6 +5,9 @@ import com.javacourse.repository.CodeRepository;
 import com.javacourse.service.CodeJudgeService;
 import com.javacourse.service.CodeRunnerService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -125,6 +128,14 @@ public class CodeController {
         }
         ex.remove("solutionCode");
         return ApiResponse.ok(ex);
+    }
+
+    @PostMapping("/code/export")
+    public ResponseEntity<byte[]> exportProject(@RequestBody Map<String, String> body) throws java.io.IOException {
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=java-lesson.zip")
+                .body(runner.exportProject(body.get("code"), body.get("stdin")));
     }
 
     /** 我的提交记录 */
