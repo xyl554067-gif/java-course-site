@@ -11,7 +11,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.Collections;
+import java.util.HexFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -69,7 +73,23 @@ public class CodeRunnerService {
             "(?m)^[ \\t]*(?:(?:public|abstract|final|strictfp)[ \\t]+)*(?:interface|enum|record)[ \\t]+[A-Za-z_$][\\w$]*");
     private static final Pattern MAIN_METHOD = Pattern.compile("\\bstatic[ \\t]+void[ \\t]+main[ \\t]*\\(");
 
+    private static final int MAX_CACHED_PROJECTS = 48;
+    private static final int MAX_CACHED_PROJECT_BYTES = 256 * 1024;
+    private static final int MAX_CACHED_PROJECT_FILES = 64;
+    private static final boolean FAST_COMPILER = Boolean.getBoolean("javacourse.fastCompiler");
+    private static final boolean DEFAULT_CLASSPATH = System.getenv("CLASSPATH") == null
+            || System.getenv("CLASSPATH").isBlank() || System.getenv("CLASSPATH").equals(".");
+
+    private record CompilationKey(String javac, String sourceHash) {}
+
     private final AppProperties props;
+    private final Map<CompilationKey, Map<Path, byte[]>> compiledProjects = Collections.synchronizedMap(
+            new LinkedHashMap<>(MAX_CACHED_PROJECTS, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<CompilationKey, Map<Path, byte[]>> eldest) {
+                    return size() > MAX_CACHED_PROJECTS;
+                }
+            });
 
     public CodeRunnerService(AppProperties props) {
         this.props = props;
@@ -95,7 +115,13 @@ public class CodeRunnerService {
      * @param message    面向用户的一句话结论
      */
     public record RunResult(String status, String output, String stdout, String stderr,
-                            int exitCode, long durationMs, String message) {
+                            int exitCode, long durationMs, String message,
+                            Long compileMs, Long executionMs, boolean reusedCompilation) {
+
+        public RunResult(String status, String output, String stdout, String stderr,
+                         int exitCode, long durationMs, String message) {
+            this(status, output, stdout, stderr, exitCode, durationMs, message, null, null, false);
+        }
 
         public boolean success() {
             return "SUCCESS".equals(status);
@@ -192,6 +218,9 @@ public class CodeRunnerService {
         }
 
         Path workDir = null;
+        Long compileMs = null;
+        Long executionMs = null;
+        boolean reusedCompilation = false;
         try {
             workDir = Files.createTempDirectory("javacourse-code-");
             Path srcDir = Files.createDirectories(workDir.resolve("src"));
@@ -199,31 +228,43 @@ public class CodeRunnerService {
             Path srcFile = srcDir.resolve(className + ".java");
             Files.writeString(srcFile, code, StandardCharsets.UTF_8);
 
-            // ---------- 编译 ----------
+            // Keep cached bytecode in memory and copy it into a fresh execution directory.
             String javac = requireTool("javac");
-            List<String> javacCmd = List.of(
-                    javac,
-                    // -J 参数传给 javac 自己的 JVM：Windows 默认 GBK，
-                    // 诊断信息里的中文若不锁 UTF-8 会变成乱码，学生看不懂。
-                    "-J-Dfile.encoding=UTF-8",
-                    "-J-Dstdout.encoding=UTF-8",
-                    "-J-Dstderr.encoding=UTF-8",
-                    "-encoding", "UTF-8",
-                    "-proc:none",
-                    "-g:none",
-                    "-nowarn",
-                    "-d", clsDir.toString(),
-                    srcFile.toString());
-            ExecOutcome compiled = exec(javacCmd, workDir, null, cfg.getCompileTimeoutMs());
-            if (compiled.timedOut) {
-                return new RunResult("TIMEOUT", "编译超时", "", "", -1,
-                        System.currentTimeMillis() - start,
-                        "编译超时（超过 " + cfg.getCompileTimeoutMs() + "ms），请检查是否有超大代码或死循环");
-            }
-            if (compiled.exitCode != 0) {
-                return new RunResult("COMPILE_ERROR", compiled.output, "", "",
-                        compiled.exitCode, System.currentTimeMillis() - start,
-                        "编译失败，共 " + countErrors(compiled.output) + " 处错误");
+            String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(code.getBytes(StandardCharsets.UTF_8)));
+            var key = new CompilationKey(javac, hash);
+            Map<Path, byte[]> cached = DEFAULT_CLASSPATH ? compiledProjects.get(key) : null;
+            if (cached != null) {
+                for (var file : cached.entrySet()) {
+                    Path target = clsDir.resolve(file.getKey());
+                    Files.createDirectories(target.getParent());
+                    Files.write(target, file.getValue());
+                }
+                reusedCompilation = true;
+            } else {
+                List<String> javacCmd = new ArrayList<>();
+                javacCmd.add(javac);
+                if (FAST_COMPILER) {
+                    javacCmd.addAll(List.of("-J-XX:TieredStopAtLevel=1", "-J-XX:+UseSerialGC"));
+                }
+                javacCmd.addAll(List.of(
+                        "-J-Dfile.encoding=UTF-8", "-J-Dstdout.encoding=UTF-8", "-J-Dstderr.encoding=UTF-8",
+                        "-encoding", "UTF-8", "-proc:none", "-g:none", "-nowarn",
+                        "-d", clsDir.toString(), srcFile.toString()));
+                long compileStart = System.nanoTime();
+                ExecOutcome compiled = exec(javacCmd, workDir, null, cfg.getCompileTimeoutMs());
+                compileMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - compileStart);
+                if (compiled.timedOut) {
+                    return new RunResult("TIMEOUT", "编译超时", "", "", -1, System.currentTimeMillis() - start,
+                            "编译超时（超过 " + cfg.getCompileTimeoutMs() + "ms），请检查是否有超大代码或死循环",
+                            compileMs, null, false);
+                }
+                if (compiled.exitCode != 0) {
+                    return new RunResult("COMPILE_ERROR", compiled.output, "", "", compiled.exitCode,
+                            System.currentTimeMillis() - start, "编译失败，共 " + countErrors(compiled.output) + " 处错误",
+                            compileMs, null, false);
+                }
+                if (DEFAULT_CLASSPATH) cacheCompiledProject(key, clsDir);
             }
 
             // ---------- 运行 ----------
@@ -242,19 +283,23 @@ public class CodeRunnerService {
             javaCmd.add(clsDir.toString());
             javaCmd.add(className);
 
+            long executionStart = System.nanoTime();
             ExecOutcome ran = exec(javaCmd, workDir, stdin, cfg.getTimeoutMs());
+            executionMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - executionStart);
             if (ran.timedOut) {
                 return new RunResult("TIMEOUT", "", ran.stdout, ran.stderr, -1,
                         System.currentTimeMillis() - start,
-                        "运行超时（超过 " + cfg.getTimeoutMs() + "ms），可能有死循环或等待输入");
+                        "运行超时（超过 " + cfg.getTimeoutMs() + "ms），可能有死循环或等待输入",
+                        compileMs, executionMs, reusedCompilation);
             }
             if (ran.exitCode != 0) {
                 return new RunResult("RUNTIME_ERROR", "", ran.stdout, ran.stderr, ran.exitCode,
                         System.currentTimeMillis() - start,
-                        "运行异常，程序以退出码 " + ran.exitCode + " 结束");
+                        "运行异常，程序以退出码 " + ran.exitCode + " 结束",
+                        compileMs, executionMs, reusedCompilation);
             }
             return new RunResult("SUCCESS", "", ran.stdout, ran.stderr, 0,
-                    System.currentTimeMillis() - start, "运行成功");
+                    System.currentTimeMillis() - start, "运行成功", compileMs, executionMs, reusedCompilation);
         } catch (ToolMissing e) {
             return new RunResult("COMPILE_ERROR", e.getMessage(), "", "", -1,
                     System.currentTimeMillis() - start, e.getMessage());
@@ -264,6 +309,30 @@ public class CodeRunnerService {
                     System.currentTimeMillis() - start, "执行环境异常：" + rootMessage(e));
         } finally {
             deleteRecursively(workDir);
+        }
+    }
+
+    private void cacheCompiledProject(CompilationKey key, Path classes) {
+        try (var stream = Files.walk(classes)) {
+            var files = stream.filter(file -> Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
+                    .filter(file -> file.getFileName().toString().endsWith(".class"))
+                    .limit(MAX_CACHED_PROJECT_FILES + 1L)
+                    .toList();
+            if (files.isEmpty() || files.size() > MAX_CACHED_PROJECT_FILES) return;
+
+            Map<Path, byte[]> entries = new LinkedHashMap<>();
+            int remaining = MAX_CACHED_PROJECT_BYTES;
+            for (Path file : files) {
+                try (var input = Files.newInputStream(file)) {
+                    byte[] bytes = input.readNBytes(remaining + 1);
+                    if (bytes.length > remaining) return;
+                    entries.put(classes.relativize(file), bytes);
+                    remaining -= bytes.length;
+                }
+            }
+            compiledProjects.put(key, Map.copyOf(entries));
+        } catch (IOException e) {
+            log.debug("[CodeRunner] 编译结果未缓存", e);
         }
     }
 

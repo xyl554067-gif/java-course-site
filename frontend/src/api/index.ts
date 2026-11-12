@@ -168,6 +168,9 @@ export interface CodeRuntime {
 
 /** 一次代码运行的结果 */
 export interface CodeRunResult {
+  compileMs?: number
+  executionMs?: number
+  reusedCompilation?: boolean
   /** COMPILE_ERROR / RUNTIME_ERROR / TIMEOUT / SUCCESS */
   status: 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIMEOUT' | 'SUCCESS'
   output: string

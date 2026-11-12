@@ -71,6 +71,9 @@ public class CodeController {
         m.put("stderr", r.stderr());
         m.put("exitCode", r.exitCode());
         m.put("durationMs", r.durationMs());
+        m.put("compileMs", r.compileMs());
+        m.put("executionMs", r.executionMs());
+        m.put("reusedCompilation", r.reusedCompilation());
         m.put("message", r.message());
         m.put("success", r.success());
         return ApiResponse.ok(m);
