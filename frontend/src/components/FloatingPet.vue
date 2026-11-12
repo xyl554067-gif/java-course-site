@@ -26,11 +26,15 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePetStore, type PetState } from '@/stores/pet'
+import { useAgentStore } from '@/stores/agent'
 import { useAuthStore } from '@/stores/auth'
 import AssistantOptions from '@/components/AssistantOptions.vue'
-import { MAX_QUESTION_LENGTH, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
+import AssistantAnswer from '@/components/AssistantAnswer.vue'
+import { MAX_QUESTION_LENGTH, useAssistantConversation, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
 
 const pet = usePetStore()
+const agent = useAgentStore()
+const conversation = useAssistantConversation()
 const auth = useAuthStore()
 const router = useRouter()
 const { localOnly, includeLesson, lessonSlug, requestOptions } = useAssistantRequestOptions()
@@ -57,11 +61,10 @@ const loadedSrc = ref('')
 /** 每次状态切换递增，过期的异步播放回调不得再替换当前前景视频 */
 let animationRequestId = 0
 
-const input = ref('')
 const bubble = ref<HTMLElement | null>(null)
 const listEl = ref<HTMLElement | null>(null)
 const answerSource = computed(() => {
-  switch (pet.source) {
+  switch (conversation.source) {
     case 'model': return '模型回答'
     case 'course': return '课程检索'
     case 'unavailable': return '服务暂不可用'
@@ -70,8 +73,11 @@ const answerSource = computed(() => {
   }
 })
 
-watch(() => pet.bubbleOpen, (open) => {
-  if (!open) input.value = ''
+watch(() => agent.panelOpen, (open) => {
+  if (open) pet.closeBubble()
+})
+watch(() => [pet.bubbleOpen, conversation.messages.length, conversation.loading], () => {
+  if (pet.bubbleOpen) void nextTick(scrollToBottom)
 })
 
 /**
@@ -317,20 +323,15 @@ function focusInput() {
   el?.focus()
 }
 
-async function submit() {
-  const q = input.value.trim()
-  if (!q || pet.loading) return
-  input.value = ''
-  await ask(q)
+function submit() {
+  const q = conversation.draft.trim()
+  if (!q || conversation.loading) return
+  conversation.draft = ''
+  ask(q)
 }
 
-async function ask(question: string) {
-  const pending = pet.ask(question, requestOptions())
-  await nextTick()
-  scrollToBottom()
-  await pending
-  await nextTick()
-  scrollToBottom()
+function ask(question: string) {
+  void pet.ask(question, requestOptions())
 }
 
 function scrollToBottom() {
@@ -343,7 +344,6 @@ function openSettings() {
 }
 
 function clearHistory() {
-  input.value = ''
   pet.clearHistory()
   focusInput()
 }
@@ -389,7 +389,8 @@ onUnmounted(() => {
   <!-- 悬浮层：fixed + 最高 z-index，始终盖在页面内容之上 -->
   <div
     class="pet-layer"
-    :class="{ 'pet-layer--mobile': isMobile }"
+    :class="{ 'pet-layer--mobile': isMobile, 'pet-layer--behind-drawer': agent.panelOpen }"
+    :inert="agent.panelOpen"
     :style="{
       left: pos.x + 'px', top: pos.y + 'px', width: SIZE + 'px',
       '--pet-viewport-height': visibleViewport.height + 'px',
@@ -409,8 +410,8 @@ onUnmounted(() => {
         <div class="pet-bubble__head">
           <img v-if="isMobile" :src="posterSrc" class="pet-bubble__avatar" alt="" width="28" height="35" />
           <span class="pet-bubble__name">鲸鲸</span>
-          <span class="pet-bubble__tag" :class="{ 'is-degraded': pet.source === 'unavailable' }">
-            {{ pet.loading ? '思考中…' : answerSource }}
+          <span class="pet-bubble__tag" :class="{ 'is-degraded': conversation.source === 'unavailable' }">
+            {{ conversation.loading ? '思考中…' : answerSource }}
           </span>
           <button
             class="pet-bubble__icon"
@@ -419,17 +420,18 @@ onUnmounted(() => {
           >
             ⚙
           </button>
-          <button v-if="pet.messages.length || input" class="pet-bubble__icon" title="清空对话" @click="clearHistory">⌫</button>
-          <button class="pet-bubble__close" title="收起" @click="pet.closeBubble()">×</button>
+          <button type="button" class="pet-bubble__icon" title="放大对话" aria-label="放大对话" @click="agent.openExpanded()">⤢</button>
+          <button v-if="conversation.messages.length || conversation.draft" class="pet-bubble__icon" type="button" title="清空对话" aria-label="清空对话" @click="clearHistory">⌫</button>
+          <button class="pet-bubble__close" type="button" title="收起" aria-label="收起" @click="pet.closeBubble()">×</button>
         </div>
 
         <div ref="listEl" class="pet-bubble__list" role="log" aria-label="助教对话">
-          <div v-if="!pet.messages.length" class="pet-bubble__empty">
+          <div v-if="!conversation.messages.length" class="pet-bubble__empty">
             <p>{{ WHALE_GREETING }}</p>
             <button type="button" class="pet-cite" @click="ask(WHALE_INTRO_QUESTION)">{{ WHALE_INTRO_QUESTION }}</button>
           </div>
           <div
-            v-for="m in pet.messages"
+            v-for="m in conversation.messages"
             :key="m.id"
             class="pet-msg"
             :class="m.role === 'user' ? 'pet-msg--me' : 'pet-msg--ai'"
@@ -438,6 +440,7 @@ onUnmounted(() => {
               <template v-if="m.pending">
                 <span class="pet-typing"><i /><i /><i /></span>
               </template>
+              <AssistantAnswer v-else-if="m.role === 'assistant'" :content="m.content" @navigate="pet.closeBubble()" />
               <template v-else>{{ m.content }}</template>
             </div>
             <div v-if="m.citations && m.citations.length" class="pet-msg__cites">
@@ -460,7 +463,7 @@ onUnmounted(() => {
           <div class="pet-bubble__compose">
             <input
               id="pet-ask-input"
-              v-model="input"
+              v-model="conversation.draft"
               type="text"
               placeholder="问点 Java 的事…"
               aria-label="要问鲸鲸的问题"
@@ -469,8 +472,8 @@ onUnmounted(() => {
               autocomplete="off"
               spellcheck="false"
             />
-            <button type="submit" class="pet-send" :disabled="pet.loading || !input.trim()">
-              {{ pet.loading ? '…' : '问' }}
+            <button type="submit" class="pet-send" :disabled="conversation.loading || !conversation.draft.trim()">
+              {{ conversation.loading ? '…' : '问' }}
             </button>
           </div>
         </form>
@@ -649,6 +652,8 @@ onUnmounted(() => {
 }
 
 /* ---------- 对话气泡 ---------- */
+.pet-layer--behind-drawer { z-index: 89; }
+
 .pet-bubble {
   position: absolute;
   bottom: calc(100% + 12px);
@@ -700,6 +705,7 @@ onUnmounted(() => {
   background: var(--c-mint);
   border-bottom: var(--bw-thin) solid var(--c-line);
 }
+.pet-bubble__head button { flex: none; }
 .pet-bubble__name {
   font-family: var(--font-round);
   font-size: 16px;

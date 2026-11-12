@@ -1,4 +1,5 @@
 import { computed, ref, watch } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { aiApi, type AssistantRequestOptions, type Citation } from '@/api'
 import { isAxiosError } from 'axios'
@@ -66,27 +67,26 @@ export function isLessonSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
 }
 
-const localOnly = ref(false)
-
 export function useAssistantRequestOptions() {
   const route = useRoute()
   const auth = useAuthStore()
-  const includeLesson = ref(false)
+  const conversation = useAssistantConversation()
   const lessonSlug = computed(() => {
     const slug = route.params.slug
     return (route.name === 'lesson' || route.name === 'lesson-lab')
       && typeof slug === 'string' && isLessonSlug(slug) ? slug : undefined
   })
-  watch(lessonSlug, () => { includeLesson.value = false }, { flush: 'sync' })
+  watch(lessonSlug, () => { conversation.includeLesson = false }, { flush: 'sync' })
   watch(() => auth.token, () => {
-    localOnly.value = false
-    includeLesson.value = false
+    conversation.localOnly = false
+    conversation.includeLesson = false
   }, { flush: 'sync' })
 
   function requestOptions(): AssistantRequestOptions {
-    return { localOnly: localOnly.value, lessonSlug: includeLesson.value ? lessonSlug.value : undefined }
+    return { localOnly: conversation.localOnly, lessonSlug: conversation.includeLesson ? lessonSlug.value : undefined }
   }
 
+  const { localOnly, includeLesson } = storeToRefs(conversation)
   return { localOnly, includeLesson, lessonSlug, requestOptions }
 }
 
@@ -100,9 +100,12 @@ interface ChatMessage {
   pending?: boolean
 }
 
-export function useAssistantConversation() {
+export const useAssistantConversation = defineStore('assistantConversation', () => {
   const auth = useAuthStore()
   const messages = ref<ChatMessage[]>([])
+  const draft = ref('')
+  const localOnly = ref(false)
+  const includeLesson = ref(false)
   const loading = ref(false)
   const source = ref<ReplySource | null>(null)
   let seq = 0
@@ -110,11 +113,11 @@ export function useAssistantConversation() {
 
   async function ask(question: string, options: AssistantRequestOptions = {}) {
     const q = question.trim()
-    if (!q || loading.value) return
+    if (!q || loading.value) return false
     const requestToken = getToken()
     if (requestToken !== auth.token) {
       clearHistory()
-      return
+      return false
     }
 
     const privateInput = containsPrivateData(q)
@@ -133,7 +136,7 @@ export function useAssistantConversation() {
     ]
     if (localAnswer) {
       source.value = 'built-in'
-      return
+      return true
     }
 
     const request = new AbortController()
@@ -141,10 +144,10 @@ export function useAssistantConversation() {
     loading.value = true
 
     function finish(answer: string, answerSource: ReplySource, displayedQuestion: string, citations?: Citation[]) {
-      if (activeRequest !== request) return
+      if (activeRequest !== request) return false
       if (getToken() !== requestToken) {
         clearHistory()
-        return
+        return false
       }
       const user = messages.value.find((m) => m.id === questionId)
       const reply = messages.value.find((m) => m.id === answerId)
@@ -155,17 +158,18 @@ export function useAssistantConversation() {
         reply.pending = false
       }
       source.value = answerSource
+      return true
     }
 
     try {
       const result = await aiApi.ask(q, requestToken, request.signal, options)
       if (result.blocked) {
         const reply = typeof result.answer === 'string' && !containsPrivateData(result.answer) ? result.answer : PRIVACY_REPLY
-        finish(reply, 'built-in', BLOCKED_QUESTION)
+        return finish(reply, 'built-in', BLOCKED_QUESTION)
       } else if (typeof result.answer !== 'string' || !result.answer.trim()) {
-        finish(offlineReply(q), 'unavailable', '问题未收到有效回复')
+        return finish(offlineReply(q), 'unavailable', '问题未收到有效回复')
       } else if (containsPrivateData(result.answer)) {
-        finish('这条回答可能包含敏感信息，已隐藏。请用脱敏示例重新提问。', 'built-in', BLOCKED_QUESTION)
+        return finish('这条回答可能包含敏感信息，已隐藏。请用脱敏示例重新提问。', 'built-in', BLOCKED_QUESTION)
       } else {
         const citations = result.citations?.filter((c) =>
           typeof c?.title === 'string' && typeof c.slug === 'string' && isLessonSlug(c.slug) && !containsPrivateData(c.title),
@@ -173,12 +177,12 @@ export function useAssistantConversation() {
         const answerSource = result.provider && result.provider !== 'local'
           ? 'model'
           : options.localOnly || result.degraded !== false ? 'course' : 'built-in'
-        finish(result.answer, answerSource, q, citations)
+        return finish(result.answer, answerSource, q, citations)
       }
     } catch (error) {
       const limited = isAxiosError(error) && error.response?.status === 429
       const reply = limited ? '提问太频繁，请等一分钟再试。' : offlineReply(q)
-      finish(reply, 'unavailable', limited ? '请求频率过高' : '问题未收到有效回复')
+      return finish(reply, 'unavailable', limited ? '请求频率过高' : '问题未收到有效回复')
     } finally {
       if (activeRequest === request) {
         activeRequest = null
@@ -192,11 +196,12 @@ export function useAssistantConversation() {
     activeRequest = null
     loading.value = false
     messages.value = []
+    draft.value = ''
     source.value = null
   }
 
-  return { messages, loading, source, ask, clearHistory }
-}
+  return { messages, draft, loading, source, localOnly, includeLesson, ask, clearHistory }
+})
 
 function offlineReply(question: string): string {
   const topics: [RegExp, string][] = [

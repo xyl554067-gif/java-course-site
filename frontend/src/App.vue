@@ -8,6 +8,7 @@ import { AUTH_EXPIRED_EVENT, TOKEN_KEY } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useAgentStore } from '@/stores/agent'
 import { usePetStore } from '@/stores/pet'
+import { useAssistantConversation } from '@/stores/assistantConversation'
 import { useProgressStore } from '@/stores/progress'
 import AgentDrawer from '@/components/AgentDrawer.vue'
 import FloatingPet from '@/components/FloatingPet.vue'
@@ -17,6 +18,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const agent = useAgentStore()
 const pet = usePetStore()
+const conversation = useAssistantConversation()
 const progress = useProgressStore()
 
 const bare = computed(() => route.meta.bare === true)
@@ -58,6 +60,7 @@ onUnmounted(() => {
 })
 
 function resetAssistant() {
+  conversation.clearHistory()
   agent.reset()
   pet.reset()
 }

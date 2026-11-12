@@ -86,13 +86,13 @@ export const usePetStore = defineStore('pet', () => {
   }
 
   async function ask(question: string, options?: AssistantRequestOptions) {
-    if (!question.trim() || conversation.loading.value) return
+    if (!question.trim() || conversation.loading) return
     const version = ++replyVersion
     const pending = conversation.ask(question, options)
-    if (conversation.loading.value) state.value = 'thinking'
-    await pending
+    if (conversation.loading) state.value = 'thinking'
+    const completed = await pending
     if (version !== replyVersion) return
-    if (bubbleOpen.value) flash('talking', 2400)
+    if (completed && bubbleOpen.value) flash('talking', 2400)
     else state.value = 'idle'
   }
 
@@ -103,12 +103,12 @@ export const usePetStore = defineStore('pet', () => {
   }
 
   function reset() {
-    clearHistory()
+    replyVersion++
+    state.value = 'idle'
     closeBubble()
   }
 
   return {
-    ...conversation,
     state,
     bubbleOpen,
     animation,

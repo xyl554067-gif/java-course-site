@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
 import AssistantOptions from '@/components/AssistantOptions.vue'
-import { isLessonSlug, MAX_QUESTION_LENGTH, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
+import AssistantAnswer from '@/components/AssistantAnswer.vue'
+import { MAX_QUESTION_LENGTH, useAssistantConversation, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
 
 const agent = useAgentStore()
 const { localOnly, includeLesson, lessonSlug, requestOptions } = useAssistantRequestOptions()
-const router = useRouter()
-const input = ref('')
+const conversation = useAssistantConversation()
+let opener: HTMLElement | null = null
 const listEl = ref<HTMLElement | null>(null)
 const inputEl = ref<HTMLInputElement | null>(null)
 
@@ -42,31 +43,19 @@ async function scrollDown() {
 }
 
 function send() {
-  const q = input.value.trim()
-  if (!q || agent.loading) return
-  input.value = ''
-  void agent.ask(q, requestOptions()).then(scrollDown)
+  const q = conversation.draft.trim()
+  if (!q || conversation.loading) return
+  conversation.draft = ''
+  void agent.ask(q, requestOptions())
 }
 
 function askQuick(q: string) {
-  void agent.ask(q, requestOptions()).then(scrollDown)
+  void agent.ask(q, requestOptions())
 }
 
 function clearConversation() {
-  input.value = ''
   agent.clearHistory()
   inputEl.value?.focus()
-}
-
-/** 把回答里的 [查看该课时](/lesson/xxx) 转成可点击跳转 */
-function onAnswerClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  const a = target.closest('a[data-slug]') as HTMLElement | null
-  const slug = a?.dataset.slug
-  if (!slug || !isLessonSlug(slug) || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
-  e.preventDefault()
-  agent.close()
-  router.push(`/lesson/${slug}`)
 }
 
 function cycleMeme() {
@@ -75,22 +64,21 @@ function cycleMeme() {
 }
 
 watch(
-  () => agent.messages.length,
+  () => [conversation.messages.length, conversation.loading, agent.expanded],
   () => void scrollDown(),
 )
 watch(
   () => agent.panelOpen,
   (v) => {
     if (v) {
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
       void scrollDown()
       // 打开后把焦点移进输入框，键盘用户可以直接提问
       void nextTick(() => inputEl.value?.focus())
     } else {
-      input.value = ''
-      // 关闭后把焦点还给触发入口，避免焦点残留在已销毁的抽屉里
       void nextTick(() => {
-        const el = document.querySelector<HTMLElement>('.fab, .nav__agent')
-        el?.focus()
+        if (opener?.isConnected && !opener.closest('[inert]')) opener.focus()
+        else document.querySelector<HTMLElement>('.fab, .pet-body[tabindex="0"]')?.focus()
       })
     }
   },
@@ -112,23 +100,26 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
   <!-- 抽屉 -->
   <Transition name="slide" @before-leave="lockOnLeave">
-    <aside v-if="agent.panelOpen" id="agent-drawer" class="drawer card" role="dialog" aria-modal="true" aria-label="鲸鲸助教">
+    <aside v-if="agent.panelOpen" id="agent-drawer" class="drawer card" :class="{ 'drawer--expanded': agent.expanded }" role="dialog" aria-modal="true" aria-label="鲸鲸助教">
       <!-- 头部 -->
       <header class="drawer__head">
         <div class="drawer__avatar" @click="cycleMeme">
-          <img :src="agent.avatar" alt="鲸鲸" class="drawer__avatar-img" :class="{ 'is-think': agent.loading }" />
-          <span v-if="agent.loading" class="drawer__thinking">…</span>
+          <img :src="agent.avatar" alt="鲸鲸" class="drawer__avatar-img" :class="{ 'is-think': conversation.loading }" />
+          <span v-if="conversation.loading" class="drawer__thinking">…</span>
           <img v-if="memeIdx >= 0" :src="memes[memeIdx]" class="drawer__meme" alt="表情包" />
         </div>
         <div class="drawer__meta">
           <h3 class="drawer__name title-round">{{ agent.profile?.name || '鲸鲸' }}</h3>
           <span class="drawer__role">Java 学习助教</span>
           <span class="drawer__status">
-            <i v-if="agent.loading" class="dot" /> {{ agent.loading ? '正在思考…' : '概念讲解 · 代码排错 · 练习提示' }}
+            <i v-if="conversation.loading" class="dot" /> {{ conversation.loading ? '正在思考…' : '概念讲解 · 代码排错 · 练习提示' }}
           </span>
         </div>
-        <button v-if="agent.messages.length || input" class="drawer__clear" type="button" @click="clearConversation">清空</button>
-        <button class="drawer__close" @click="agent.close()" title="收起">×</button>
+        <button type="button" class="drawer__size" :aria-pressed="agent.expanded" @click="agent.expanded = !agent.expanded">
+          {{ agent.expanded ? '还原' : '放大' }}
+        </button>
+        <button v-if="conversation.messages.length || conversation.draft" class="drawer__clear" type="button" @click="clearConversation">清空</button>
+        <button class="drawer__close" type="button" @click="agent.close()" title="收起" aria-label="收起">×</button>
       </header>
 
       <!-- 消息流 -->
@@ -142,15 +133,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         </div>
 
         <!-- 消息列表 -->
-        <div v-for="m in agent.messages" :key="m.id" class="msg" :class="m.role === 'user' ? 'msg--me' : 'msg--bot'">
+        <div v-for="m in conversation.messages" :key="m.id" class="msg" :class="m.role === 'user' ? 'msg--me' : 'msg--bot'">
           <img v-if="m.role === 'assistant'" :src="agent.avatar" class="msg__avatar" alt="鲸鲸" />
           <div class="msg__col">
-            <div class="msg__bubble" :class="{ 'is-pending': m.pending }" @click="onAnswerClick">
+            <div class="msg__bubble" :class="{ 'is-pending': m.pending }">
               <template v-if="m.pending">
                 <span class="typing"><i /><i /><i /></span>
               </template>
               <template v-else-if="m.role === 'assistant'">
-                <div class="md" v-html="renderMarkdown(m.content)" />
+                <AssistantAnswer :content="m.content" @navigate="agent.close()" />
               </template>
               <template v-else>{{ m.content }}</template>
             </div>
@@ -173,7 +164,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
       <!-- 快捷提问 -->
       <div class="drawer__quick">
-        <button v-for="q in QUICK" :key="q" class="quick-chip" :disabled="agent.loading" @click="askQuick(q)">{{ q }}</button>
+        <button v-for="q in QUICK" :key="q" class="quick-chip" :disabled="conversation.loading" @click="askQuick(q)">{{ q }}</button>
       </div>
 
       <!-- 输入区 -->
@@ -183,7 +174,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         <form class="drawer__compose" @submit.prevent="send">
           <input
             ref="inputEl"
-            v-model="input"
+            v-model="conversation.draft"
             class="input"
             placeholder="问鲸鲸一个 Java 问题…"
             aria-label="要问鲸鲸的问题"
@@ -192,38 +183,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             autocomplete="off"
             spellcheck="false"
           />
-          <button class="btn btn--primary" type="submit" :disabled="agent.loading || !input.trim()">发送</button>
+          <button class="btn btn--primary" type="submit" :disabled="conversation.loading || !conversation.draft.trim()">发送</button>
         </form>
       </footer>
     </aside>
   </Transition>
 </template>
-
-<script lang="ts">
-import { isLessonSlug as validLessonSlug } from '@/stores/assistantConversation'
-
-/** 极简 Markdown 渲染：粗体、行内代码、引用、列表、课时链接 */
-function renderMarkdown(src: string): string {
-  const esc = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  let out = esc(src || '')
-  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  out = out.replace(/`([^`]+)`/g, '<code>$1</code>')
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, t, u) => {
-    const slug = u.startsWith('/lesson/') ? u.slice('/lesson/'.length) : ''
-    return validLessonSlug(slug) ? `<a href="#/lesson/${slug}" data-slug="${slug}">${t}</a>` : t
-  })
-  // 引用块
-  out = out.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>')
-  out = out.replace(/<\/blockquote>\n<blockquote>/g, '\n</blockquote>\n<blockquote>')
-  // 列表
-  out = out.replace(/^(\d+)\.\s+(.*)$/gm, '<li>$2</li>')
-  out = out.replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, '<ol>$1</ol>')
-  return out
-}
-
-export default { methods: { renderMarkdown } }
-</script>
 
 <style scoped>
 .drawer__mask {
@@ -249,6 +214,8 @@ export default { methods: { renderMarkdown } }
 }
 
 /* 头部 */
+.drawer--expanded { width: min(900px, 94vw); }
+
 .drawer__head {
   display: flex;
   align-items: center;
@@ -298,7 +265,7 @@ export default { methods: { renderMarkdown } }
   cursor: pointer;
 }
 .drawer__close:hover { background: var(--c-coral); color: #fff; }
-.drawer__clear {
+.drawer__size, .drawer__clear {
   border: 0;
   background: transparent;
   color: var(--c-ink);
@@ -310,6 +277,7 @@ export default { methods: { renderMarkdown } }
 /* 消息流 */
 .drawer__body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 18px;
   background: var(--c-cream);
@@ -320,7 +288,7 @@ export default { methods: { renderMarkdown } }
 .msg { display: flex; gap: 10px; align-items: flex-start; }
 .msg--me { flex-direction: row-reverse; }
 .msg__avatar { width: 38px; height: 38px; border: var(--bw-thin) solid var(--c-line); border-radius: 50%; background: #fff; flex-shrink: 0; }
-.msg__col { max-width: 78%; }
+.msg__col { max-width: 86%; min-width: 0; }
 .msg__bubble {
   padding: 11px 15px;
   font-size: 14px;
@@ -344,35 +312,6 @@ export default { methods: { renderMarkdown } }
 }
 .typing i:nth-child(2) { animation-delay: .15s; }
 .typing i:nth-child(3) { animation-delay: .3s; }
-
-/* 回答里的 Markdown */
-.md :deep(strong) { color: var(--c-coral-deep); }
-.md :deep(code) {
-  padding: 1px 6px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  background: var(--c-cream-deep);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: 6px;
-}
-.md :deep(blockquote) {
-  margin: 8px 0;
-  padding: 8px 12px;
-  background: var(--c-cream-deep);
-  border-left: 5px solid var(--c-mint);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  color: var(--c-ink-soft);
-}
-.md :deep(ol) { margin: 8px 0; padding-left: 22px; }
-.md :deep(li) { margin-bottom: 4px; }
-.md :deep(a) {
-  display: inline-block;
-  margin-top: 4px;
-  color: var(--c-lilac-deep);
-  font-weight: 700;
-  cursor: pointer;
-}
-.md :deep(a:hover) { text-decoration: underline; }
 
 /* 引用 */
 .cites { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
@@ -411,6 +350,12 @@ export default { methods: { renderMarkdown } }
 }
 .drawer__privacy { margin: 0 0 8px; color: var(--c-ink-soft); font-size: 12px; line-height: 1.5; }
 .drawer__compose { display: flex; gap: 8px; }
+@media (max-width: 600px) {
+  .drawer--expanded { width: 100vw; max-width: 100vw; }
+  .drawer__head { gap: 8px; padding: 10px; }
+  .drawer__avatar { width: 40px; height: 40px; }
+  .drawer__size, .drawer__clear { white-space: nowrap; }
+}
 .drawer__compose .input { min-width: 0; flex: 1; }
 
 .slide-enter-active, .slide-leave-active { transition: transform .28s cubic-bezier(.34,1.4,.64,1); }

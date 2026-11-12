@@ -18,6 +18,7 @@ export const useAgentStore = defineStore('agent', () => {
   const conversation = useAssistantConversation()
   const mood = ref<AgentMood>('idle')
   const panelOpen = ref(false)
+  const expanded = ref(false)
 
   let replyVersion = 0
 
@@ -51,8 +52,14 @@ export const useAgentStore = defineStore('agent', () => {
     void loadProfile()
   }
 
+  function openExpanded() {
+    expanded.value = true
+    open()
+  }
+
   function close() {
     panelOpen.value = false
+    expanded.value = false
     mood.value = 'idle'
   }
 
@@ -61,13 +68,13 @@ export const useAgentStore = defineStore('agent', () => {
   }
 
   async function ask(question: string, options?: AssistantRequestOptions) {
-    if (!question.trim() || conversation.loading.value) return
+    if (!question.trim() || conversation.loading) return
     const version = ++replyVersion
     const pending = conversation.ask(question, options)
-    if (conversation.loading.value) mood.value = 'think'
-    await pending
+    if (conversation.loading) mood.value = 'think'
+    const completed = await pending
     if (version !== replyVersion) return
-    mood.value = 'ok'
+    mood.value = completed ? 'ok' : 'idle'
     setTimeout(() => {
       if (version === replyVersion && mood.value === 'ok') mood.value = 'idle'
     }, 3000)
@@ -80,9 +87,9 @@ export const useAgentStore = defineStore('agent', () => {
   }
 
   function reset() {
-    clearHistory()
+    replyVersion++
     close()
   }
 
-  return { ...conversation, profile, mood, panelOpen, avatar, loadProfile, open, close, toggle, ask, clearHistory, reset }
+  return { profile, mood, panelOpen, expanded, avatar, loadProfile, open, openExpanded, close, toggle, ask, clearHistory, reset }
 })
