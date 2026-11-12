@@ -1,351 +1,357 @@
 <script setup lang="ts">
-
-// 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
-const ASSET_BASE = import.meta.env.BASE_URL || '/'
-import { ref, onMounted, computed } from 'vue'
-import { courseApi, type Course, type CourseModule } from '@/api'
+import { computed, onMounted, ref } from 'vue'
+import { courseApi, type CourseModule } from '@/api'
 import { useAgentStore } from '@/stores/agent'
 import { useProgressStore } from '@/stores/progress'
 
-const course = ref<Course | null>(null)
+const courseSlug = 'java-mastery'
+const topicLesson = { slug: 'oop-core' }
+const courseRoute = { name: 'course', params: { slug: courseSlug } }
+const topicRoute = { name: 'lesson', params: topicLesson }
+const labRoute = { name: 'lesson-lab', params: topicLesson }
+const assistantImage = import.meta.env.BASE_URL + 'assets/agent/agent-idle.png'
+
 const modules = ref<CourseModule[]>([])
-const loading = ref(true)
 const loadFailed = ref(false)
-const openModules = ref<Record<number, boolean>>({})
 const agent = useAgentStore()
 const progress = useProgressStore()
 
-const overallPct = computed(() => progress.summary.overallPct)
-const lessons = computed(() => modules.value.flatMap((module) => module.lessons || []))
-const lastLesson = computed(() => progress.items.find((item) => lessons.value.some((lesson) => lesson.id === item.lessonId)))
+const lessons = computed(() => modules.value.flatMap((module) => module.lessons ?? []))
+const lastLesson = computed(() => progress.items.find((item) =>
+  lessons.value.some((lesson) => lesson.id === item.lessonId),
+))
 const entryLesson = computed(() => {
   const recent = lastLesson.value
-  if (!recent) return lessons.value[0]
-  if (!recent.completed) return recent
+  if (!recent || !recent.completed) return recent
   const recentIndex = lessons.value.findIndex((lesson) => lesson.id === recent.lessonId)
   return lessons.value.slice(recentIndex + 1).find((lesson) => !progress.isCompleted(lesson.id))
-    || lessons.value.find((lesson) => !progress.isCompleted(lesson.id))
-    || recent
+    ?? lessons.value.find((lesson) => !progress.isCompleted(lesson.id))
+    ?? recent
 })
 const entryLabel = computed(() => {
-  const recent = lastLesson.value
-  if (!recent) return '开始第一节'
-  return recent.completed && entryLesson.value === recent ? '复习课时' : '继续学习'
+  if (!entryLesson.value) return '开始专题学习'
+  return entryLesson.value === lastLesson.value && lastLesson.value.completed ? '复习课时' : '继续学习'
 })
+const entryRoute = computed(() => entryLesson.value
+  ? {
+      name: 'lesson',
+      params: { slug: entryLesson.value.slug },
+      query: entryLabel.value === '继续学习' ? { resume: '1' } : {},
+    }
+  : topicRoute,
+)
 
-/** 模块图标：数据库里存的是英文 key，这里映射成 emoji，卡通感更强 */
-const ICONS: Record<string, string> = {
-  coffee: '☕',
-  puzzle: '🧩',
-  boxes: '🗃️',
-  compass: '🧭',
-  rocket: '🚀',
-  code: '💻',
-}
+const links = [
+  { to: courseRoute, icon: '☷', title: '课程目录', description: '按模块浏览课时、笔记和配套练习。' },
+  { to: { name: 'learning-videos' }, icon: '▷', title: '学习视频', description: '按课时查找配套讲解，跟着视频学。' },
+  { to: { name: 'exercises' }, icon: '{ }', title: '代码练习', description: '选择编程题，编写代码并查看判题结果。' },
+]
 
-async function load() {
-  loading.value = true
+async function loadCourse() {
   loadFailed.value = false
   try {
-    // 一次取全：课程详情接口已内嵌模块→课时树，避免二次请求
-    const detail = await courseApi.detail('java-mastery')
-    course.value = (detail.course || detail) as Course
-    modules.value = detail.modules || []
-    // 默认展开第一个模块
-    if (modules.value[0]) openModules.value[modules.value[0].id] = true
-    void progress.load().catch(() => {})
+    const detail = await courseApi.detail(courseSlug)
+    modules.value = detail.modules ?? []
   } catch {
     loadFailed.value = true
-  } finally {
-    loading.value = false
   }
 }
 
-function toggle(id: number) {
-  openModules.value[id] = !openModules.value[id]
-}
-
-function askAbout(m: CourseModule) {
-  agent.open()
-  void agent.ask(`「${m.title}」这个模块主要讲什么？重点难点在哪？`).then(() => {})
-}
-
-onMounted(load)
+onMounted(() => {
+  void loadCourse()
+  void progress.load().catch(() => {})
+})
 </script>
 
 <template>
   <div class="container home">
-    <!-- Hero -->
-    <section v-if="course" class="hero card anim-pop">
-      <div class="hero__text">
-        <div class="hero__tags">
-          <span class="badge badge--coral">{{ course.difficulty === 'BEGINNER' ? '零基础友好' : course.difficulty }}</span>
-          <span class="badge badge--mint">{{ course.version }}</span>
-          <span class="badge badge--sun">{{ course.totalLessons }} 课时</span>
-        </div>
-        <h1 class="hero__title title-round">{{ course.title }}</h1>
-        <p class="hero__sub">{{ course.subtitle }}</p>
-        <p class="hero__desc">{{ course.description }}</p>
-        <div class="hero__actions">
-          <RouterLink v-if="entryLesson" :to="{ name: 'lesson', params: { slug: entryLesson.slug }, query: entryLabel === '继续学习' ? { resume: '1' } : {} }" class="btn btn--primary btn--lg">
-            {{ entryLabel }}<template v-if="lastLesson"> · {{ entryLesson.title }}</template> →
-          </RouterLink>
-          <button class="btn btn--lilac btn--lg" @click="agent.open()">问鲸鲸一个问题</button>
-        </div>
-        <p class="hero__by">授课：{{ course.instructor }}</p>
-      </div>
-      <img :src="ASSET_BASE + 'assets/agent/agent-happy.png'" alt="鲸鲸" class="hero__img anim-float" />
-    </section>
-
-    <div v-if="loading" class="home__loading" role="status" aria-label="正在加载课程"><div class="spinner" /></div>
-    <div v-else-if="loadFailed" class="home__loading" role="status">
-      <p>暂时无法加载课程目录。</p>
-      <button class="btn btn--primary" @click="load">重新加载</button>
-    </div>
-
-    <!-- 学习总览 -->
-    <section v-if="!loading && !loadFailed && progress.hasProgress" class="overview card anim-pop">
-      <div class="overview__ring" :style="{ '--pct': `${overallPct * 3.6}deg` }">
-        <span class="overview__pct">{{ overallPct }}%</span>
-      </div>
-      <div class="overview__body">
-        <h3 class="title-round overview__title">继续加油喵~</h3>
-        <p class="overview__sub">
-          <span>已完成 <strong>{{ progress.summary.completed }}</strong> / {{ progress.summary.totalLessons }} 节</span>
-          <span v-if="progress.summary.inProgress">在学 {{ progress.summary.inProgress }} 节</span>
-          <span v-if="progress.summary.favoriteCount">收藏 {{ progress.summary.favoriteCount }} 节</span>
-          <span v-if="progress.learningMinutes">累计 {{ progress.learningMinutes }} 分钟</span>
-          <span v-if="progress.summary.studyCount">学习 {{ progress.summary.studyCount }} 次</span>
+    <section class="hero" aria-labelledby="home-title">
+      <div class="hero__intro">
+        <p class="hero__site">Java 精通之路 · 课程专题</p>
+        <h1 id="home-title">封装、访问控制<br />与包管理</h1>
+        <p class="hero__description">
+          从一个账户类入手，学习怎样保护对象的数据、控制谁能访问类的成员，以及用包组织 Java 代码。
         </p>
+        <div class="home__actions">
+          <RouterLink :to="entryRoute" class="home-button home-button--primary">
+            {{ entryLabel }} <span aria-hidden="true">→</span>
+          </RouterLink>
+          <RouterLink :to="courseRoute" class="home-button">查看课程目录</RouterLink>
+        </div>
+        <p v-if="entryLesson" class="hero__detail">
+          {{ entryLabel === '复习课时' ? '复习' : '接下来' }} · {{ entryLesson.title }}
+        </p>
+        <div v-else-if="loadFailed" class="hero__detail">
+          <span role="status">暂时无法读取续学课时。</span>
+          <button type="button" class="home-text-button" @click="loadCourse">重试</button>
+        </div>
       </div>
-      <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" class="overview__whale anim-float" />
+
+      <figure class="example">
+        <figcaption class="example__header">
+          <span>Account.java</span>
+          <span class="example__language">Java</span>
+        </figcaption>
+        <pre><code><span class="example__keyword">package</span> demo.bank;
+
+<span class="example__keyword">public class</span> <span class="example__type">Account</span> {
+    <span class="example__keyword">private int</span> balance;
+
+    <span class="example__keyword">public void</span> <span class="example__method">deposit</span>(<span class="example__keyword">int</span> amount) {
+        <span class="example__keyword">if</span> (amount &gt; <span class="example__literal">0</span>) {
+            balance += amount;
+        }
+    }
+}</code></pre>
+        <p class="example__note">试着解释为什么外部类可以调用 <code>deposit</code>，却不能直接修改 <code>balance</code>。</p>
+      </figure>
     </section>
 
-    <!-- 课程目录 -->
-    <section v-if="!loading && !loadFailed" class="catalog">
-      <div class="section-head">
-        <span class="dot" />
-        <h2>课程目录</h2>
-        <span class="line" />
-        <span class="badge badge--lilac">{{ modules.length }} 个模块</span>
-      </div>
-
-      <div class="catalog__list">
-        <article
-          v-for="(m, mi) in modules"
-          :key="m.id"
-          class="mod card card--hover"
-          :style="{ animationDelay: `${mi * 60}ms` }"
+    <section class="home__section" aria-labelledby="home-entry-title">
+      <h2 id="home-entry-title">学习入口</h2>
+      <div class="entry-grid">
+        <RouterLink v-for="link in links" :key="link.title" :to="link.to" class="entry-card">
+          <span class="entry-card__icon" aria-hidden="true">{{ link.icon }}</span>
+          <span class="entry-card__title">{{ link.title }} <span aria-hidden="true">↗</span></span>
+          <span class="entry-card__description">{{ link.description }}</span>
+        </RouterLink>
+        <button
+          type="button"
+          class="entry-card"
+          :aria-expanded="agent.panelOpen"
+          aria-controls="agent-drawer"
+          @click="agent.open()"
         >
-          <header class="mod__head" @click="toggle(m.id)">
-            <span class="mod__icon">{{ ICONS[m.icon] || '📘' }}</span>
-            <div class="mod__meta">
-              <h3 class="mod__title title-round">
-                <span class="mod__no">{{ String(mi + 1).padStart(2, '0') }}</span>
-                {{ m.title }}
-              </h3>
-              <p class="mod__summary">{{ m.summary }}</p>
-            </div>
-            <span class="mod__count badge badge--mint">{{ m.lessonCount }} 节</span>
-            <span class="mod__arrow" :class="{ 'is-open': openModules[m.id] }">▾</span>
-          </header>
-
-          <!-- 课时列表 -->
-          <Transition name="expand">
-            <ul v-if="openModules[m.id]" class="mod__lessons">
-              <li v-for="(l, li) in m.lessons || []" :key="l.id">
-                <RouterLink :to="`/lesson/${l.slug}`" class="lesson-link">
-                  <span class="lesson-link__no" :class="{ 'is-done': progress.isCompleted(l.id) }">
-                    {{ progress.isCompleted(l.id) ? '✓' : li + 1 }}
-                  </span>
-                  <span class="lesson-link__title">
-                    {{ l.title }}
-                    <small v-if="progress.progressOf(l.id)?.selfCheckStage === 2" class="badge badge--mint">自测通过</small>
-                    <small v-if="progress.progressOf(l.id)?.progressPct" class="lesson-link__reading">已读 {{ progress.progressOf(l.id)?.progressPct }}%</small>
-                  </span>
-                  <span class="lesson-link__sum">{{ l.summary }}</span>
-                  <span v-if="progress.isFavorite(l.id)" class="lesson-link__fav">★</span>
-                  <span class="lesson-link__go">→</span>
-                </RouterLink>
-              </li>
-              <li v-if="!(m.lessons || []).length" class="mod__empty">课时加载中…</li>
-            </ul>
-          </Transition>
-
-          <footer class="mod__foot">
-            <button class="btn btn--sm btn--ghost" @click="askAbout(m)">🐳 让鲸鲸讲讲这个模块</button>
-          </footer>
-        </article>
+          <span class="entry-card__icon"><img :src="assistantImage" alt="" width="30" height="30" /></span>
+          <span class="entry-card__title">鲸鲸助教 <span aria-hidden="true">↗</span></span>
+          <span class="entry-card__description">带着概念或编译报错向助教提问。</span>
+        </button>
       </div>
+    </section>
+
+    <section class="featured home__section" aria-labelledby="home-featured-title">
+      <div class="featured__intro">
+        <p class="featured__label">专题体验课</p>
+        <h2 id="home-featured-title">封装、继承与多态</h2>
+        <p>打开课时笔记，或进入实验室观看「封装」分集，在视频旁编辑并运行 Java。</p>
+        <div class="home__actions">
+          <RouterLink :to="labRoute" class="home-button home-button--primary">边看边练 <span aria-hidden="true">→</span></RouterLink>
+          <RouterLink :to="topicRoute" class="home-text-button">阅读课时笔记</RouterLink>
+        </div>
+      </div>
+      <dl class="featured__goals">
+        <div>
+          <dt>封装</dt>
+          <dd>把字段设为 <code>private</code>，在公开方法里校验输入。</dd>
+        </div>
+        <div>
+          <dt>访问控制</dt>
+          <dd>比较同包类、异包类和异包子类可以访问哪些成员。</dd>
+        </div>
+        <div>
+          <dt>包管理</dt>
+          <dd>用 <code>package</code> 声明所属包，用 <code>import</code> 引用其他包中的可访问类型。</dd>
+        </div>
+      </dl>
     </section>
   </div>
 </template>
 
 <style scoped>
-.home { padding-top: var(--space-lg); }
+.home {
+  --home-border: #d9d9e5;
+  --home-surface: #fffdf9;
+  padding-top: clamp(20px, 3vw, 40px);
+}
 
-/* Hero */
 .hero {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: var(--space-lg);
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
   align-items: center;
-  padding: 36px;
-  background: linear-gradient(135deg, var(--c-paper) 60%, var(--c-cream-deep));
+  padding: clamp(24px, 4.4vw, 56px);
+  border: 1px solid var(--home-border);
+  border-top: 4px solid var(--c-ink);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(114deg, var(--home-surface) 57%, #f6f3fd);
+  box-shadow: 0 9px 24px rgba(45, 53, 97, .06);
 }
-.hero__tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-.hero__title { margin: 0; font-size: 40px; font-weight: 800; }
-.hero__sub { margin: 8px 0 14px; font-size: 17px; font-weight: 700; color: var(--c-coral-deep); }
-.hero__desc { margin: 0 0 22px; font-size: 15px; line-height: 1.9; color: var(--c-ink-soft); }
-.hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.hero__by { margin: 18px 0 0; font-size: 13px; color: var(--c-ink-faint); }
-.hero__img { width: 230px; height: 230px; justify-self: center; filter: drop-shadow(5px 7px 0 rgba(45,53,97,.18)); }
 
-.home__loading { display: grid; place-items: center; padding: 70px 0; }
-
-/* 学习总览 */
-.overview {
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-  padding: 24px 28px;
-  margin-top: var(--space-md);
-  background: linear-gradient(120deg, var(--c-paper), var(--c-cream-deep));
-}
-.overview__ring {
-  width: 96px; height: 96px;
-  flex-shrink: 0;
-  display: grid; place-items: center;
-  border-radius: 50%;
-  background: conic-gradient(var(--c-coral) var(--pct), var(--c-cream-deep) 0);
-  border: var(--bw-base) solid var(--c-line);
-  position: relative;
-}
-.overview__ring::after {
-  content: '';
-  position: absolute;
-  inset: 11px;
-  background: var(--c-paper);
-  border-radius: 50%;
-}
-.overview__pct {
-  position: relative;
-  z-index: 1;
-  font-family: var(--font-round);
-  font-size: 20px;
+.hero__site, .featured__label {
+  margin: 0 0 14px;
+  color: #4f487e;
+  font-size: .875rem;
   font-weight: 800;
+  letter-spacing: .08em;
 }
-.overview__body { flex: 1; min-width: 0; }
-.overview__title { margin: 0 0 6px; font-size: 21px; }
-.overview__sub { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--c-ink-soft); }
-.overview__sub span { white-space: nowrap; }
-.overview__sub strong { color: var(--c-coral-deep); font-size: 16px; }
-.overview__whale { width: 92px; height: 92px; flex-shrink: 0; }
-
-/* 目录 */
-.lesson-link__reading { margin-left: 6px; color: var(--c-ink-soft); font-weight: 400; }
-.catalog { margin-top: var(--space-xl); }
-.catalog__list { display: flex; flex-direction: column; gap: 18px; }
-
-.mod { padding: 0; overflow: hidden; animation: pop-in .4s both; }
-.mod__head {
-  display: flex;
+.hero__site::before {
+  display: inline-block;
+  width: 20px;
+  height: 3px;
+  margin-right: 10px;
+  vertical-align: middle;
+  background: var(--c-sun-deep);
+  content: '';
+}
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.125rem, 4.1vw, 3.625rem);
+  font-weight: 850;
+  letter-spacing: -.045em;
+  line-height: 1.16;
+}
+.hero__description, .featured__intro > p:not(.featured__label) {
+  max-width: 35em;
+  margin: 16px 0 22px;
+  color: var(--c-ink-soft);
+  line-height: 1.75;
+}
+.home__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.home-button {
+  display: inline-flex;
+  min-height: 44px;
   align-items: center;
-  gap: 16px;
-  padding: 20px 22px;
+  justify-content: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border: 1px solid #898bad;
+  border-radius: 9px;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-size: .9375rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+.home-button:hover { background: #f1eefb; }
+.home-button--primary { border-color: var(--c-ink); background: var(--c-ink); color: #fff; }
+.home-button--primary:hover { background: #414b82; }
+.hero__detail { margin: 12px 0 0; color: var(--c-ink-soft); font-size: .875rem; }
+.home-text-button {
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--c-ink);
+  font: inherit;
+  font-weight: 700;
+  text-underline-offset: .22em;
+  text-decoration: underline;
   cursor: pointer;
 }
-.mod__icon {
-  width: 52px; height: 52px;
-  display: grid; place-items: center;
-  font-size: 26px;
-  background: var(--c-sun);
-  border: var(--bw-base) solid var(--c-line);
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
-.mod__meta { flex: 1; min-width: 0; }
-.mod__title { margin: 0 0 4px; font-size: 21px; }
-.mod__no {
-  display: inline-block;
-  margin-right: 8px;
-  font-size: 14px;
-  color: var(--c-coral);
-}
-.mod__summary { margin: 0; font-size: 13px; color: var(--c-ink-faint); }
-.mod__count { flex-shrink: 0; }
-.mod__arrow {
-  font-size: 20px;
-  color: var(--c-ink-faint);
-  transition: transform .2s;
-  flex-shrink: 0;
-}
-.mod__arrow.is-open { transform: rotate(180deg); color: var(--c-coral); }
+.home :is(a, button):focus-visible { outline: 3px solid #7253c5; outline-offset: 3px; }
 
-.mod__lessons {
+.example {
+  min-width: 0;
   margin: 0;
-  padding: 0 22px 8px;
-  list-style: none;
-  border-top: var(--bw-thin) dashed var(--c-ink-faint);
-  padding-top: 12px;
-}
-.lesson-link {
-  display: grid;
-  grid-template-columns: 34px 1.3fr 2fr auto 24px;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-  margin-bottom: 6px;
-  text-decoration: none;
-  color: var(--c-ink);
-  background: var(--c-cream);
-  border: var(--bw-thin) solid transparent;
+  overflow: hidden;
   border-radius: var(--radius-md);
-  transition: all .16s;
+  background: #212743;
+  color: #eef0ff;
+  box-shadow: 0 14px 30px rgba(33, 39, 67, .2);
 }
-.lesson-link__no.is-done { background: var(--c-mint); color: #fff; }
-.lesson-link__fav { color: var(--c-sun-deep); font-size: 15px; }
-.lesson-link:hover {
-  background: var(--c-sun);
-  border-color: var(--c-line);
-  transform: translateX(4px);
-  box-shadow: var(--shadow-sm);
+.example__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 20px;
+  border-bottom: 1px solid #474e71;
+  background: #2c3457;
+  font: 600 .875rem var(--font-mono);
 }
-.lesson-link__no {
-  display: grid; place-items: center;
-  width: 28px; height: 28px;
-  font-family: var(--font-round);
-  font-size: 13px; font-weight: 700;
-  background: var(--c-paper);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: 50%;
+.example__language { color: #c5cce9; font-size: .75rem; }
+.example pre {
+  margin: 0;
+  padding: 16px 20px;
+  overflow-x: auto;
+  font: clamp(.75rem, 1.1vw, .875rem)/1.52 var(--font-mono);
+  tab-size: 4;
 }
-.lesson-link__title { font-family: var(--font-round); font-weight: 700; }
-.lesson-link__sum { font-size: 12px; color: var(--c-ink-faint); }
-.lesson-link__go { color: var(--c-coral); font-weight: 700; }
-.mod__empty { padding: 14px; font-size: 13px; color: var(--c-ink-faint); text-align: center; }
+.example code, .featured__goals code { font-family: var(--font-mono); }
+.example__keyword { color: #d4c3ff; }
+.example__type { color: #ffd888; }
+.example__method { color: #8ce5cf; }
+.example__literal { color: #ffd888; }
+.example__note {
+  margin: 0;
+  padding: 12px 20px;
+  border-top: 1px solid #474e71;
+  color: #d6dcf1;
+  font-size: .8125rem;
+  line-height: 1.55;
+}
 
-.mod__foot { padding: 0 22px 18px; }
-
-.expand-enter-active, .expand-leave-active { transition: opacity .2s ease, max-height .25s ease; overflow: hidden; }
-.expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
-.expand-enter-to, .expand-leave-from { max-height: 900px; }
-
-@media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; padding: 24px; }
-  .hero__title { font-size: 30px; }
-  .hero__img { width: 160px; height: 160px; }
-  .lesson-link { grid-template-columns: 30px 1fr 20px; }
-  .lesson-link__sum { display: none; }
+.home__section { margin-top: clamp(24px, 3vw, 38px); }
+.home__section h2 { margin: 0 0 14px; font-size: clamp(1.375rem, 2.4vw, 1.875rem); }
+.entry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.entry-card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--radius-md);
+  background: var(--home-surface);
+  color: var(--c-ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
 }
-@media (max-width: 640px) {
-  .overview { gap: 10px; padding: 14px; }
-  .overview__ring { width: 58px; height: 58px; }
-  .overview__ring::after { inset: 6px; }
-  .overview__pct { font-size: 16px; }
-  .overview__title { font-size: 17px; line-height: 1.35; }
-  .overview__sub { font-size: 12px; column-gap: 8px; }
-  .overview__sub strong { font-size: inherit; }
-  .overview__whale { width: 40px; height: 40px; }
+.entry-card:hover { border-color: #8c88b1; background: #faf7ff; }
+.entry-card__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 9px;
+  background: #ece9fa;
+  font: 750 1.125rem var(--font-mono);
+}
+.entry-card:nth-child(2) .entry-card__icon { background: #fceadc; }
+.entry-card:nth-child(3) .entry-card__icon { background: #dff3ee; }
+.entry-card:nth-child(4) .entry-card__icon { background: #f9edca; }
+.entry-card__icon img { object-fit: contain; }
+.entry-card__title { display: flex; justify-content: space-between; gap: 6px; font-weight: 800; }
+.entry-card__title > span { color: var(--c-ink-soft); }
+.entry-card__description { color: var(--c-ink-soft); font-size: .875rem; line-height: 1.6; }
+
+.featured {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(16px, 4vw, 50px);
+  padding: clamp(22px, 3vw, 38px);
+  border: 1px solid #ccdcd8;
+  border-radius: var(--radius-lg);
+  background: #edf6f2;
+}
+.featured__label { margin-bottom: 8px; }
+.featured__intro > p:not(.featured__label) { margin: 0 0 18px; }
+.featured__goals {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #ccdcd8;
+}
+.featured__goals > div {
+  display: grid;
+  grid-template-columns: 5.25em minmax(0, 1fr);
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #ccdcd8;
+}
+.featured__goals dt { font-weight: 800; }
+.featured__goals dd { margin: 0; color: var(--c-ink-soft); font-size: .875rem; line-height: 1.55; }
+
+@media (max-width: 820px) {
+  .hero, .featured { grid-template-columns: 1fr; }
+  .entry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .home { padding-inline: 14px; }
+  .hero { padding: 20px 16px; }
+  .hero h1 { font-size: clamp(1.75rem, 8.4vw, 2.375rem); }
+  .example pre, .example__header, .example__note { padding-inline: 12px; }
+  .entry-card { padding: 12px; }
+  .entry-grid { gap: 10px; }
+  .featured { padding: 18px 16px; }
 }
 </style>
