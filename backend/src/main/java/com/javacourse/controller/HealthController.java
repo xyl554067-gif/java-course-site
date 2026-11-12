@@ -28,7 +28,7 @@ public class HealthController {
             jdbc.queryForObject("select 1", Integer.class);
             m.put("database", "UP");
         } catch (Exception e) {
-            m.put("database", "DOWN: " + e.getMessage());
+            m.put("database", "DOWN");
         }
         return m;
     }

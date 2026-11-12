@@ -13,6 +13,13 @@ export interface ProgressSummary {
   overallPct: number
 }
 
+export type SelfCheckResult = 'WRONG' | 'PREDICTION_PASSED' | 'PASSED' | 'REVIEWED'
+
+export interface ReadingPosition {
+  readingSection: string
+  readingRecordedAt: number
+}
+
 export interface ProgressItem {
   lessonId: number
   slug: string
@@ -20,6 +27,10 @@ export interface ProgressItem {
   moduleTitle: string
   progressPct: number
   completed: boolean
+  readingSection?: string | null
+  readingRecordedAt?: number
+  selfCheckStage?: number
+  reviewPending?: boolean
   lastSeconds: number
   totalSeconds: number
   studyCount: number
@@ -89,13 +100,30 @@ export const useProgressStore = defineStore('progress', () => {
       const r = await request<{ progress: ProgressItem | null; favorite: boolean }>(
         http.get(`/progress/lesson/${lessonId}`),
       )
-      lessonProgress.value[lessonId] = r.progress
+      if (r.progress) rememberProgress(r.progress)
       if (r.favorite) favoriteIds.value.add(lessonId)
       else favoriteIds.value.delete(lessonId)
       return r
     } catch {
       return null
     }
+  }
+
+  function rememberProgress(item: ProgressItem) {
+    lessonProgress.value[item.lessonId] = item
+    const index = items.value.findIndex((existing) => existing.lessonId === item.lessonId)
+    if (index >= 0) items.value.splice(index, 1)
+    items.value.unshift(item)
+    if (item.completed) completedIds.value.add(item.lessonId)
+    else completedIds.value.delete(item.lessonId)
+  }
+
+  async function saveSelfCheck(lessonId: number, result: SelfCheckResult) {
+    const r = await request<{ progress: ProgressItem }>(
+      http.put('/progress/lesson/' + lessonId + '/self-check', { result }),
+    )
+    rememberProgress(r.progress)
+    return r.progress
   }
 
   /**
@@ -111,6 +139,7 @@ export const useProgressStore = defineStore('progress', () => {
     lastSeconds: number,
     deltaSeconds = 0,
     sessionKey = '',
+    position?: ReadingPosition,
   ) {
     const r = await request<{ progress: ProgressItem | null; favorite: boolean }>(
       http.put(`/progress/lesson/${lessonId}`, {
@@ -118,17 +147,19 @@ export const useProgressStore = defineStore('progress', () => {
         lastSeconds,
         deltaSeconds,
         sessionKey,
+        ...position,
       }),
     )
-    lessonProgress.value[lessonId] = r.progress
     if (r.progress) {
-      const idx = items.value.findIndex((i) => i.lessonId === lessonId)
-      if (idx >= 0) items.value[idx] = r.progress
-      else items.value.unshift(r.progress)
-      if (r.progress.completed) completedIds.value.add(lessonId)
-      else completedIds.value.delete(lessonId)
+      const current = progressOf(lessonId)
+      rememberProgress({
+        ...r.progress,
+        completed: current?.completed ?? r.progress.completed,
+        selfCheckStage: current?.selfCheckStage ?? r.progress.selfCheckStage,
+        reviewPending: current?.reviewPending ?? r.progress.reviewPending,
+      })
     }
-    await refreshSummary()
+    void refreshSummary().catch(() => {})
     return r
   }
 
@@ -136,13 +167,8 @@ export const useProgressStore = defineStore('progress', () => {
     const r = await request<{ progress: ProgressItem | null }>(
       http.post(`/progress/lesson/${lessonId}/complete?completed=${completed}`),
     )
-    if (r.progress) {
-      const idx = items.value.findIndex((i) => i.lessonId === lessonId)
-      if (idx >= 0) items.value[idx] = r.progress
-      if (completed) completedIds.value.add(lessonId)
-      else completedIds.value.delete(lessonId)
-    }
-    await refreshSummary()
+    if (r.progress) rememberProgress(r.progress)
+    void refreshSummary().catch(() => {})
     return r
   }
 
@@ -185,7 +211,7 @@ export const useProgressStore = defineStore('progress', () => {
   return {
     summary, items, favorites, favoriteIds, completedIds, loaded,
     lessonProgress, learningMinutes, hasProgress,
-    load, loadMarks, loadOne, save, markCompleted, toggleFavorite, refreshSummary,
+    load, loadMarks, loadOne, save, saveSelfCheck, markCompleted, toggleFavorite, refreshSummary,
     isFavorite, isCompleted, progressOf, reset,
   }
 })

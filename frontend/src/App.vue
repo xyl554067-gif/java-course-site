@@ -2,10 +2,12 @@
 
 // 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
 const ASSET_BASE = import.meta.env.BASE_URL || '/'
-import { onMounted, computed, watch } from 'vue'
+import { onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { AUTH_EXPIRED_EVENT, TOKEN_KEY } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useAgentStore } from '@/stores/agent'
+import { usePetStore } from '@/stores/pet'
 import { useProgressStore } from '@/stores/progress'
 import AgentDrawer from '@/components/AgentDrawer.vue'
 import FloatingPet from '@/components/FloatingPet.vue'
@@ -14,11 +16,24 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const agent = useAgentStore()
+const pet = usePetStore()
 const progress = useProgressStore()
 
 const bare = computed(() => route.meta.bare === true)
 
+function onAuthExpired() {
+  void auth.syncStoredSession()
+}
+
+async function onStorage(event: StorageEvent) {
+  if (event.storageArea !== window.localStorage || (event.key !== TOKEN_KEY && event.key !== null)) return
+  await auth.syncStoredSession()
+  if (!auth.isLogged && !route.meta.public) void router.replace({ name: 'login' })
+}
+
 onMounted(async () => {
+  window.addEventListener(AUTH_EXPIRED_EVENT, onAuthExpired)
+  window.addEventListener('storage', onStorage)
   await auth.bootstrap()
   // 助手资料只在有登录态时拉取：未登录时调用 API 会产生无意义的请求
   // （GitHub Pages 静态部署下 API 未就绪，表现为 404 噪音）
@@ -27,6 +42,17 @@ onMounted(async () => {
     void progress.load()
   }
 })
+onUnmounted(() => {
+  window.removeEventListener(AUTH_EXPIRED_EVENT, onAuthExpired)
+  window.removeEventListener('storage', onStorage)
+})
+
+function resetAssistant() {
+  agent.reset()
+  pet.reset()
+}
+
+watch(() => auth.token, resetAssistant, { flush: 'sync' })
 
 // 登录态建立后再拉进度与助手资料（首帧token 可能还没就绪）
 watch(() => auth.isLogged, (v) => {
@@ -41,8 +67,8 @@ function onSearch(kw: string) {
 }
 
 async function handleLogout() {
+  resetAssistant()
   await auth.logout()
-  agent.reset()
   progress.reset()
   router.push({ name: 'login' })
 }
@@ -200,5 +226,4 @@ async function handleLogout() {
   .nav__agent { display: none; }
 }
 </style>
-
 

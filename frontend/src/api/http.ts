@@ -7,7 +7,8 @@ export interface ApiResult<T = any> {
   data: T
 }
 
-const TOKEN_KEY = 'javacourse_token'
+export const TOKEN_KEY = 'javacourse_token'
+export const AUTH_EXPIRED_EVENT = 'javacourse:auth-expired'
 
 export function getToken(): string {
   return localStorage.getItem(TOKEN_KEY) || ''
@@ -54,7 +55,7 @@ const http: AxiosInstance = axios.create({
 
 http.interceptors.request.use((config) => {
   const token = getToken()
-  if (token) {
+  if (token && !config.headers.has('Authorization')) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -63,10 +64,11 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (resp) => resp.data,
   (error) => {
-    //登录态失效时清理并跳回登录页
-    const status = error?.response?.status
-    if (status === 401) {
+    const token = getToken()
+    // A late response must not log out a newer session.
+    if (error?.response?.status === 401 && token && error?.config?.headers?.Authorization === `Bearer ${token}`) {
       clearToken()
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
       if (!location.hash.includes('/login')) {
         location.hash = '#/login'
       }
@@ -84,11 +86,15 @@ export async function request<T = any>(promise: Promise<ApiResult<T>>): Promise<
   return res.data
 }
 
-/** 把 axios 错误转成可展示的中文文案 */
+/** 把请求错误转成可展示的中文文案 */
 export function errMsg(e: unknown): string {
-  if (e instanceof Error) return e.message
-  const anyE = e as any
-  return anyE?.response?.data?.message || '网络开小差了，请稍后再试'
+  if (axios.isAxiosError<{ message?: string }>(e)) {
+    const message = e.response?.data?.message
+    if (message) return message
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') return '等待服务器响应超时，请稍后重试'
+    if (!e.response || e.response.status >= 500) return '暂时无法连接服务器，请稍后重试'
+  }
+  return e instanceof Error ? e.message : '请求失败，请稍后重试'
 }
 
 export default http

@@ -6,7 +6,8 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAgentStore } from '@/stores/agent'
-import { errMsg } from '@/api/http'
+import { authApi } from '@/api'
+import { API_BASE_URL, errMsg } from '@/api/http'
 
 const auth = useAuthStore()
 const agent = useAgentStore()
@@ -19,6 +20,8 @@ const password = ref('')
 const nickname = ref('')
 const loading = ref(false)
 const error = ref('')
+const isLocalDev = import.meta.env.DEV
+const isHosted = /^https?:\/\//.test(API_BASE_URL)
 
 const MEMES = [
   'assets/agent/meme-ciallo.png',
@@ -45,7 +48,7 @@ async function submit() {
     } else {
       await auth.register(username.value.trim(), password.value, nickname.value.trim())
     }
-    await agent.loadProfile()
+    void agent.loadProfile()
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch (e) {
@@ -62,6 +65,7 @@ async function submit() {
 }
 
 onMounted(() => {
+  if (isHosted) void authApi.warmup().catch(() => {})
   meme.value = MEMES[Math.floor(Math.random() * MEMES.length)]
 })
 </script>
@@ -123,7 +127,8 @@ onMounted(() => {
             />
           </label>
 
-          <p v-if="error" class="login__error">⚠ {{ error }}</p>
+          <p v-if="error" class="login__error" role="alert">⚠ {{ error }}</p>
+          <p v-else-if="loading && isHosted" class="login__hint" role="status">正在连接服务器。服务休眠后首次访问可能需要约一分钟。</p>
 
           <button class="btn btn--primary btn--lg login__submit" type="submit" :disabled="loading">
             <span v-if="loading" class="spinner login__spin" />
@@ -138,7 +143,7 @@ onMounted(() => {
           </button>
         </footer>
 
-        <p class="login__demo">演示账号：admin / demo，密码 123456</p>
+        <p v-if="isLocalDev" class="login__demo">演示账号：admin / demo，密码 123456</p>
       </section>
     </div>
   </div>

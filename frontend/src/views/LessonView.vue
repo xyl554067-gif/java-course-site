@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import ArrayBoundaryCheck from '@/components/ArrayBoundaryCheck.vue'
+import LessonComicCheck from '@/components/LessonComicCheck.vue'
+import LessonIllustration from '@/components/LessonIllustration.vue'
+import lessonComics from '@/content/lesson-comics.json'
+import { lessonComicPrompts, type LessonComicPrompt } from '@/content/lesson-comic-prompts'
 
 // 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
 const ASSET_BASE = import.meta.env.BASE_URL || '/'
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import hljs from 'highlight.js/lib/common'
 import 'highlight.js/styles/github.css'
 import { courseApi, codeApi } from '@/api'
 import { errMsg, getToken, API_BASE_URL } from '@/api/http'
 import { useAgentStore } from '@/stores/agent'
-import { useProgressStore } from '@/stores/progress'
+import { useProgressStore, type ReadingPosition, type SelfCheckResult } from '@/stores/progress'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,9 +22,38 @@ const agent = useAgentStore()
 const progress = useProgressStore()
 
 const lesson = ref<any>(null)
+const selfCheckStage = ref(0)
+const quizArea = ref<HTMLElement | null>(null)
+const quizError = ref(false)
+const quizWrites: { lessonId: number; result: SelfCheckResult }[] = []
+let savingQuiz = false
+let readingPosition: ReadingPosition | undefined
+let readingReady = false
+let scrollSaveId = 0
+let loadVersion = 0
+const reviewing = computed(() => route.query.review === '1')
+const arrayReviewPrompt: LessonComicPrompt = {
+  scene: ['📦 长度 6', '🎟 从 0 开始', '🔎 找最后一个下标'],
+  question: 'int[] ages = {11, 12, 13, 14, 15, 16}; 最后一个合法下标和对应的值是什么？',
+  options: ['下标 6，值 16', '下标 5，值 16', '下标 5，值 15'],
+  correct: 1,
+  hint: '先把 11 放在下标 0。每往右一个格子，下标加 1。',
+}
 const activeTab = computed(() => String(route.query.tab || 'notes'))
-const toc = computed(() => (String(lesson.value?.content || '').replace(/\r\n?/g, '\n').match(/^#{1,3}\s+.+$/gm) || [])
-  .map((line: string, index: number) => ({ id: `lesson-section-${index + 1}`, title: line.replace(/^#{1,3}\s+/, ''), level: line.match(/^#+/)?.[0].length || 1 })))
+const lessonSlug = computed(() => String(route.params.slug || ''))
+const lessonComic = computed(() => {
+  const slug = lessonSlug.value
+  return Object.prototype.hasOwnProperty.call(lessonComics, slug)
+    ? lessonComics[slug as keyof typeof lessonComics]
+    : undefined
+})
+const comicPrompt = computed(() => {
+  const slug = lessonSlug.value
+  if (slug === 'arrays' && reviewing.value) return arrayReviewPrompt
+  return Object.prototype.hasOwnProperty.call(lessonComicPrompts, slug)
+    ? lessonComicPrompts[slug as keyof typeof lessonComicPrompts]
+    : undefined
+})
 function jumpToHeading(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
 const snippets = ref<any[]>([])
 const knowledge = ref<any[]>([])
@@ -32,6 +66,33 @@ const saving = ref(false)
 const lessonId = computed(() => lesson.value?.id as number | undefined)
 const isFavorite = computed(() => (lessonId.value ? progress.isFavorite(lessonId.value) : false))
 const isCompleted = computed(() => (lessonId.value ? progress.isCompleted(lessonId.value) : false))
+const markingDone = ref(false)
+const markError = ref('')
+
+function recordQuizResult(result: SelfCheckResult) {
+  if (!lessonId.value) return
+  if (result === 'PREDICTION_PASSED') selfCheckStage.value = Math.max(1, selfCheckStage.value)
+  if (result === 'PASSED' || result === 'REVIEWED') selfCheckStage.value = 2
+  quizWrites.push({ lessonId: lessonId.value, result })
+  void flushQuizResults()
+}
+
+async function flushQuizResults() {
+  if (savingQuiz) return
+  savingQuiz = true
+  quizError.value = false
+  try {
+    while (quizWrites.length) {
+      const { lessonId: id, result } = quizWrites[0]
+      await progress.saveSelfCheck(id, result)
+      quizWrites.shift()
+    }
+  } catch {
+    quizError.value = true
+  } finally {
+    savingQuiz = false
+  }
+}
 const savedPct = computed(() => {
   const p = lessonId.value ? progress.progressOf(lessonId.value) : null
   return p?.progressPct ?? 0
@@ -48,18 +109,20 @@ const lessonStudySeconds = computed(() => {
 })
 const lessonStudyMinutes = computed(() => Math.floor(lessonStudySeconds.value / 60))
 
-/** 滚动进度：按已读位置估算百分比，节流上报 */
-let ticking = false
+/** 记住刚读过的标题，并合并连续滚动产生的更新。 */
 function onScroll() {
-  if (ticking || !lessonId.value) return
-  ticking = true
-  requestAnimationFrame(() => {
-    ticking = false
-    const doc = document.documentElement
-    const total = doc.scrollHeight - doc.clientHeight
-    const pct = total <= 0 ? 100 : Math.min(100, Math.round((doc.scrollTop / total) * 100))
-    if (pct > savedPct.value) void reportProgress(pct)
-  })
+  if (!readingReady || !lessonId.value || activeTab.value === 'exercises' || reviewing.value) return
+  const navBottom = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 0
+  let section = ''
+  for (const heading of document.querySelectorAll('.md-body [id^="lesson-section-"]')) {
+    if (heading.getBoundingClientRect().top > navBottom + 24) break
+    section = heading.id
+  }
+  if (readingPosition?.readingSection !== section) {
+    readingPosition = { readingSection: section, readingRecordedAt: Date.now() }
+  }
+  clearTimeout(scrollSaveId)
+  scrollSaveId = window.setTimeout(() => { void reportProgress(currentPct()) }, 300)
 }
 
 // ------------------------------------------------------------------
@@ -85,7 +148,7 @@ let sessionSeconds = 0
 /** 各课时上次上报已计入的秒数，用于算出增量（切课时各自的增量不能混） */
 const reported = new Map<number, number>()
 /** 待上报队列：请求在途时新产生的上报先排队，避免被丢弃 */
-const pending: { lessonId: number; pct: number; seconds: number; sessionKey: string }[] = []
+const pending: { lessonId: number; pct: number; seconds: number; sessionKey: string; position?: ReadingPosition }[] = []
 /** 当前会话标识 */
 let sessionKey = ''
 /** 计时器 */
@@ -97,6 +160,7 @@ let settled = false
 
 /** 当前滚动进度百分比（心跳上报时一起带上） */
 function currentPct(): number {
+  if (activeTab.value === 'exercises' || reviewing.value) return savedPct.value
   const doc = document.documentElement
   const total = doc.scrollHeight - doc.clientHeight
   if (total <= 0) return 100
@@ -148,14 +212,20 @@ function persistSessionClock() {
 async function reportProgress(pct: number) {
   if (!lessonId.value) return
   // 排队时必须连课时 id 一起记下：等轮到它时 lessonId 可能已经切到别的课时
-  pending.push({ lessonId: lessonId.value, pct, seconds: sessionSeconds, sessionKey })
+  const last = pending[pending.length - 1]
+  const job = { lessonId: lessonId.value, pct, seconds: sessionSeconds, sessionKey, position: readingPosition }
+  if (last?.lessonId === job.lessonId && last.sessionKey === sessionKey) {
+    pending[pending.length - 1] = { ...job, pct: Math.max(last.pct, pct) }
+  } else {
+    pending.push(job)
+  }
   if (saving.value) return
   saving.value = true
   try {
     while (pending.length) {
       const job = pending.shift()!
       const delta = Math.max(0, job.seconds - (reported.get(job.lessonId) ?? 0))
-      await progress.save(job.lessonId, job.pct, job.seconds, delta, job.sessionKey)
+      await progress.save(job.lessonId, job.pct, job.seconds, delta, job.sessionKey, job.position)
       reported.set(job.lessonId, job.seconds)
       persistSessionClock()
     }
@@ -168,6 +238,7 @@ async function reportProgress(pct: number) {
 
 /** 结算并停止计时（切课、离开页面、页面隐藏时调用） */
 function stopTimer(flush = true) {
+  clearTimeout(scrollSaveId)
   if (timerId) {
     clearInterval(timerId)
     timerId = 0
@@ -255,6 +326,7 @@ function onPageHide() {
       lastSeconds: sessionSeconds,
       deltaSeconds: delta,
       sessionKey: key,
+      ...readingPosition,
     }),
   }).catch(() => {
     /* 页面正在卸载，请求失败也无法处理，忽略 */
@@ -266,34 +338,53 @@ function toggleFav() {
 }
 
 async function toggleDone() {
-  if (lessonId.value) await progress.markCompleted(lessonId.value, !isCompleted.value)
+  if (!lessonId.value || markingDone.value) return
+  markingDone.value = true
+  markError.value = ''
+  try {
+    await progress.markCompleted(lessonId.value, !isCompleted.value)
+  } catch (e) {
+    markError.value = errMsg(e)
+  } finally {
+    markingDone.value = false
+  }
 }
 
-/** 把 Markdown 正文渲染成 HTML：标题、列表、代码块、表格 */
-function renderMarkdown(src: string): string {
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const blocks: string[] = []
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/** 正文和目录共用标题锚点，围栏内的文本只参与代码渲染。 */
+function renderMarkdown(src: string) {
+  const blocks: { raw: string; html: string }[] = []
+  const headings: { id: string; title: string; level: number }[] = []
   // 换行统一为 \n：课程正文在库里是 CRLF，不归一会让下面的围栏正则匹配不到
   const normalized = String(src || '').replace(/\r\n?/g, '\n')
   // 先摘出代码块，避免被行内规则破坏；此处只留占位标识，代码块 HTML 在逐行渲染完成后回填
-  const text = normalized.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
+  const text = normalized.replace(/^ {0,3}```([\w+-]*)[ \t]*\n([\s\S]*?)^ {0,3}```[ \t]*$/gm, (_match, lang: string, code: string) => {
     // 只去掉结尾那个换行（它是闭合围栏的分隔符），其余缩进与空行原样保留
     const raw = String(code).replace(/\n$/, '')
     let html: string
     try {
       html = hljs.highlight(raw, { language: lang || 'java' }).value
     } catch {
-      html = esc(raw)
+      html = escapeHtml(raw)
     }
-    // class="hljs" 让 highlight.js 主题的基础前景色/背景色生效
-    blocks.push(`<pre class="md-code"><code class="hljs">${html}</code></pre>`)
-    return `%%BLOCK${blocks.length - 1}%%`
+    const index = blocks.length
+    const label = lang || 'java'
+    blocks.push({
+      raw,
+      html: `<div class="md-code-frame">
+        <div class="md-code-tools"><span>${label}</span><button type="button" data-code-index="${index}">复制代码</button></div>
+        <pre class="md-code" tabindex="0" aria-label="${label} 代码"><code class="hljs">${html}</code></pre>
+      </div>`,
+    })
+    return `%%BLOCK${index}%%`
   })
 
-  const lines = esc(text).split('\n')
+  const lines = text.split('\n')
   const out: string[] = []
   let inList: 'ul' | 'ol' | null = null
-  let headingIndex = 0
 
   const closeList = () => {
     if (inList) {
@@ -306,16 +397,18 @@ function renderMarkdown(src: string): string {
   const isTableSep = (l: string) => /^\|[\s:|-]+\|?$/.test(l.trim()) && l.includes('-')
   /** 拆出一行的单元格 */
   const cells = (l: string) =>
-    l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
+    l.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '').split(/(?<!\\)\|/)
+      .map((c) => c.trim().replace(/\\\|/g, '|'))
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i]
     const l = raw.trimEnd()
     // 代码块占位行：整块回填原始 HTML，不参与按行拆分，缩进才不会被打散
-    const blk = l.match(/^%%BLOCK(\d+)%%$/)
-    if (blk) {
+    const marker = l.match(/^%%BLOCK(\d+)%%$/)
+    const block = marker ? blocks[Number(marker[1])] : undefined
+    if (block) {
       closeList()
-      out.push(blocks[Number(blk[1])])
+      out.push(block.html)
       continue
     }
     // 表格：当前行以 | 开头且下一行是分隔行，整块按表格渲染
@@ -340,8 +433,10 @@ function renderMarkdown(src: string): string {
     if (h) {
       closeList()
       const lv = h[1].length
-      const anchor = lv <= 3 ? ` id="lesson-section-${++headingIndex}"` : ''
-      out.push(`<h${lv}${anchor} class="md-h md-h${lv}">${h[2]}</h${lv}>`)
+      const id = lv <= 3 ? `lesson-section-${headings.length + 1}` : ''
+      if (id) headings.push({ id, title: h[2], level: lv })
+      const anchor = id ? ` id="${id}"` : ''
+      out.push(`<h${lv}${anchor} class="md-h md-h${lv}">${inline(h[2])}</h${lv}>`)
     } else if (/^[-*]\s+/.test(l)) {
       if (inList !== 'ul') { closeList(); out.push('<ul>'); inList = 'ul' }
       // 任务列表：- [ ] 未完成 / - [x] 已完成
@@ -350,14 +445,14 @@ function renderMarkdown(src: string): string {
         const done = task[1].toLowerCase() === 'x'
         out.push(`<li class="md-task"><span class="md-check${done ? ' is-done' : ''}">${done ? '✓' : ''}</span>${inline(task[2])}</li>`)
       } else {
-        out.push(`<li>${l.replace(/^[-*]\s+/, '')}</li>`)
+        out.push(`<li>${inline(l.replace(/^[-*]\s+/, ''))}</li>`)
       }
     } else if (/^\d+[.)]\s+/.test(l)) {
       if (inList !== 'ol') { closeList(); out.push('<ol>'); inList = 'ol' }
-      out.push(`<li>${l.replace(/^\d+[.)]\s+/, '')}</li>`)
+      out.push(`<li>${inline(l.replace(/^\d+[.)]\s+/, ''))}</li>`)
     } else if (/^>\s?/.test(l)) {
       closeList()
-      out.push(`<blockquote>${l.replace(/^>\s?/, '')}</blockquote>`)
+      out.push(`<blockquote>${inline(l.replace(/^>\s?/, ''))}</blockquote>`)
     } else if (!l.trim()) {
       closeList()
     } else {
@@ -365,7 +460,7 @@ function renderMarkdown(src: string): string {
       const bold = l.trim().match(/^\*\*(.+)\*\*$/)
       if (bold) {
         closeList()
-        out.push(`<h4 class="md-h md-h4 md-subtitle">${bold[1]}</h4>`)
+        out.push(`<h4 class="md-h md-h4 md-subtitle">${inline(bold[1])}</h4>`)
         continue
       }
       closeList()
@@ -374,50 +469,99 @@ function renderMarkdown(src: string): string {
   }
   closeList()
 
-  return out.join('\n')
+  return { html: out.join('\n'), headings, blocks }
 }
 
-/** 行内格式：**粗体** `代码` */
 function inline(s: string): string {
-  return s
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+  return escapeHtml(s).replace(
+    /`([^`]+)`|\*\*((?:`[^`]*`|[^*`])+)\*\*/g,
+    (_match, code: string | undefined, strong: string | undefined) => code !== undefined
+      ? `<code>${code}</code>`
+      : `<strong>${strong!.replace(/`([^`]+)`/g, '<code>$1</code>')}</strong>`,
+  )
 }
 
-const contentHtml = computed(() => renderMarkdown(lesson.value?.content || ''))
+const whaleIllustration = import.meta.env.BASE_URL + 'assets/agent/meme-cute.png'
+const renderedLesson = computed(() => renderMarkdown(lesson.value?.content || ''))
+const toc = computed(() => renderedLesson.value.headings)
+
+async function copyLessonCode(event: MouseEvent) {
+  if (!(event.target instanceof Element)) return
+  const button = event.target.closest<HTMLButtonElement>('button[data-code-index]')
+  if (!button || button.disabled) return
+  const code = renderedLesson.value.blocks[Number(button.dataset.codeIndex)]?.raw
+  if (code === undefined) return
+  button.disabled = true
+  try {
+    await navigator.clipboard.writeText(code)
+    button.textContent = '已复制'
+  } catch {
+    button.textContent = '请手动复制'
+  } finally {
+    window.setTimeout(() => {
+      button.textContent = '复制代码'
+      button.disabled = false
+    }, 1800)
+  }
+}
+
+function scrollToQuiz() {
+  jumpToHeading(lessonSlug.value === 'arrays' && !reviewing.value ? 'array-check' : 'comic-check')
+}
+
+watch(quizArea, (area, _, onCleanup) => {
+  if (!area) return
+  const observer = new IntersectionObserver(([entry]) => {
+    document.body.classList.toggle('lesson-quiz-visible', entry.isIntersecting)
+  })
+  observer.observe(area)
+  onCleanup(() => {
+    observer.disconnect()
+    document.body.classList.remove('lesson-quiz-visible')
+  })
+})
 
 async function load(slug: string) {
+  const version = ++loadVersion
+  readingReady = false
+  if (lessonId.value) stopTimer(true)
+  readingPosition = undefined
+  selfCheckStage.value = 0
+  markError.value = ''
   loading.value = true
   error.value = ''
   // 切换课时：先结算上一个课时的时长，避免两个课时的秒数混在一起。
   // 会话标识不用在这里清 —— ensureSessionKey 里比较「当前正在学的课时」即可自动区分：
   // 课时没变（刷新）就复用同一把 key，课时变了就换新 key、计为新的一次学习。
-  const prevId = lesson.value?.id as number | undefined
   try {
     const r = await courseApi.lesson(slug)
+    if (version !== loadVersion) return
     const newId = (r.lesson || r).id as number | undefined
-    // 注意：结算必须在覆盖 lesson.value 之前做，
-    // 否则会把旧课时的会话标识记到新课时头上，导致学习次数错记
-    if (prevId && newId && prevId !== newId) {
-      stopTimer(true)
-    }
+    const stored = newId ? await progress.loadOne(newId) : null
+    if (version !== loadVersion) return
     // 后端返回的是平铺结构（无 lesson 嵌套）
     lesson.value = r.lesson || r
     snippets.value = r.snippets || []
     knowledge.value = r.knowledge || []
     prev.value = r.prev || null
     next.value = r.next || null
-    if (newId) {
-      void progress.loadOne(newId)
-      // 进入新课时：重新开始计时
-      startTimer(newId)
-    }
+    selfCheckStage.value = stored?.progress?.selfCheckStage ?? 0
     document.title = `${lesson.value?.title || '课时'} · Java 精通之路`
-    window.scrollTo({ top: 0 })
-  } catch (e) {
-    error.value = errMsg(e)
-  } finally {
     loading.value = false
+    await nextTick()
+    if (version !== loadVersion) return
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    if (reviewing.value) {
+      quizArea.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
+    } else if (route.query.resume === '1' && stored?.progress?.readingSection) {
+      document.getElementById(stored.progress.readingSection)?.scrollIntoView({ block: 'start', behavior: 'instant' })
+    }
+    if (newId) startTimer(newId)
+    requestAnimationFrame(() => { if (version === loadVersion) readingReady = true })
+  } catch (e) {
+    if (version === loadVersion) error.value = errMsg(e)
+  } finally {
+    if (version === loadVersion) loading.value = false
   }
 }
 
@@ -443,13 +587,14 @@ const revealedQa = ref<Record<number, boolean>>({})
 const lessonExercises = computed(() => {
   const lid = lesson.value?.id
   if (!lid) return []
-  return snippets.value.length ? exercises.value.filter((e) => e.lessonId === lid) : []
+  return exercises.value.filter((e) => e.lessonId === lid)
 })
 const lessonQa = computed(() => {
   const lid=lesson.value?.id
-  return lid ? qaItems.value.filter((q) => q.lessonId === lid && (snippets.value.length || q.qaType !== 'CODE')) : []
+  return lid ? qaItems.value.filter((q) => q.lessonId === lid && q.qaType !== 'CODE') : []
 })
 function qaOptions(raw: string) { try { const v=JSON.parse(raw||'[]'); return Array.isArray(v)?v:[] } catch { return [] } }
+function qaAnswerKey(raw: string) { return raw === 'TRUE' ? '正确' : raw === 'FALSE' ? '错误' : raw }
 
 async function loadCodeEnv() {
   try {
@@ -506,6 +651,7 @@ onMounted(() => {
   void courseApi.qa().then((list) => { qaItems.value=list }).catch(() => { qaItems.value=[] })
 })
 onUnmounted(() => {
+  loadVersion++
   window.removeEventListener('scroll', onScroll)
   document.removeEventListener('visibilitychange', onVisibilityChange)
   window.removeEventListener('pagehide', onPageHide)
@@ -514,7 +660,9 @@ onUnmounted(() => {
   // 作废旧标识统一交给 load() 里「真正切到另一个课时」的分支处理。
   stopTimer(true)
 })
-watch(() => route.params.slug, (s) => s && load(s as string))
+watch(() => route.params.slug, (slug) => {
+  if (typeof slug === 'string') void load(slug)
+})
 </script>
 
 <template>
@@ -530,34 +678,44 @@ watch(() => route.params.slug, (s) => s && load(s as string))
       <!-- 顶部标题 -->
       <header class="lesson__head card anim-pop">
         <div class="lesson__head-top">
-          <RouterLink to="/" class="lesson__crumb">← 课程目录</RouterLink>
+          <RouterLink :to="{ name: 'course', params: { slug: 'java-mastery' } }" class="lesson__crumb">← 课程目录</RouterLink>
           <button class="btn btn--sm btn--sun" @click="askAboutThis">🐳 问鲸鲸</button>
         </div>
-        <h1 class="lesson__title title-round">{{ lesson.title }}</h1>
-        <p class="lesson__summary">{{ lesson.summary }}</p>
+        <div class="lesson__intro">
+          <div class="lesson__intro-text">
+            <h1 class="lesson__title title-round">{{ lesson.title }}</h1>
+            <p class="lesson__summary">{{ lesson.summary }}</p>
+          </div>
+          <img v-if="!lessonComic || activeTab === 'exercises'" class="lesson__whale" :src="whaleIllustration" alt="蓝发鲸鱼小女仆鲸鲸" width="384" height="384" />
+        </div>
         <div class="lesson__meta">
           <span v-if="lesson.difficulty" class="badge badge--coral">{{ lesson.difficulty }}</span>
           <span v-if="lesson.durationMin" class="badge badge--mint">{{ lesson.durationMin }} 分钟</span>
           <span class="badge badge--sun">👁 {{ lesson.viewCount ?? 0 }} 次浏览</span>
           <span v-if="lessonStudyCount > 0" class="badge badge--mint">📘 我学了 {{ lessonStudyCount }} 次</span>
           <span v-if="lessonStudySeconds > 0" class="badge badge--lilac">⏱ 我学了 {{ lessonStudyMinutes }} 分钟</span>
-          <span v-if="savedPct > 0 && !isCompleted" class="badge badge--lilac">已读 {{ savedPct }}%</span>
+          <span v-if="savedPct > 0" class="badge badge--lilac">已读 {{ savedPct }}%</span>
         </div>
 
         <!-- 阅读进度条 -->
         <div class="readbar" :title="`阅读进度 ${savedPct}%`">
-          <div class="readbar__fill" :style="{ width: `${isCompleted ? 100 : savedPct}%` }" />
+          <div class="readbar__fill" :style="{ width: `${savedPct}%` }" />
         </div>
 
         <!-- 操作条 -->
         <div class="lesson__actions">
-          <button class="btn btn--sm" :class="isCompleted ? 'btn--mint' : 'btn--ghost'" @click="toggleDone">
+          <button class="btn btn--sm" :class="isCompleted ? 'btn--mint' : 'btn--ghost'" :disabled="markingDone" @click="toggleDone">
             {{ isCompleted ? '✓ 已完成' : '标记完成' }}
           </button>
           <button class="btn btn--sm" :class="isFavorite ? 'btn--sun' : 'btn--ghost'" @click="toggleFav">
             {{ isFavorite ? '★ 已收藏' : '☆ 收藏本节' }}
           </button>
+          <button v-if="lessonComic && activeTab !== 'exercises'" class="btn btn--sm btn--ghost" @click="scrollToQuiz">
+            🐳 漫画自测
+          </button>
+          <span v-if="selfCheckStage >= 2" class="badge badge--mint">自测通过</span>
           <span v-if="saving" class="lesson__saving">进度保存中…</span>
+          <span v-if="markError" class="lesson__saving" role="alert">{{ markError }}</span>
         </div>
       </header>
 
@@ -567,10 +725,10 @@ watch(() => route.params.slug, (s) => s && load(s as string))
         <RouterLink v-if="lessonExercises.length||lessonQa.length" :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'exercises' } }" :class="{ active: activeTab === 'exercises' }">习题</RouterLink>
       </nav>
 
-      <div v-if="activeTab !== 'exercises'" class="lesson__grid">
+      <div v-show="activeTab !== 'exercises'" class="lesson__grid">
         <!-- 正文 -->
         <article class="lesson__body card">
-          <div class="md-body" v-html="contentHtml" />
+          <div class="md-body" v-html="renderedLesson.html" @click="copyLessonCode" />
 
           <section v-if="snippets.length" class="notebook-examples">
             <div class="section-head"><span class="dot" /><h2>本节代码示例</h2><span class="line" /></div>
@@ -596,6 +754,30 @@ watch(() => route.params.slug, (s) => s && load(s as string))
             </div>
           </section>
 
+          <div v-if="lessonComic" ref="quizArea" class="lesson-quiz-area">
+            <ArrayBoundaryCheck v-if="lessonSlug === 'arrays' && !reviewing" :stage="selfCheckStage" @result="recordQuizResult">
+              <template #explanation>
+                <LessonIllustration :slug="lessonSlug" :title="lessonComic.title" :description="lessonComic.description" />
+              </template>
+            </ArrayBoundaryCheck>
+            <LessonComicCheck
+              v-else-if="comicPrompt"
+              :key="lessonSlug + ':' + reviewing"
+              :prompt="comicPrompt"
+              :reviewing="reviewing"
+              :passed="!reviewing && selfCheckStage >= 2"
+              @result="recordQuizResult"
+            >
+              <template #explanation>
+                <LessonIllustration :slug="lessonSlug" :title="lessonComic.title" :description="lessonComic.description" />
+              </template>
+            </LessonComicCheck>
+            <p v-if="quizError" role="alert">
+              自测记录暂未保存。
+              <button type="button" class="btn btn--sm btn--ghost" @click="flushQuizResults">重试保存</button>
+            </p>
+          </div>
+
           <!-- 上下课时 -->
           <nav class="lesson__nav">
             <RouterLink v-if="prev" :to="`/lesson/${prev.slug}`" class="lesson__nav-btn card">
@@ -603,7 +785,7 @@ watch(() => route.params.slug, (s) => s && load(s as string))
               <strong>{{ prev.title }}</strong>
             </RouterLink>
             <span v-else />
-            <RouterLink v-if="next" :to="`/lesson/${next.slug}`" class="lesson__nav-btn card lesson__nav-btn--next">
+            <RouterLink v-if="next && (lessonSlug !== 'arrays' || isCompleted || selfCheckStage >= 2)" :to="`/lesson/${next.slug}`" class="lesson__nav-btn card lesson__nav-btn--next">
               <span class="dir">下一节 →</span>
               <strong>{{ next.title }}</strong>
             </RouterLink>
@@ -632,13 +814,13 @@ watch(() => route.params.slug, (s) => s && load(s as string))
           </div>
         </aside>
       </div>
-      <section v-else class="card lesson-exercises-panel">
+      <section v-if="activeTab === 'exercises'" class="card lesson-exercises-panel">
         <div class="section-head"><span class="dot" /><h2>课后练习</h2><span class="line" /></div>
-        <div v-if="snippets.length&&lessonExercises.length" class="ex-list"><RouterLink v-for="e in lessonExercises" :key="e.id" :to="`/exercise/${e.slug}`" class="ex-list__item"><strong>{{ e.title }}</strong><span class="badge badge--sun">{{ e.difficulty }}</span><span class="ex-list__go">去做题 →</span></RouterLink></div>
-        <article v-for="q in lessonQa" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':'练习题' }}</span><strong>{{ q.question }}</strong>
+        <div v-if="lessonExercises.length" class="ex-list"><RouterLink v-for="e in lessonExercises" :key="e.id" :to="`/exercise/${e.slug}`" class="ex-list__item"><strong>{{ e.title }}</strong><span class="badge badge--sun">{{ e.difficulty }}</span><span class="ex-list__go">去做题 →</span></RouterLink></div>
+        <article v-for="q in lessonQa" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'||q.qaType==='SINGLE_CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':q.qaType==='SHORT_ANSWER'?'简答题':'练习题' }}</span><strong>{{ q.question }}</strong>
           <ul v-if="q.options" class="quiz-options"><li v-for="(opt,i) in qaOptions(q.options)" :key="i">{{ opt }}</li></ul>
           <button class="btn btn--sm btn--mint" @click="revealedQa[q.id]=!revealedQa[q.id]">{{revealedQa[q.id]?'收起答案':'查看答案'}}</button>
-          <div v-if="revealedQa[q.id]" class="quiz-answer"><p>{{q.answer}}</p><b v-if="q.answerKey">答案：{{q.answerKey}}</b></div>
+          <div v-if="revealedQa[q.id]" class="quiz-answer"><p>{{q.answer}}</p><b v-if="q.answerKey">答案：{{qaAnswerKey(q.answerKey)}}</b></div>
         </article>
       </section>
     </template>
@@ -646,6 +828,13 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 </template>
 
 <style scoped>
+.lesson-quiz-area { scroll-margin-top: calc(var(--nav-h) + 16px); }
+@media (max-width: 720px) {
+  :global(body:has(.lesson-page .md-body) .pet-layer),
+  :global(body.lesson-quiz-visible .pet-layer) { display: none; }
+  :global(body:has(.lesson-page .md-body) .fab),
+  :global(body.lesson-quiz-visible .fab) { width: 44px; height: 44px; right: 12px; bottom: 12px; }
+}
 .lesson-page { padding-top: var(--space-lg); }
 .lesson__loading { display: grid; place-items: center; padding: 70px 0; }
 .lesson__error { padding: 40px; text-align: center; }
@@ -677,7 +866,7 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 .lesson__saving { font-size: 12px; color: var(--c-ink-faint); }
 
 .lesson__grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
-.lesson__body { padding: 28px 32px; }
+.lesson__body { min-width: 0; padding: clamp(16px, 3vw, 32px); }
 .lesson-tabs { display: flex; gap: 8px; padding: 9px; margin: 0 0 18px; width: max-content; max-width: 100%; }
 .lesson-tabs a { padding: 9px 18px; border-radius: 999px; text-decoration: none; color: var(--c-ink-soft); font-weight: 800; }
 .lesson-tabs a.active { background: var(--c-mint); color: #fff; }
@@ -697,24 +886,28 @@ watch(() => route.params.slug, (s) => s && load(s as string))
 .lesson__side { grid-column: 1; grid-row: 1; }
 .lesson__body { grid-column: 2; grid-row: 1; }
 
-.md-body :deep(.md-h) {
-  margin: 26px 0 12px;
-  font-family: var(--font-round);
-  font-weight: 800;
-}
-.md-body :deep(.md-h1) { font-size: 25px; }
-.md-body :deep(.md-h2) { font-size: 21px; padding-left: 12px; border-left: 6px solid var(--c-mint); }
-.md-body :deep(.md-h3) { font-size: 18px; }
-.md-body :deep(.md-h4) { font-size: 16px; }
-/* 独占一行的加粗小标题 */
-.md-body :deep(.md-subtitle) {
-  margin: 20px 0 8px;
+.md-body {
+  max-width: 760px;
+  margin-inline: auto;
   color: var(--c-ink);
-  font-weight: 700;
+  font: 400 clamp(1rem, .96rem + .16vw, 1.0625rem) / 1.75 var(--font-body);
+  overflow-wrap: anywhere;
 }
-.md-body :deep(p) { margin: 12px 0; line-height: 1.95; }
-.md-body :deep(ul), .md-body :deep(ol) { margin: 12px 0; padding-left: 26px; line-height: 2; }
-.md-body :deep(li) { margin-bottom: 4px; }
+.md-body :deep(.md-h) {
+  scroll-margin-top: calc(var(--nav-h) + 16px);
+  margin: 30px 0 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.md-body :deep(.md-h:first-child) { margin-top: 0; }
+.md-body :deep(.md-h1) { font-size: 24px; }
+.md-body :deep(.md-h2) { font-size: 21px; padding-left: 10px; border-left: 3px solid var(--c-mint); }
+.md-body :deep(.md-h3) { font-size: 18px; }
+.md-body :deep(.md-h4) { font-size: 1rem; }
+.md-body :deep(.md-subtitle) { margin: 20px 0 8px; }
+.md-body :deep(p) { margin: 10px 0 14px; }
+.md-body :deep(ul), .md-body :deep(ol) { margin: 10px 0 16px; padding-inline-start: 1.45em; }
+.md-body :deep(li + li) { margin-top: 6px; }
 /* 任务列表：- [ ] / - [x] */
 .md-body :deep(.md-task) {
   list-style: none;
@@ -739,7 +932,7 @@ watch(() => route.params.slug, (s) => s && load(s as string))
   line-height: 14px;
   text-align: center;
 }
-.md-body :deep(strong) { color: var(--c-coral-deep); }
+.md-body :deep(strong) { color: var(--c-ink); font-weight: 700; }
 .md-body :deep(blockquote) {
   margin: 14px 0;
   padding: 12px 16px;
@@ -749,12 +942,11 @@ watch(() => route.params.slug, (s) => s && load(s as string))
   color: var(--c-ink-soft);
 }
 .md-body :deep(code) {
-  padding: 2px 7px;
+  padding: .12em .32em;
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: .88em;
   background: var(--c-cream-deep);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 /* 表格：正文里的表格由 v-html 注入（不带 scoped 属性），必须用 :deep() 命中 */
 .md-body :deep(.md-table-wrap) {
@@ -819,6 +1011,44 @@ watch(() => route.params.slug, (s) => s && load(s as string))
   white-space: pre;
   tab-size: 4;
   -moz-tab-size: 4;
+}
+
+.md-body :deep(.md-code-frame) {
+  margin: 16px 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.md-body :deep(.md-code-tools) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--c-cream-deep);
+  color: var(--c-ink-soft);
+  font-size: .8rem;
+  font-family: var(--font-mono);
+}
+.md-body :deep(.md-code-tools button) {
+  padding: 4px 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font: 500 .8rem var(--font-body);
+  cursor: pointer;
+}
+.md-body :deep(.md-code-frame .md-code) {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 14px 16px;
+  overflow-wrap: normal;
+}
+.md-body :deep(.md-code-frame .md-code:focus-visible) {
+  outline-offset: -2px;
 }
 
 /* 暗色主题下代码块与高亮色跟随系统偏好，保证明暗两套主题下缩进与配色都正常 */
@@ -992,4 +1222,8 @@ watch(() => route.params.slug, (s) => s && load(s as string))
   .notebook-example { background: rgba(255,255,255,.035); border-color: var(--c-line-dark); }
   .notebook-example pre { background: var(--code-surface-dark); color: var(--code-ink-dark); }
 }
+/* Reserve room for the course mascot even before the image loads. */
+.lesson__intro { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lesson__intro-text { flex: 1; min-width: 0; }
+.lesson__whale { display: block; width: clamp(78px, 14vw, 150px); height: auto; flex: none; object-fit: contain; border-radius: 12px; }
 </style>

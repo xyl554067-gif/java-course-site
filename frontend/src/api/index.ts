@@ -54,6 +54,28 @@ export interface KnowledgePoint {
   description?: string
 }
 
+export interface QaItem {
+  id: number
+  lessonId: number | null
+  lessonTitle?: string | null
+  lessonSlug?: string | null
+  question: string
+  answer: string
+  options: string | null
+  answerKey: string | null
+  qaType: 'CHOICE' | 'JUDGE' | 'SHORT_ANSWER' | string
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string
+  mine: boolean
+}
+
+export interface QaLessonOption {
+  id: number
+  title: string
+  slug: string
+  moduleTitle: string
+  courseTitle: string
+}
+
 export interface SearchHit {
   id: number
   targetType: string
@@ -83,28 +105,17 @@ export interface Citation {
 export interface AskResult {
   answer: string
   citations: Citation[]
-  sessionId: number
   latencyMs: number
   agent: AgentProfile
-  /** 实际生效的模型通道：openai / ollama / local */
+  /** 实际生效的回答来源 */
   provider?: string
   /** 是否走了降级（true = 首选通道未成功，用了兜底） */
   degraded?: boolean
+  blocked?: boolean
 }
 
-/** AI 通道诊断信息 */
 export interface AiHealth {
-  provider: string
-  baseUrl: string
-  model: string
-  fallbackOrder: string
-  ollamaBaseUrl: string
-  ollamaModel: string
-  timeoutMs: number
-  openaiConfigured: boolean
-  effective: string
-  degraded: boolean
-  note: string
+  ready: boolean
 }
 
 // ---------------- 代码实验室类型 ----------------
@@ -194,17 +205,20 @@ export interface CodeSubmission {
 
 // ---------------- 接口 ----------------
 
+const AUTH_TIMEOUT_MS = 90_000
+
 export const authApi = {
+  warmup: () => http.get('/health', { timeout: AUTH_TIMEOUT_MS }),
   login: (username: string, password: string) =>
     request<{ token: string; expiresIn: number; user: any }>(
-      http.post('/auth/login', { username, password }),
+      http.post('/auth/login', { username, password }, { timeout: AUTH_TIMEOUT_MS }),
     ),
   register: (username: string, password: string, nickname: string) =>
     request<{ token: string; expiresIn: number; user: any }>(
-      http.post('/auth/register', { username, password, nickname }),
+      http.post('/auth/register', { username, password, nickname }, { timeout: AUTH_TIMEOUT_MS }),
     ),
-  logout: () => request<void>(http.post('/auth/logout')),
-  me: () => request<any>(http.get('/auth/me')),
+  logout: (token: string) => request<void>(http.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` } })),
+  me: (token: string) => request<any>(http.get('/auth/me', { timeout: AUTH_TIMEOUT_MS, headers: { Authorization: `Bearer ${token}` } })),
 }
 
 export const courseApi = {
@@ -212,7 +226,12 @@ export const courseApi = {
   detail: (slug: string) => request<any>(http.get(`/course/${slug}`)),
   modules: () => request<CourseModule[]>(http.get('/modules')),
   lesson: (slug: string) => request<any>(http.get(`/lesson/${slug}`)),
-  qa: () => request<any[]>(http.get('/qa/list')),
+  qa: () => request<QaItem[]>(http.get('/qa/list')),
+  qaLessons: () => request<QaLessonOption[]>(http.get('/qa/lessons')),
+  createQa: (item: Record<string, unknown>) => request<QaItem>(http.post('/qa/items', item)),
+  updateQa: (id: number, item: Record<string, unknown>) => request<QaItem>(http.put(`/qa/items/${id}`, item)),
+  deleteQa: (id: number) => request<void>(http.delete(`/qa/items/${id}`)),
+  importQa: (items: Record<string, unknown>[]) => request<{ imported: number; skipped: number; total: number }>(http.post('/qa/import', { items })),
 }
 
 export const searchApi = {
@@ -220,10 +239,20 @@ export const searchApi = {
   suggest: (q: string) => request<string[]>(http.get('/search/suggest', { params: { q } })),
 }
 
+export interface AssistantRequestOptions {
+  localOnly?: boolean
+  lessonSlug?: string
+}
+
 export const aiApi = {
   agent: () => request<AgentProfile>(http.get('/ai/agent')),
-  ask: (question: string, sessionTitle?: string) =>
-    request<AskResult>(http.post('/ai/ask', { question, sessionTitle })),
+  ask: (question: string, token: string, signal: AbortSignal, options: AssistantRequestOptions) =>
+    request<AskResult>(http.post(options.localOnly ? '/ai/ask/local' : '/ai/ask', {
+      question, lessonSlug: options.lessonSlug,
+    }, { headers: { Authorization: `Bearer ${token}` }, signal })),
+  clearLegacyHistory: (token: string) => request<{ removed: number }>(
+    http.delete('/ai/history', { headers: { Authorization: `Bearer ${token}` } }),
+  ),
   health: () => request<AiHealth>(http.get('/ai/health')),
 }
 
@@ -231,8 +260,21 @@ export interface GeneratedLesson { title: string; summary?: string; content: str
 export interface GeneratedModule { title: string; lessons: GeneratedLesson[]; }
 export interface GeneratedCourse { title: string; description?: string; learningObjectives?: string[]; prerequisites?: string[]; modules: GeneratedModule[]; }
 export interface GeneratedCourseRecord { id: number; title: string; status: 'DRAFT' | 'PUBLISHED'; course: GeneratedCourse; sourceName?: string; sourceUrl?: string; sourceText?: string; shareToken?: string; shareRevoked?: boolean; provider?: string; degraded?: boolean; aiNote?: string; }
+export interface FileRedactionPreview { sourceName: string; format: string; text: string; matches: number }
 export const generatedCourseApi = {
-  importFile: (file: File) => { const form = new FormData(); form.append('file', file); return request<GeneratedCourseRecord>(http.post('/ai/courses/import/file', form, { timeout: 120000 })); },
+  previewFile: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<FileRedactionPreview>(http.post('/ai/courses/import/file/preview', form, { timeout: 120000 }))
+  },
+  importReviewedFile: (format: string, text: string) =>
+    request<GeneratedCourseRecord>(http.post('/ai/courses/import/file/reviewed', { format, text }, { timeout: 120000 })),
+  importFile: (file: File, redact = true) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('redact', String(redact))
+    return request<GeneratedCourseRecord>(http.post('/ai/courses/import/file', form, { timeout: 120000 }))
+  },
   importUrl: (url: string) => request<GeneratedCourseRecord>(http.post('/ai/courses/import/url', { url }, { timeout: 120000 })),
   list: () => request<any[]>(http.get('/ai/courses')),
   get: (id: number) => request<GeneratedCourseRecord>(http.get(`/ai/courses/${id}`)),
@@ -248,15 +290,35 @@ export const profileApi = {
   update: (profile: { nickname: string; avatar: string; email: string }) => request<any>(http.put('/profile', profile)),
   calendar: (year: number, month: number) => request<Array<{ date: string; seconds: number; completed: number }>>(http.get('/profile/calendar', { params: { year, month } })),
   achievements: () => request<Array<{ id: string; title: string; description: string; unlocked: boolean }>>(http.get('/profile/achievements')),
-  aiConfig: () => request<AiConfigStatus>(http.get('/profile/ai-config')),
-  saveAiConfig: (config: { baseUrl: string; model: string; apiKey?: string }) => request<AiConfigStatus>(http.put('/profile/ai-config', config)),
-  testAiConfig: (config: { baseUrl: string; model: string; apiKey?: string }) => request<{ ok: boolean; message: string; latencyMs: number }>(http.post('/profile/ai-config/test', config)),
-  clearAiConfig: () => request<void>(http.delete('/profile/ai-config')),
+  aiConfig: (token: string) => request<AiConfigStatus>(
+    http.get('/profile/ai-config', { headers: { Authorization: `Bearer ${token}` } }),
+  ),
+  saveAiConfig: (config: { baseUrl: string; model: string; apiKey?: string }, token: string) => request<AiConfigStatus>(
+    http.put('/profile/ai-config', config, { headers: { Authorization: `Bearer ${token}` } }),
+  ),
+  testAiConfig: (config: { baseUrl: string; model: string; apiKey?: string }, token: string) =>
+    request<{ ok: boolean; message: string; latencyMs: number }>(
+      http.post('/profile/ai-config/test', config, { headers: { Authorization: `Bearer ${token}` } }),
+    ),
+  clearAiConfig: (token: string) => request<void>(
+    http.delete('/profile/ai-config', { headers: { Authorization: `Bearer ${token}` } }),
+  ),
 }
 
 export interface AiConfigStatus { configured: boolean; encryptionReady: boolean; baseUrl?: string; model?: string; apiKeyConfigured: boolean; apiKeyHint?: string; }
 
 export const codeApi = {
+  exportProject: async (code: string, stdin: string) => {
+    try {
+      return await http.post<Blob, Blob>('/code/export', { code, stdin }, { responseType: 'blob' })
+    } catch (e: any) {
+      const body = e?.response?.data
+      const error = body instanceof Blob ? await body.text().then(text => {
+        try { return JSON.parse(text).message } catch { return null }
+      }) : null
+      throw new Error(error || '工程导出失败，请重试')
+    }
+  },
   /** 代码执行环境自检：JDK 是否就绪 */
   runtime: () => request<CodeRuntime>(http.get('/code/runtime')),
   /**
@@ -282,4 +344,3 @@ export const codeApi = {
   submissions: (exerciseId?: number) =>
     request<CodeSubmission[]>(http.get('/code/submissions', { params: exerciseId ? { exerciseId } : {} })),
 }
-

@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
  * 课程内容仓储：课程 / 模块 / 课时 / 代码片段 / 知识点 / 问答
@@ -293,7 +295,7 @@ public class CourseRepository {
         String like = "%" + keyword + "%";
         List<Object> args = new ArrayList<>();
         StringBuilder where = new StringBuilder(
-                "WHERE l.title LIKE ? OR l.summary LIKE ? OR l.content LIKE ?");
+                "WHERE c.status = 'PUBLISHED' AND (l.title LIKE ? OR l.summary LIKE ? OR l.content LIKE ?");
         args.add(like);
         args.add(like);
         args.add(like);
@@ -307,21 +309,30 @@ public class CourseRepository {
             args.add(tk);
             args.add(tk);
         }
+        where.append(")");
         args.add(limit);
-        List<Map<String, Object>> out = new ArrayList<>();
-        jdbc.query(
+        return jdbc.query(
                 "SELECT l.id, l.title, l.slug, l.summary, l.content FROM lesson l "
+                        + "JOIN course_module m ON m.id = l.module_id JOIN course c ON c.id = m.course_id "
                         + where
                         + " ORDER BY l.sort_order LIMIT ?",
-                rs -> {
-                    Map<String, Object> m = new HashMap<>();
-                    m.put("id", rs.getLong("id"));
-                    m.put("title", rs.getString("title"));
-                    m.put("slug", rs.getString("slug"));
-                    m.put("summary", rs.getString("summary"));
-                    m.put("content", rs.getString("content"));
-                    out.add(m);
-                }, args.toArray());
-        return out;
+                (rs, row) -> assistantLesson(rs), args.toArray());
+    }
+
+    public Map<String, Object> findPublicAssistantLesson(String slug) {
+        return jdbc.query("SELECT l.id, l.title, l.slug, l.summary, l.content FROM lesson l "
+                        + "JOIN course_module m ON m.id = l.module_id JOIN course c ON c.id = m.course_id "
+                        + "WHERE c.status = 'PUBLISHED' AND l.slug = ?",
+                (rs, row) -> assistantLesson(rs), slug).stream().findFirst().orElse(Map.of());
+    }
+
+    private Map<String, Object> assistantLesson(ResultSet rs) throws SQLException {
+        Map<String, Object> lesson = new HashMap<>();
+        lesson.put("id", rs.getLong("id"));
+        lesson.put("title", rs.getString("title"));
+        lesson.put("slug", rs.getString("slug"));
+        lesson.put("summary", rs.getString("summary"));
+        lesson.put("content", rs.getString("content"));
+        return lesson;
     }
 }

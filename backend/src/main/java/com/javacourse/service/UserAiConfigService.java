@@ -30,12 +30,17 @@ public class UserAiConfigService {
         this.encryptionSecret = encryptionSecret == null ? "" : encryptionSecret.trim();
     }
 
-    public record ModelConfig(String baseUrl, String model, String apiKey) {}
+    public record ModelConfig(String baseUrl, String model, String apiKey) {
+        @Override
+        public String toString() {
+            return "ModelConfig[credentials hidden]";
+        }
+    }
 
     public Map<String, Object> status(long userId) {
         Map<String, Object> result = new HashMap<>();
         result.put("configured", hasConfig(userId));
-        result.put("encryptionReady", !encryptionSecret.isBlank());
+        result.put("encryptionReady", encryptionSecret.length() >= 32);
         jdbc.query("SELECT base_url,model,encrypted_key FROM user_ai_config WHERE user_id=?", rs -> {
             result.put("baseUrl", rs.getString("base_url"));
             result.put("model", rs.getString("model"));
@@ -60,10 +65,7 @@ public class UserAiConfigService {
         String url = validateBaseUrl(baseUrl);
         String modelName = clean(model, 160);
         if (modelName.isBlank()) throw new IllegalArgumentException("请填写模型名称");
-        String key = apiKey == null ? "" : apiKey.trim();
-        ModelConfig existing = get(userId);
-        if (key.isBlank() && existing != null) key = existing.apiKey();
-        if (key.isBlank()) throw new IllegalArgumentException("请填写 API Key");
+        String key = keyForEndpoint(userId, url, apiKey);
         ensureEncryptionConfigured();
         String encrypted = encrypt(key);
         jdbc.update("INSERT INTO user_ai_config(user_id,base_url,model,encrypted_key,updated_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP) "
@@ -81,35 +83,48 @@ public class UserAiConfigService {
         String url = validateBaseUrl(baseUrl);
         String modelName = clean(model, 160);
         if (modelName.isBlank()) throw new IllegalArgumentException("请填写模型名称");
-        String key = apiKey == null ? "" : apiKey.trim();
-        if (key.isBlank()) {
-            ModelConfig existing = get(userId);
-            if (existing != null) key = existing.apiKey();
+        return new ModelConfig(url, modelName, keyForEndpoint(userId, url, apiKey));
+    }
+
+    private String keyForEndpoint(long userId, String url, String input) {
+        String key = input == null ? "" : input.trim();
+        if (!key.isEmpty()) {
+            if (key.length() > 3000 || !key.matches("[!-~]+")) {
+                throw new IllegalArgumentException("API Key 格式无效");
+            }
+            return key;
         }
-        if (key.isBlank()) throw new IllegalArgumentException("请填写 API Key");
-        return new ModelConfig(url, modelName, key);
+        var stored = jdbc.query("SELECT base_url,encrypted_key FROM user_ai_config WHERE user_id=?",
+                (rs, row) -> Map.entry(rs.getString("base_url"), rs.getString("encrypted_key")), userId);
+        if (!stored.isEmpty()) {
+            var entry = stored.get(0);
+            if (!url.equals(entry.getKey())) {
+                throw new IllegalArgumentException("更换接口地址时，请填写该服务商的 API Key");
+            }
+            String saved = decrypt(entry.getValue());
+            if (!saved.isBlank()) return saved;
+        }
+        throw new IllegalArgumentException("请填写 API Key");
     }
 
     public String validateBaseUrl(String value) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException("请填写兼容接口地址");
         String raw = value.trim().replaceAll("/+$", "");
+        if (raw.length() > 1000) throw new IllegalArgumentException("接口地址太长");
+        URI uri;
         try {
-            URI uri = URI.create(raw);
-            if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
-                    || uri.getUserInfo() != null || uri.getFragment() != null || uri.getQuery() != null) {
-                throw new IllegalArgumentException("接口地址必须是公开 HTTPS 地址，不能包含账号密码或片段");
-            }
-            InetAddress[] addresses = InetAddress.getAllByName(uri.getHost());
-            for (InetAddress address : addresses) {
-                if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-                        || address.isSiteLocalAddress() || address.isMulticastAddress()) {
-                    throw new IllegalArgumentException("为保护账号安全，接口地址不能指向本机或内网服务");
-                }
-            }
-            return raw;
+            uri = URI.create(raw);
         } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
+            throw new IllegalArgumentException("接口地址无效，请使用公开 HTTPS 地址");
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
+                || uri.getUserInfo() != null || uri.getFragment() != null || uri.getQuery() != null) {
+            throw new IllegalArgumentException("接口地址必须是公开 HTTPS 地址，且不能包含凭据、查询参数或片段");
+        }
+        try {
+            PublicModelDns.requirePublic(InetAddress.getAllByName(uri.getHost()));
+            return raw;
+        } catch (java.net.UnknownHostException e) {
             throw new IllegalArgumentException("接口地址无效或无法解析，请使用公开 HTTPS 地址");
         }
     }
@@ -142,7 +157,7 @@ public class UserAiConfigService {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(derivedKey(), "AES"), new GCMParameterSpec(128, nonce));
             return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
-        } catch (Exception e) { throw new IllegalStateException("无法解密已保存的 API Key，请检查 AI_CONFIG_ENCRYPTION_KEY 是否与保存时一致"); }
+        } catch (Exception e) { throw new IllegalStateException("无法读取已保存的 API Key，请重新填写"); }
     }
 
     private byte[] derivedKey() throws Exception {
@@ -152,7 +167,7 @@ public class UserAiConfigService {
 
     private void ensureEncryptionConfigured() {
         if (encryptionSecret.length() < 32) {
-            throw new IllegalStateException("后端尚未配置 AI_CONFIG_ENCRYPTION_KEY（至少 32 个字符），暂不能保存账号 API Key");
+            throw new IllegalStateException("站点暂不能保存账号 API Key");
         }
     }
 
@@ -162,4 +177,3 @@ public class UserAiConfigService {
         return result.length() > max ? result.substring(0, max) : result;
     }
 }
-

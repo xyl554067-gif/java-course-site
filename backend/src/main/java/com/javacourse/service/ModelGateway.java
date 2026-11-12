@@ -1,6 +1,18 @@
 package com.javacourse.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.javacourse.config.AppProperties;
+import jakarta.annotation.PreDestroy;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.util.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -10,6 +22,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +67,12 @@ public class ModelGateway {
 
     private static final Logger log = LoggerFactory.getLogger(ModelGateway.class);
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final AppProperties props;
     private final UserAiConfigService userConfigs;
     private final HttpClient http;
+    private final CloseableHttpClient accountHttp;
 
     public ModelGateway(AppProperties props, UserAiConfigService userConfigs) {
         this.props = props;
@@ -65,8 +81,25 @@ public class ModelGateway {
                 .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
+        this.accountHttp = HttpClients.custom()
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setDnsResolver(new PublicModelDns())
+                        .setDefaultConnectionConfig(ConnectionConfig.custom()
+                                .setConnectTimeout(Timeout.ofSeconds(5)).build())
+                        .setMaxConnTotal(16)
+                        .setMaxConnPerRoute(4)
+                        .build())
+                .disableRedirectHandling()
+                .disableAutomaticRetries()
+                .disableCookieManagement()
+                .disableAuthCaching()
+                .build();
     }
 
+    @PreDestroy
+    void closeAccountClient() throws java.io.IOException {
+        accountHttp.close();
+    }
     /**
      * 一次模型调用的结果。
      *
@@ -90,17 +123,17 @@ public class ModelGateway {
         UserAiConfigService.ModelConfig accountConfig;
         try { accountConfig = userConfigs.get(userId); }
         catch (Exception e) {
-            log.warn("[ModelGateway] 账号模型配置不可用：{}", rootMessage(e));
+            log.warn("[ModelGateway] 账号模型配置不可用：{}", safeFailure(e));
             return new Result(fallbackJson, "local", true, "账号 AI 配置不可用，已生成基于资料的可编辑草稿", System.currentTimeMillis() - start);
         }
         if (accountConfig != null) {
             try {
-                String answer = postChat(accountConfig.baseUrl(), accountConfig.model(), accountConfig.apiKey(), systemPrompt, userPrompt, 6000);
+                String answer = postAccountChat(accountConfig, systemPrompt, userPrompt, 6000);
                 return new Result(answer, "account", false, "", System.currentTimeMillis() - start);
             } catch (Exception e) {
-                log.warn("[ModelGateway] 账号模型配置调用失败：{}", rootMessage(e));
+                log.warn("[ModelGateway] 账号模型配置调用失败：{}", safeFailure(e));
                 return new Result(fallbackJson, "local", true,
-                        "账号 AI 接口暂不可用，已生成基于资料的可编辑草稿：" + rootMessage(e), System.currentTimeMillis() - start);
+                        "账号 AI 接口暂不可用，已生成基于资料的可编辑草稿：" + safeFailure(e), System.currentTimeMillis() - start);
             }
         }
         String provider = props.getAi().getProvider() == null ? "auto" : props.getAi().getProvider().toLowerCase();
@@ -114,7 +147,7 @@ public class ModelGateway {
                         case "openai" -> postChat(props.getAi().getBaseUrl(), props.getAi().getModel(),
                                 props.getAi().getApiKey(), systemPrompt, userPrompt, 6000);
                         case "ollama" -> postChat(props.getAi().getOllamaBaseUrl(), props.getAi().getOllamaModel(),
-                                "ollama", systemPrompt, userPrompt, 6000);
+                                null, systemPrompt, userPrompt, 6000);
                         default -> null;
                     };
                     if (answer != null && !answer.isBlank())
@@ -122,8 +155,8 @@ public class ModelGateway {
                                 System.currentTimeMillis() - start);
                     failures.add(p + "：返回内容为空");
                 } catch (Exception e) {
-                    failures.add(p + "：" + rootMessage(e));
-                    log.warn("[ModelGateway] 课程生成通道 {} 调用失败：{}", p, rootMessage(e));
+                    failures.add(p + "：" + safeFailure(e));
+                    log.warn("[ModelGateway] 课程生成通道 {} 调用失败：{}", p, safeFailure(e));
                 }
             }
         }
@@ -146,18 +179,22 @@ public class ModelGateway {
         UserAiConfigService.ModelConfig accountConfig;
         try { accountConfig = userConfigs.get(userId); }
         catch (Exception e) {
-            log.warn("[ModelGateway] 账号模型配置不可用：{}", rootMessage(e));
+            log.warn("[ModelGateway] 账号模型配置不可用：{}", safeFailure(e));
             return new Result(fallback.answer(question, context), "local", true,
                     "账号 AI 配置不可用，已使用课程检索兜底", System.currentTimeMillis() - start);
         }
         if (accountConfig != null) {
+            if (containsCredential(userPrompt, accountConfig.apiKey())) {
+                return new Result(AssistantPolicy.INPUT_BLOCKED, "local", false, "",
+                        System.currentTimeMillis() - start);
+            }
             try {
-                String answer = postChat(accountConfig.baseUrl(), accountConfig.model(), accountConfig.apiKey(), systemPrompt, userPrompt, 1500);
+                String answer = postAccountChat(accountConfig, systemPrompt, userPrompt, 1500);
                 return new Result(answer, "account", false, "", System.currentTimeMillis() - start);
             } catch (Exception e) {
-                log.warn("[ModelGateway] 账号模型配置调用失败：{}", rootMessage(e));
+                log.warn("[ModelGateway] 账号模型配置调用失败：{}", safeFailure(e));
                 return new Result(fallback.answer(question, context), "local", true,
-                        "账号 AI 接口暂不可用，已使用课程检索兜底：" + rootMessage(e), System.currentTimeMillis() - start);
+                        "账号 AI 接口暂不可用，已使用课程检索兜底：" + safeFailure(e), System.currentTimeMillis() - start);
             }
         }
         String provider = props.getAi().getProvider() == null
@@ -187,8 +224,8 @@ public class ModelGateway {
                 }
                 failures.add(p + "：返回内容为空");
             } catch (Exception e) {
-                failures.add(p + "：" + rootMessage(e));
-                log.warn("[ModelGateway] 通道 {} 调用失败：{}", p, rootMessage(e));
+                failures.add(p + "：" + safeFailure(e));
+                log.warn("[ModelGateway] 通道 {} 调用失败：{}", p, safeFailure(e));
             }
         }
 
@@ -203,11 +240,11 @@ public class ModelGateway {
         long start = System.currentTimeMillis();
         UserAiConfigService.ModelConfig config = userConfigs.proposed(baseUrl, model, apiKey, userId);
         try {
-            postChat(config.baseUrl(), config.model(), config.apiKey(),
+            postAccountChat(config,
                     "你是一个连接测试助手。", "请仅回复：连接成功", 24);
             return Map.of("ok", true, "message", "连接成功", "latencyMs", System.currentTimeMillis() - start);
         } catch (Exception e) {
-            throw new IllegalArgumentException("连接失败：" + rootMessage(e));
+            throw new IllegalArgumentException("连接失败：" + safeFailure(e));
         }
     }
 
@@ -273,7 +310,7 @@ public class ModelGateway {
      */
     private String callOllama(String systemPrompt, String userPrompt) throws Exception {
         return postChat(props.getAi().getOllamaBaseUrl(), props.getAi().getOllamaModel(),
-                "ollama", systemPrompt, userPrompt, 1500);
+                null, systemPrompt, userPrompt, 1500);
     }
 
     /**
@@ -283,153 +320,108 @@ public class ModelGateway {
      */
     private String postChat(String baseUrl, String model, String apiKey,
                             String systemPrompt, String userPrompt, int maxTokens) throws Exception {
+        return postChat(baseUrl, model, apiKey, systemPrompt, userPrompt, maxTokens, false);
+    }
+
+    private String postAccountChat(UserAiConfigService.ModelConfig config, String systemPrompt,
+                                   String userPrompt, int maxTokens) throws Exception {
+        return postChat(config.baseUrl(), config.model(), config.apiKey(), systemPrompt, userPrompt, maxTokens, true);
+    }
+
+    private String postChat(String baseUrl, String model, String apiKey, String systemPrompt, String userPrompt,
+                            int maxTokens, boolean accountEndpoint) throws Exception {
         String root = trimTrailingSlash(baseUrl);
         String url = root.endsWith("/chat/completions") ? root
                 : root.endsWith("/v1") ? root + "/chat/completions" : root + "/v1/chat/completions";
 
-        String body = """
-                {"model":%s,"messages":[{"role":"system","content":%s},{"role":"user","content":%s}],\
-                "temperature":0.4,"max_tokens":%d}
-                """.formatted(jsonString(model), jsonString(systemPrompt), jsonString(userPrompt), maxTokens);
+        String body = JSON.writeValueAsString(Map.of(
+                "model", model,
+                "messages", List.of(Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "user", "content", userPrompt)),
+                "temperature", 0.4,
+                "max_tokens", maxTokens));
 
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .timeout(Duration.ofMillis(maxTokens > 1500
-                        ? Math.max(90_000, props.getAi().getTimeoutMs()) : props.getAi().getTimeoutMs()))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) {
-            throw new IllegalStateException("HTTP " + resp.statusCode() + "："
-                    + brief(resp.body()));
-        }
-        String content = extractContent(resp.body());
-        if (content == null || content.isBlank()) {
-            throw new IllegalStateException("响应中没有 message.content");
+        URI target = URI.create(url);
+        int timeout = Math.max(1, maxTokens > 1500
+                ? Math.max(90_000, props.getAi().getTimeoutMs()) : props.getAi().getTimeoutMs());
+        String response = accountEndpoint
+                ? sendAccountRequest(target, apiKey, body, timeout)
+                : sendSiteRequest(target, apiKey, body, timeout);
+        String content = extractContent(JSON.readTree(response));
+        if (content.isBlank() || containsCredential(content, apiKey)) {
+            throw new IllegalStateException("模型回复不可用");
         }
         return content;
     }
 
-    // ------------------------------------------------------------------
-    // 响应解析
-    // ------------------------------------------------------------------
+    private String sendSiteRequest(URI target, String apiKey, String body, int timeout) throws Exception {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(target)
+                .header("Authorization", "Bearer " + (apiKey == null ? "ollama" : apiKey))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofMillis(timeout))
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
 
-    /**
-     * 从 OpenAI 兼容响应中提取 {@code choices[0].message.content}。
-     * <p>手写解析而非引入 JSON 库：这个类要保持「零额外依赖」，且响应结构固定。
-     * 兼容部分厂商返回的 {@code content} 为数组（多模态块）的情况——取第一个 text 块。
-     */
-    private String extractContent(String json) {
-        if (json == null) {
-            return null;
-        }
-        int i = json.indexOf("\"content\"");
-        if (i < 0) {
-            // 某些网关把 content 放在 delta / text 字段
-            int j = json.indexOf("\"text\"");
-            if (j < 0) {
-                return json;
-            }
-            return scalarAfter(json, j);
-        }
-        int s = json.indexOf(':', i) + 1;
-        if (s <= 0) {
-            return json;
-        }
-        // 数组形式：content: [ { "type":"text", "text":"..." } ]
-        int k = s;
-        while (k < json.length() && Character.isWhitespace(json.charAt(k))) {
-            k++;
-        }
-        if (k < json.length() && json.charAt(k) == '[') {
-            int t = json.indexOf("\"text\"", k);
-            if (t > 0) {
-                return scalarAfter(json, t);
-            }
-        }
-        return scalarAfter(json, i);
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) throw new ProviderHttpError(resp.statusCode());
+        return resp.body();
     }
 
-    /** 取 {@code "key": value} 中 value 的字符串内容（value 必须是字符串，否则原样返回片段） */
-    private String scalarAfter(String json, int keyIdx) {
-        int s = json.indexOf(':', keyIdx) + 1;
-        if (s <= 0) {
-            return "";
+    private String sendAccountRequest(URI target, String apiKey, String body, int timeout) throws Exception {
+        if (!"https".equalsIgnoreCase(target.getScheme()) || target.getHost() == null
+                || target.getRawUserInfo() != null || target.getRawQuery() != null || target.getRawFragment() != null) {
+            throw new IllegalArgumentException("模型接口必须使用公开 HTTPS 地址");
         }
-        while (s < json.length() && (json.charAt(s) == ' ' || json.charAt(s) == '\t')) {
-            s++;
-        }
-        if (s >= json.length()) {
-            return "";
-        }
-        if (json.charAt(s) != '"') {
-            int e = json.indexOf(',', s);
-            return json.substring(s, e > 0 ? e : json.length()).trim();
-        }
-        StringBuilder sb = new StringBuilder();
-        boolean inEsc = false;
-        for (int k = s + 1; k < json.length(); k++) {
-            char c = json.charAt(k);
-            if (inEsc) {
-                switch (c) {
-                    case 'n' -> sb.append('\n');
-                    case 't' -> sb.append('\t');
-                    case 'r' -> sb.append('\r');
-                    case 'u' -> {
-                        // 反斜杠 + u + 四位十六进制 = Unicode 转义
-                        if (k + 4 < json.length()) {
-                            sb.append((char) Integer.parseInt(json.substring(k + 1, k + 5), 16));
-                            k += 4;
-                        }
-                    }
-                    default -> sb.append(c);
-                }
-                inEsc = false;
-            } else if (c == '\\') {
-                inEsc = true;
-            } else if (c == '"') {
-                break;
-            } else {
-                sb.append(c);
+        HttpPost request = new HttpPost(target);
+        request.setHeader("Authorization", "Bearer " + apiKey);
+        request.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
+        request.setConfig(RequestConfig.custom().setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                .setResponseTimeout(Timeout.ofMilliseconds(timeout)).build());
+        return accountHttp.execute(request, response -> {
+            if (response.getCode() != 200) {
+                request.cancel();
+                return new AccountResponse(response.getCode(), "");
             }
-        }
-        return sb.toString();
+            if (response.getEntity() == null) return new AccountResponse(200, "");
+            try (var stream = response.getEntity().getContent()) {
+                int limit = 512 * 1024;
+                byte[] bytes = stream.readNBytes(limit + 1);
+                if (bytes.length > limit) {
+                    request.cancel();
+                    throw new java.io.IOException("模型回复过大");
+                }
+                return new AccountResponse(200, new String(bytes, StandardCharsets.UTF_8));
+            }
+        }).bodyOrThrow();
     }
 
-    // ------------------------------------------------------------------
-    // 工具
-    // ------------------------------------------------------------------
+    private record AccountResponse(int status, String body) {
+        String bodyOrThrow() throws ProviderHttpError {
+            if (status != 200) throw new ProviderHttpError(status);
+            return body;
+        }
+    }
 
-    /** 序列化为 JSON 字符串字面量（含引号）。model 这类标识符也用它。 */
-    private String jsonString(String s) {
-        if (s == null) {
-            return "\"\"";
+    /** Only extract answer text from a recognized completion, never return the response envelope. */
+    private String extractContent(JsonNode response) {
+        if (response == null || response.hasNonNull("error")) return "";
+        JsonNode choice = response.path("choices").path(0);
+        JsonNode content = choice.path("message").path("content");
+        if (content.isMissingNode()) content = choice.path("delta").path("content");
+        if (content.isMissingNode()) content = choice.path("text");
+        if (content.isTextual()) return content.textValue();
+        if (!content.isArray()) return "";
+        StringBuilder text = new StringBuilder();
+        for (JsonNode part : content) {
+            JsonNode block = part.path("text");
+            if (block.isTextual()) text.append(block.textValue());
         }
-        StringBuilder sb = new StringBuilder("\"");
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            switch (c) {
-                case '"' -> sb.append("\\\"");
-                case '\\' -> sb.append("\\\\");
-                case '\n' -> sb.append("\\n");
-                case '\r' -> sb.append("\\r");
-                case '\t' -> sb.append("\\t");
-                default -> {
-                    if (c < 0x20) {
-                        // 注意：不能在源码里直接写 反斜杠+u+XXXX —— Java 的 Unicode 转义在词法分析前就生效，
-                        // 连注释里的也会被处理。这里用字符码拼出反斜杠，避开词法陷阱。
-                        sb.append((char) 0x5C).append('u')
-                                .append(String.format("%04x", (int) c));
-                    } else {
-                        sb.append(c);
-                    }
-                }
-            }
-        }
-        return sb.append('"').toString();
+        return text.toString();
+    }
+
+    private boolean containsCredential(String text, String key) {
+        return key != null && !key.isBlank() && text.contains(key);
     }
 
     private String trimTrailingSlash(String s) {
@@ -443,21 +435,18 @@ public class ModelGateway {
         return t;
     }
 
-    private String rootMessage(Throwable e) {
-        Throwable c = e;
-        while (c.getCause() != null && c.getCause() != c) {
-            c = c.getCause();
-        }
-        String m = c.getMessage();
-        return m == null ? c.getClass().getSimpleName() : m;
+    private String safeFailure(Exception error) {
+        if (error instanceof ProviderHttpError httpError) return "HTTP " + httpError.status;
+        if (error instanceof java.net.http.HttpTimeoutException) return "连接超时";
+        if (error instanceof InterruptedException) Thread.currentThread().interrupt();
+        return "模型接口不可用，请检查地址、模型和凭据";
     }
 
-    private String brief(String s) {
-        if (s == null) {
-            return "";
+    private static final class ProviderHttpError extends Exception {
+        private final int status;
+
+        private ProviderHttpError(int status) {
+            this.status = status;
         }
-        String t = s.replaceAll("\\s+", " ").trim();
-        return t.length() > 200 ? t.substring(0, 200) + "…" : t;
     }
 }
-

@@ -1,0 +1,170 @@
+{
+  "hello-world": {
+    "title": "第一行 Java",
+    "description": "鲸鲸在电脑前写下一行 System.out.println(\"Hello, Java!\");。运行 main 方法后，终端会显示 Hello, Java!。"
+  },
+  "variables-and-types": {
+    "title": "变量盒子有不同类型",
+    "description": "声明类型决定变量能存放什么，以及可取值的范围。三种类型，三类值：int · 整数，score = 90，用 32 位有符号整数；double · 小数，price = 9.9，二进制浮点是近似值；boolean · 判断，passed = true，只有 true 和 false。Java 的基本类型还有 byte、short、long、float 和 char。"
+  },
+  "operators": {
+    "title": "先取值，还是先加一？",
+    "description": "两个自增表达式都会让变量加一，表达式返回的值不同。两组独立实验，都从 i = 3 开始：后置 i++，int a = i++;，a = 3，i = 4；前置 ++i，int b = ++i;，b = 4，i = 4。拆成两行更容易看出代码到底先做了什么。"
+  },
+  "control-flow": {
+    "title": "在分岔口做选择",
+    "description": "鲸鲸判断分数是否达到 60。60 分时走 if 分支，提示通过。59 分时走 else 分支，提示再练习。两条分支都回到后续代码。"
+  },
+  "arrays": {
+    "title": "五个格子，从零数",
+    "description": "鲸鲸从 0 数起。长度为 5 的数组依次存着 10、20、30、40、50，合法下标为 0 至 4。nums[4] 的值为 50，nums[5] 会越界。"
+  },
+  "project-guess-number": {
+    "title": "猜一猜，再来一轮",
+    "description": "用分支比较大小，用循环在猜错时继续读取。一次猜测如何决定下一步：读入猜测并比较，Integer.compare(guess, answer)；猜中，结束游戏；猜错，提示偏高或偏低；循环，猜错才读取下一次输入。猜高提示「太大」，猜低提示「太小」，猜中后退出循环。"
+  },
+  "string": {
+    "title": "字符串修改后，原值还在",
+    "description": "拼接得到新的字符串；原字符串的字符不会被原地改写。同一个表达式，两个结果：原字符串，String s = \"鲸\";，s 仍然是「鲸」；拼接结果，String t = s + \"鲸\";，t 的内容是「鲸鲸」。在循环里逐步拼接时，可以用 StringBuilder 累积内容。"
+  },
+  "methods": {
+    "title": "把引用值复印一份",
+    "description": "Java 按值传递。传对象变量时，复制的是变量里的引用值。两个变量可以指向同一个对象：调用者，box；复制引用值，形参 b；同一个对象，b.value = 7。修改共享对象的字段能被看见，给形参重新赋值不会改掉调用者的变量。"
+  },
+  "class-and-object": {
+    "title": "一张图纸，两只对象",
+    "description": "类定义字段和行为。每次 new 都创建一个新实例。从同一个类创建两个实例：类，Student；实例 A，name = \"小林\"；实例 B，name = \"小周\"；各自的字段，改变 A 不会改掉 B。构造器在创建对象时初始化状态。this 表示当前这个对象。"
+  },
+  "oop-core": {
+    "title": "同一句调用，跑谁的方法？",
+    "description": "实例方法被重写后，实际执行哪个实现取决于对象的运行时类型。调用 speak() 的两种结果：相同的调用，animal.speak()；对象是 Dog，执行 Dog.speak()；对象是 Cat，执行 Cat.speak()；动态分派，按实际对象选择实现。重写发生在继承关系中；同名而参数不同的方法是重载。"
+  },
+  "interface-vs-abstract": {
+    "title": "先分清契约和骨架",
+    "description": "接口适合定义能力；抽象类可以提供共享状态和部分实现。两种抽象工具各解决一类问题：接口，interface Flyable，适合约定 fly() 能力；抽象类，abstract class Bird，适合共享字段和部分行为。一个类可以实现多个接口，但只能直接继承一个类。"
+  },
+  "final-static-immutable": {
+    "title": "锁住引用，不等于锁住内容",
+    "description": "final 引用不能改指向，引用指向的对象仍可能可变。同一个 final List 的两种操作：修改列表内容，names.add(\"A\")，可变列表允许添加；替换整个列表，names = new ArrayList<>()，编译器拒绝重新赋值。构造不可变对象时，还要保护内部的可变数据。"
+  },
+  "enum-and-record": {
+    "title": "有限的选项，成组的数据",
+    "description": "enum 适合固定取值集合；record 适合描述一组数据。用两种类型表达不同意图：枚举 · 状态，enum Level { LOW, HIGH }，取值限制在已声明常量；记录 · 坐标，record Point(int x, int y) {}，自动提供访问器与值比较。record 的组件引用固定，组件指向的对象仍可能可变。"
+  },
+  "inner-class-and-lambda": {
+    "title": "把行为交给调用者",
+    "description": "Lambda 可提供函数式接口中那个抽象方法的实现。用 Comparator 给列表排顺序：提供比较规则，(a, b) -> a.length() - b.length()；sort 调用规则，比较两个字符串；按长度排列，短的在前。Lambda 可以捕获 final 或事实上未被重新赋值的局部变量。"
+  },
+  "exception-handling": {
+    "title": "出错时，资源也要关",
+    "description": "try-with-resources 会在离开作用域时关闭资源，即使中途抛出异常。一个资源的生命周期：打开资源，AutoCloseable；执行读取，try 内处理；关闭资源，自动调用 close()。需要打开多个资源时，关闭顺序与声明顺序相反。"
+  },
+  "generics-type-erasure": {
+    "title": "泛型标签在哪一层？",
+    "description": "泛型参数用于编译期检查；擦除后，实例不会仅靠运行时类型区分这两个列表。两种参数，相同的运行时类：编译期分别检查，List<String> / List<Integer>；字符串列表，只能按 String 规则使用；整数列表，只能按 Integer 规则使用；运行时对象，两者都可以是 ArrayList。擦除不意味着编译器放弃类型检查。"
+  },
+  "reflection-annotation": {
+    "title": "在运行时读取注解",
+    "description": "反射能查询类、字段与方法。要在运行时读取注解，它必须保留到运行时。从类型到注解的查询路线：拿到类，Target.class；选择方法，getDeclaredMethod；读取注解，getAnnotation。用 @Retention(RetentionPolicy.RUNTIME) 保留运行时注解。"
+  },
+  "project-grade-system": {
+    "title": "拆成录入、规则和保存",
+    "description": "先把成绩管理系统切成职责清楚的模块，再实现每条用例。从录入成绩到保存记录：输入层，接收学生与分数；业务层，检查 0–100；存储层，写入成绩记录；反馈，提示结果。先完成新增和查询，再补测试：边界分数、重复录入和缺失学生。"
+  },
+  "collection-overview": {
+    "title": "List、Set、Map 怎么选？",
+    "description": "按你要表达的数据关系选集合。Map 是单独的键值接口。三种常见的存储语义：List · 有位置，A, B, A，有顺序，可重复；Set · 不重复，A, B，按实现定义的等价规则去重；Map · 按键找值，id -> name，每个键对应一个值。是否保持顺序，要继续看具体实现，而不是只看接口。"
+  },
+  "arraylist-source": {
+    "title": "清单有三项，柜子有五格",
+    "description": "鲸鲸记录了 A、B、C。ArrayList 的元素个数为 3，底层容量为 5。get(2) 读取 C，get(3) 会越界。"
+  },
+  "hashmap-red-black-tree": {
+    "title": "键先找到桶，再找节点",
+    "description": "不同键可能落到同一个桶。符合条件时，长链表可转成红黑树。HashMap 查找键的路径：计算键的哈希，hashCode()；确定桶索引，定位候选桶；检查桶内节点，比较 hash 与 equals；返回匹配值，或找不到。JDK 8 中，树化还要求表容量至少为 64，否则优先扩容。"
+  },
+  "concurrenthashmap": {
+    "title": "两个人同时改一张表",
+    "description": "ConcurrentHashMap 支持并发访问；更新同一个键仍要选用原子操作。拆开读写，还是用原子更新？：拆开的读改写，get + put，多个线程可能覆盖彼此结果；针对单键更新，map.merge(k, 1, Integer::sum)，在容器中原子合并。用 compute 或 merge 表达单键更新，避免自己拼 get 和 put。"
+  },
+  "set-family": {
+    "title": "都去重，排序规则不同",
+    "description": "HashSet 不保证遍历顺序；TreeSet 按自然顺序或比较器排序。同一批输入：3、1、3、2：HashSet，1, 2, 3，包含这三个值，顺序不作承诺；TreeSet，1 -> 2 -> 3，按整数自然顺序遍历。对 TreeSet，比较结果为 0 的两个元素会被视作同一个位置。"
+  },
+  "iterator-cmc": {
+    "title": "一边遍历，一边删除",
+    "description": "在支持删除的迭代器中，用迭代器自己的 remove 更新遍历状态。迭代 ArrayList 时删除当前元素：集合直接删除，list.remove(item)，可能触发 ConcurrentModificationException；迭代器删除，iterator.remove()，next() 后按迭代器规则删除当前元素。并发修改异常也可能在单线程里出现。"
+  },
+  "stream-api": {
+    "title": "让数据走过流水线",
+    "description": "中间操作通常是惰性的，终止操作启动遍历并产生结果。从输入到统计结果：输入，1, 2, 3, 4；filter，留下 2, 4；map，变成 20, 40；sum，得到 60。通常先筛选再转换，用清楚的操作名说明意图。"
+  },
+  "project-stream-refactor": {
+    "title": "把循环拆成三个工位",
+    "description": "重构前先固定输出，再把筛选、转换、统计分成独立步骤。将订单循环改写为 Stream：筛选，只留已支付订单；转换，提取订单金额；汇总，对金额求和；对照，与旧实现结果一致。对照空输入、异常数据和普通输入，检查两种实现的语义是否一致。"
+  },
+  "jvm-memory": {
+    "title": "谁的空间，放什么？",
+    "description": "线程各有自己的栈和程序计数器；堆通常由所有线程共享。从线程私有区到 JVM 共享区：线程私有 · 程序计数器，记录当前执行位置；线程私有 · 虚拟机栈，方法调用、局部变量表；线程共享 · 堆，通常存放对象实例；线程共享 · 方法区，存放类相关数据的逻辑区域。方法区是 JVM 规范概念；HotSpot 用元空间保存许多类元数据。"
+  },
+  "object-layout": {
+    "title": "一个对象可以分几段？",
+    "description": "对象头、实例数据和对齐填充是理解 HotSpot 对象布局的常见视角。示意：具体字节数取决于 JVM 配置：对象头，对象状态与类型相关信息；实例数据，这个实例的非静态字段；对齐填充，补齐到对象对齐边界。数组对象通常还记录长度。压缩指针和对象对齐设置会影响布局。"
+  },
+  "class-loading": {
+    "title": "一个类怎样变得可用？",
+    "description": "从字节码到运行时类型，加载之后还要连接和初始化。类进入 JVM 的主要环节：加载，读取字节并定义类；验证，检查结构与约束；准备，分配静态字段，通常设默认值；解析，符号引用变直接引用；初始化，执行类的初始化逻辑。连接包括验证、准备和解析；解析在 JVM 中可以按需延后。"
+  },
+  "gc-algorithms": {
+    "title": "从根出发，看谁还能到达",
+    "description": "不可达对象才可能被回收。可达性不同于对象之间是否互相引用。从 GC Roots 跟踪引用：起点，GC Roots；还能找到，对象 A -> 对象 B；找不到，对象 X <-> 对象 Y；结论，X、Y 虽互相引用，仍可回收。标记清除、复制和整理是在找出存活对象后处理空间的不同思路。"
+  },
+  "jvm-tuning-tools": {
+    "title": "看不同指标，用不同工具",
+    "description": "先判断是内存、GC 还是线程现象，再决定采集哪类证据。排查时的三类线索：jstat · 看趋势，GC 次数、各区占用，短时间采样趋势；jstack · 看线程，线程状态、调用栈，定位等待、阻塞与死锁；jmap · 看对象，对象直方图、堆转储，生产环境注意开销。工具输出是线索，结合应用日志和时间线再下结论。"
+  },
+  "bytecode": {
+    "title": "拆开一份 .class 文件",
+    "description": "class 文件使用规定的二进制结构，指令放在方法的 Code 属性中。从文件头读到方法体：魔数，0xCAFEBABE，标识 class 格式；版本号，确定所需的 JVM 版本；常量池，保存字面量和符号引用；方法与属性，方法的 Code 属性可包含字节码。用 javap -c -verbose 查看指令、常量池及属性。"
+  },
+  "project-memory-leak": {
+    "title": "谁把对象留在了内存里？",
+    "description": "定位泄漏时，先确认增长，再查对象如何被长生命周期的引用保留。一条可重复的排查路线：看曲线，GC 后堆仍不断抬升；看对象，检查堆转储里的增长类型；看引用，定位到 GC Roots 的路径；验证修复，重跑相同负载。示例：无淘汰策略的全局缓存可能让对象持续保持可达。"
+  },
+  "thread-basics": {
+    "title": "线程的一天有几种状态？",
+    "description": "JVM 的 RUNNABLE 同时涵盖就绪与实际运行；等待与阻塞有不同原因。从启动到结束，途中可能等待：NEW → RUNNABLE，调用 start() 后可被调度；BLOCKED，等待进入 synchronized 监视器；WAITING / TIMED_WAITING，等待通知或限定时间；TERMINATED，run() 结束后进入终止状态。interrupt() 用来请求中断，线程是否退出取决于代码如何响应。"
+  },
+  "lock-mechanisms": {
+    "title": "同一时间，只让一个人进",
+    "description": "互斥锁用于保护共享状态。所有访问方必须使用同一把锁。两个线程进入同一个临界区：共享对象，同一把锁；线程 A，拿到锁，修改共享值；线程 B，等待，暂不进入；释放后，线程 B 可以竞争获取锁。显式 Lock 记得在 finally 中 unlock；synchronized 退出时自动释放。"
+  },
+  "thread-pool": {
+    "title": "任务先去哪一站？",
+    "description": "达到核心线程数后，线程池通常先尝试入队，再尝试增加线程。ThreadPoolExecutor 接收任务的顺序：提交任务，execute()；核心未满，创建核心线程；核心已满，先尝试入队；队列已满，尝试新增线程；达到最大数，执行拒绝策略。线程池运行时，任一步成功接收任务即停止尝试；拒绝策略取决于任务能否丢弃。"
+  },
+  "concurrent-collections": {
+    "title": "比较成功，才换成新值",
+    "description": "CAS 检查当前位置是否等于预期值，匹配才写入新值。以原子计数器从 5 加到 6 为例：预期值 5，尝试写入 6；当前仍是 5，比较成功，写入 6；当前已经是 7，比较失败，不写入；失败之后，读取最新值，再决定是否重试。需要区分值恢复的情况时，可给值带版本戳来应对 ABA。"
+  },
+  "completablefuture": {
+    "title": "两件事并行做，结果一起用",
+    "description": "无依赖的任务可以并行启动，再用 thenCombine 合并结果。从启动到聚合：启动独立任务，supplyAsync；任务 A，获取课程标题；任务 B，获取学习进度；合并结果，thenCombine 生成学习摘要。后一任务依赖前一任务的结果时，可以用 thenCompose 串接。"
+  },
+  "project-parallel-aggregate": {
+    "title": "把大任务切块，再合并",
+    "description": "可以把独立数据分给多个工作线程，让每个线程计算局部结果。以求和为例：分块、求和、合并：输入数据，1, 2, 3, 4；第一块，1 + 2 = 3；第二块，3 + 4 = 7；合并部分结果，3 + 7 = 10。切块有调度成本。用同一批数据比较串行与并行耗时和结果。"
+  },
+  "spring-boot-init": {
+    "title": "依赖装上，装配有条件",
+    "description": "Spring Boot 根据类路径、已有 Bean 等条件决定是否采用默认配置。从依赖到容器中的 Bean：添加 starter，引入相关依赖；检查装配条件，类路径 / 已有 Bean；创建默认 Bean，仅在条件满足时；应用启动，从容器使用组件。自定义 Bean 可能使默认配置让位，具体取决于装配条件。"
+  },
+  "kingbase-persistence": {
+    "title": "查询值和 SQL 分开传",
+    "description": "使用参数化语句传入数据，连接和结果集都应及时释放。用 JDBC 读取一条课时记录：获取连接，DataSource；准备 SQL，WHERE id = ?；绑定参数，setLong(1, id)；读取结果，ResultSet；释放资源，try-with-resources。用户名、密码和连接地址应由配置提供。不要拼接用户输入到 SQL。"
+  },
+  "restful-api": {
+    "title": "地址标资源，方法讲动作",
+    "description": "相同的资源地址可以用不同 HTTP 方法表达读取、替换和删除。同一个资源：/lessons/42：GET · 读取，GET /lessons/42，成功时可返回 200；PUT · 更新，PUT /lessons/42，重复同样请求，预期状态相同；DELETE · 删除，DELETE /lessons/42，删除后的状态可保持一致。幂等说的是请求效果相同，重复请求的响应状态码可以不同。"
+  }
+}

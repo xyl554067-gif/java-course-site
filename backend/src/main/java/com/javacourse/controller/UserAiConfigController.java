@@ -1,9 +1,11 @@
 package com.javacourse.controller;
 
 import com.javacourse.model.ApiResponse;
+import com.javacourse.service.AssistantRequestLimit;
 import com.javacourse.service.ModelGateway;
 import com.javacourse.service.UserAiConfigService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,10 +16,12 @@ import java.util.Map;
 public class UserAiConfigController {
     private final UserAiConfigService configs;
     private final ModelGateway gateway;
+    private final AssistantRequestLimit limit;
 
-    public UserAiConfigController(UserAiConfigService configs, ModelGateway gateway) {
+    public UserAiConfigController(UserAiConfigService configs, ModelGateway gateway, AssistantRequestLimit limit) {
         this.configs = configs;
         this.gateway = gateway;
+        this.limit = limit;
     }
 
     private long uid(HttpServletRequest request) { return (Long) request.getAttribute("userId"); }
@@ -33,8 +37,16 @@ public class UserAiConfigController {
     }
 
     @PostMapping("/test")
-    public ApiResponse<Map<String, Object>> test(HttpServletRequest request, @RequestBody Map<String, String> body) {
-        return ApiResponse.ok(gateway.testAccountConfig(uid(request), body.get("baseUrl"), body.get("model"), body.get("apiKey")));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> test(HttpServletRequest request,
+                                                                 @RequestBody Map<String, String> body) {
+        long userId = uid(request);
+        int retry = limit.retryAfter(userId, true);
+        if (retry > 0) {
+            return ResponseEntity.status(429).header("Retry-After", Integer.toString(retry))
+                    .body(ApiResponse.error(429, "连接测试太频繁，请稍后再试"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(
+                gateway.testAccountConfig(userId, body.get("baseUrl"), body.get("model"), body.get("apiKey"))));
     }
 
     @DeleteMapping
@@ -43,4 +55,3 @@ public class UserAiConfigController {
         return ApiResponse.ok();
     }
 }
-

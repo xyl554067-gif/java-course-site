@@ -164,7 +164,7 @@ TOKEN=$(curl -s -X POST http://127.0.0.1:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"demo","password":"123456"}' | python -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
 
-# 看当前通道
+# 确认助教接口可用（实际回答通道看提问结果）
 curl -s http://127.0.0.1:8080/api/ai/health -H "Authorization: Bearer $TOKEN"
 
 # 实际提问（会返回 provider / degraded / latencyMs）
@@ -187,17 +187,20 @@ curl -s -X POST http://127.0.0.1:8080/api/ai/ask \
 
 ```
 浏览器 POST /api/ai/ask  { question }
-  → Spring Security 拦截器校验 Bearer token，取 userId
-  → CourseRepository.searchContext(整串 + 分词 OR) 捞候选课时
-  → hit() 相关度打分排序，取 topN（默认 6 条）
-  → 拼 prompt：system=鲸鲸人设 / user=课程资料 + 问题
+  → 登录拦截器校验 Bearer token
+  → 检查敏感信息与私密数据请求；自我介绍、能力和隐私说明直接回答
+  → 从已发布课程中检索相关资料
+  → 仅将当前问题和相关公开课程片段发给模型
   → ModelGateway 按 fallback-order 逐档尝试
       ├─ openai 成功 → 直接返回
       ├─ openai 失败 → 记失败原因，试 ollama
       └─ 全失败 → local 检索式回答
-  → 落库 ai_chat_session / ai_chat_message
-  → 返回 { answer, citations, sessionId, latencyMs, provider, degraded }
+  → 检查模型回复，返回答复与课时引用
 ```
+
+新对话只保留在当前页面的内存中，刷新、退出登录或手动清空都会清除。请勿在聊天中粘贴密码、登录令牌或 API Key。使用外部模型时，普通学习问题和相关公开课时摘录会发送给所用模型服务商。
+
+在两个助教入口都可以勾选「仅用课程资料」，由站内检索直接回答。打开课时后，可勾选「带入当前课时」优先参考该节公开内容。旧版保存的账号对话可在「AI 接入」页清理。
 
 ---
 
@@ -349,9 +352,13 @@ Ciallo～关于「HashMap为什么线程不安全」，我在课程里找到了�
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
-| GET | `/api/ai/agent` | 是 | 助教形象元信息（前端渲染表情包用） |
-| POST | `/api/ai/ask` | 是 | 提问。返回 `{answer, citations, sessionId, latencyMs, agent, provider, degraded}` |
-| GET | `/api/ai/health` | 是 | 通道诊断：当前 provider / 是否配了 Key / 降级说明 |
+| GET | `/api/ai/agent` | 否 | 助教形象元信息 |
+| POST | `/api/ai/ask` | 是 | 提问。返回答复、课时引用和本次通道 |
+| POST | `/api/ai/ask/local` | 是 | 仅用课程资料回答，不调用模型 |
+| DELETE | `/api/ai/history` | 是 | 删除当前账号保存的旧版鲸鲸对话 |
+| GET | `/api/ai/health` | 是 | 助教接口就绪状态 |
+
+单个后端实例按账号每分钟允许 12 次助教请求和 5 次模型连接测试。账号自定义模型使用公开 HTTPS 地址，建立连接时校验 DNS 返回的地址并禁用重定向。
 
 ---
 
@@ -368,8 +375,7 @@ Edge/Chrome 90+ 均支持。素材本体是原文件，未转码。
 A：先登录——未登录时点击会跳登录页。已登录时按住桌宠拖动即可。
 
 **Q：气泡说"本地兜底"？**
-A：说明云端与本地模型都不可用。查 `GET /api/ai/health` 看 `openaiConfigured` 与 `note`。
-最常见原因是没设 `AI_API_KEY`（或设了但 Key 无效）。
+A：这次使用的是课程检索。若使用自配模型，可在「AI 接入」页测试连接；站点默认模型由管理员检查。
 
 **Q：想只测本地模型？**
 A：`export AI_PROVIDER=ollama AI_OLLAMA_MODEL=qwen2.5:7b`，

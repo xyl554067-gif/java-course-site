@@ -10,11 +10,28 @@ import { useProgressStore } from '@/stores/progress'
 const course = ref<Course | null>(null)
 const modules = ref<CourseModule[]>([])
 const loading = ref(true)
+const loadFailed = ref(false)
 const openModules = ref<Record<number, boolean>>({})
 const agent = useAgentStore()
 const progress = useProgressStore()
 
 const overallPct = computed(() => progress.summary.overallPct)
+const lessons = computed(() => modules.value.flatMap((module) => module.lessons || []))
+const lastLesson = computed(() => progress.items.find((item) => lessons.value.some((lesson) => lesson.id === item.lessonId)))
+const entryLesson = computed(() => {
+  const recent = lastLesson.value
+  if (!recent) return lessons.value[0]
+  if (!recent.completed) return recent
+  const recentIndex = lessons.value.findIndex((lesson) => lesson.id === recent.lessonId)
+  return lessons.value.slice(recentIndex + 1).find((lesson) => !progress.isCompleted(lesson.id))
+    || lessons.value.find((lesson) => !progress.isCompleted(lesson.id))
+    || recent
+})
+const entryLabel = computed(() => {
+  const recent = lastLesson.value
+  if (!recent) return '开始第一节'
+  return recent.completed && entryLesson.value === recent ? '复习课时' : '继续学习'
+})
 
 /** 模块图标：数据库里存的是英文 key，这里映射成 emoji，卡通感更强 */
 const ICONS: Record<string, string> = {
@@ -28,6 +45,7 @@ const ICONS: Record<string, string> = {
 
 async function load() {
   loading.value = true
+  loadFailed.value = false
   try {
     // 一次取全：课程详情接口已内嵌模块→课时树，避免二次请求
     const detail = await courseApi.detail('java-mastery')
@@ -35,7 +53,9 @@ async function load() {
     modules.value = detail.modules || []
     // 默认展开第一个模块
     if (modules.value[0]) openModules.value[modules.value[0].id] = true
-    void progress.load()
+    void progress.load().catch(() => {})
+  } catch {
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -67,8 +87,8 @@ onMounted(load)
         <p class="hero__sub">{{ course.subtitle }}</p>
         <p class="hero__desc">{{ course.description }}</p>
         <div class="hero__actions">
-          <RouterLink v-if="modules[0]?.lessons?.[0]" :to="`/lesson/${modules[0].lessons[0].slug}`" class="btn btn--primary btn--lg">
-            开始第一节 →
+          <RouterLink v-if="entryLesson" :to="{ name: 'lesson', params: { slug: entryLesson.slug }, query: entryLabel === '继续学习' ? { resume: '1' } : {} }" class="btn btn--primary btn--lg">
+            {{ entryLabel }}<template v-if="lastLesson"> · {{ entryLesson.title }}</template> →
           </RouterLink>
           <button class="btn btn--lilac btn--lg" @click="agent.open()">问鲸鲸一个问题</button>
         </div>
@@ -77,10 +97,14 @@ onMounted(load)
       <img :src="ASSET_BASE + 'assets/agent/agent-happy.png'" alt="鲸鲸" class="hero__img anim-float" />
     </section>
 
-    <div v-if="loading" class="home__loading"><div class="spinner" /></div>
+    <div v-if="loading" class="home__loading" role="status" aria-label="正在加载课程"><div class="spinner" /></div>
+    <div v-else-if="loadFailed" class="home__loading" role="status">
+      <p>暂时无法加载课程目录。</p>
+      <button class="btn btn--primary" @click="load">重新加载</button>
+    </div>
 
     <!-- 学习总览 -->
-    <section v-else-if="progress.hasProgress" class="overview card anim-pop">
+    <section v-if="!loading && !loadFailed && progress.hasProgress" class="overview card anim-pop">
       <div class="overview__ring" :style="{ '--pct': `${overallPct * 3.6}deg` }">
         <span class="overview__pct">{{ overallPct }}%</span>
       </div>
@@ -93,15 +117,12 @@ onMounted(load)
           <template v-if="progress.learningMinutes"> · 累计 {{ progress.learningMinutes }} 分钟</template>
           <template v-if="progress.summary.studyCount"> · 学习 {{ progress.summary.studyCount }} 次</template>
         </p>
-        <RouterLink v-if="progress.items.length" :to="`/lesson/${progress.items[0].slug}`" class="btn btn--sm btn--primary">
-          接着看《{{ progress.items[0].title }}》
-        </RouterLink>
       </div>
       <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" class="overview__whale anim-float" />
     </section>
 
     <!-- 课程目录 -->
-    <section v-else class="catalog">
+    <section v-if="!loading && !loadFailed" class="catalog">
       <div class="section-head">
         <span class="dot" />
         <h2>课程目录</h2>
@@ -137,7 +158,11 @@ onMounted(load)
                   <span class="lesson-link__no" :class="{ 'is-done': progress.isCompleted(l.id) }">
                     {{ progress.isCompleted(l.id) ? '✓' : li + 1 }}
                   </span>
-                  <span class="lesson-link__title">{{ l.title }}</span>
+                  <span class="lesson-link__title">
+                    {{ l.title }}
+                    <small v-if="progress.progressOf(l.id)?.selfCheckStage === 2" class="badge badge--mint">自测通过</small>
+                    <small v-if="progress.progressOf(l.id)?.progressPct" class="lesson-link__reading">已读 {{ progress.progressOf(l.id)?.progressPct }}%</small>
+                  </span>
                   <span class="lesson-link__sum">{{ l.summary }}</span>
                   <span v-if="progress.isFavorite(l.id)" class="lesson-link__fav">★</span>
                   <span class="lesson-link__go">→</span>
@@ -217,6 +242,7 @@ onMounted(load)
 .overview__whale { width: 92px; height: 92px; flex-shrink: 0; }
 
 /* 目录 */
+.lesson-link__reading { margin-left: 6px; color: var(--c-ink-soft); font-weight: 400; }
 .catalog { margin-top: var(--space-xl); }
 .catalog__list { display: flex; flex-direction: column; gap: 18px; }
 

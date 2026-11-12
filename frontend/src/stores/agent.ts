@@ -1,15 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { aiApi, type AgentProfile, type Citation } from '@/api'
-
-export interface ChatMessage {
-  id: number
-  role: 'user' | 'assistant'
-  content: string
-  citations?: Citation[]
-  /** 助手消息的思考态标记 */
-  pending?: boolean
-}
+import { aiApi, type AgentProfile, type AssistantRequestOptions } from '@/api'
+import { useAssistantConversation, WHALE_GREETING } from './assistantConversation'
 
 export type AgentMood = 'idle' | 'happy' | 'think' | 'ok'
 
@@ -19,29 +11,22 @@ const MOOD_FALLBACK: Record<AgentMood, string> = {
   think: '/assets/agent/agent-think.png',
   ok: '/assets/agent/agent-ok.png',
 }
+const ASSET_BASE = import.meta.env.BASE_URL || '/'
 
 export const useAgentStore = defineStore('agent', () => {
   const profile = ref<AgentProfile | null>(null)
-  const messages = ref<ChatMessage[]>([])
+  const conversation = useAssistantConversation()
   const mood = ref<AgentMood>('idle')
-  const loading = ref(false)
   const panelOpen = ref(false)
 
-  let seq = 0
-  const nextId = () => ++seq
+  let replyVersion = 0
 
   const avatar = computed(() => {
-    const p = profile.value
-    if (!p) return MOOD_FALLBACK[mood.value]
-    const a = p.avatars as any
-    if (Array.isArray(a)) {
-      const idx = ['idle', 'happy', 'think', 'ok'].indexOf(mood.value)
-      return a[idx] ?? a[0] ?? MOOD_FALLBACK[mood.value]
-    }
-    if (a && typeof a === 'object') {
-      return a[mood.value] ?? a.idle ?? MOOD_FALLBACK[mood.value]
-    }
-    return MOOD_FALLBACK[mood.value]
+    const avatars = profile.value?.avatars
+    const index = ['idle', 'happy', 'think', 'ok'].indexOf(mood.value)
+    const path = Array.isArray(avatars) ? avatars[index] : avatars?.[mood.value]
+    const safePath = typeof path === 'string' && /^\/assets\/agent\/[a-z0-9-]+\.png$/.test(path) ? path : MOOD_FALLBACK[mood.value]
+    return ASSET_BASE + safePath.slice(1)
   })
 
   async function loadProfile() {
@@ -52,8 +37,8 @@ export const useAgentStore = defineStore('agent', () => {
       profile.value = {
         key: 'whale',
         name: '鲸鲸',
-        title: 'Ciallo~ 课程助教',
-        greeting: 'Ciallo~ 我是鲸鲸！有什么不懂的尽管问我喵～',
+        title: 'Java 学习助教',
+        greeting: WHALE_GREETING,
         moods: ['idle', 'happy', 'think', 'ok'],
         avatars: MOOD_FALLBACK,
       }
@@ -75,43 +60,29 @@ export const useAgentStore = defineStore('agent', () => {
     panelOpen.value ? close() : open()
   }
 
-  async function ask(question: string) {
-    const q = question.trim()
-    if (!q || loading.value) return
-    messages.value.push({ id: nextId(), role: 'user', content: q })
-    const replyId = nextId()
-    messages.value.push({ id: replyId, role: 'assistant', content: '', pending: true })
-    loading.value = true
-    mood.value = 'think'
-    try {
-      const r = await aiApi.ask(q)
-      const item = messages.value.find((m) => m.id === replyId)
-      if (item) {
-        item.content = r.answer
-        item.citations = r.citations
-        item.pending = false
-      }
-      mood.value = 'ok'
-      // 3秒后回到待机表情
-      setTimeout(() => {
-        if (!loading.value) mood.value = 'idle'
-      }, 3000)
-    } catch (e: any) {
-      const item = messages.value.find((m) => m.id === replyId)
-      if (item) {
-        item.content = e?.response?.data?.message || '呜哇，鲸鲸的网络线缆好像松了，等下再试一次喵……'
-        item.pending = false
-      }
-      mood.value = 'idle'
-    } finally {
-      loading.value = false
-    }
+  async function ask(question: string, options?: AssistantRequestOptions) {
+    if (!question.trim() || conversation.loading.value) return
+    const version = ++replyVersion
+    const pending = conversation.ask(question, options)
+    if (conversation.loading.value) mood.value = 'think'
+    await pending
+    if (version !== replyVersion) return
+    mood.value = 'ok'
+    setTimeout(() => {
+      if (version === replyVersion && mood.value === 'ok') mood.value = 'idle'
+    }, 3000)
   }
 
-  function reset() {
-    messages.value = []
+  function clearHistory() {
+    replyVersion++
+    conversation.clearHistory()
     mood.value = 'idle'
   }
 
-  return { profile, messages, mood, loading, panelOpen, avatar, loadProfile, open, close, toggle, ask, reset }
+  function reset() {
+    clearHistory()
+    close()
+  }
+
+  return { ...conversation, profile, mood, panelOpen, avatar, loadProfile, open, close, toggle, ask, clearHistory, reset }
 })

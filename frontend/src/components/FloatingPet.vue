@@ -23,14 +23,17 @@
  *   - 「拖拽」→ Pointer Events 统一鼠标与触摸；带边界约束与位置持久化
  *   - 「抛掷物理」→ 简化为松手后惯性滑动 + 边界回弹（保留一点手感，成本极低）
  */
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePetStore, type PetState } from '@/stores/pet'
 import { useAuthStore } from '@/stores/auth'
+import AssistantOptions from '@/components/AssistantOptions.vue'
+import { MAX_QUESTION_LENGTH, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
 
 const pet = usePetStore()
 const auth = useAuthStore()
 const router = useRouter()
+const { localOnly, includeLesson, lessonSlug, requestOptions } = useAssistantRequestOptions()
 
 /** 桌宠尺寸（px，指宽度），移动端自动缩小 */
 const SIZE = ref(150)
@@ -54,6 +57,19 @@ let animationRequestId = 0
 const input = ref('')
 const bubble = ref<HTMLElement | null>(null)
 const listEl = ref<HTMLElement | null>(null)
+const answerSource = computed(() => {
+  switch (pet.source) {
+    case 'model': return '模型回答'
+    case 'course': return '课程检索'
+    case 'unavailable': return '服务暂不可用'
+    case 'built-in': return '内置回答'
+    default: return 'Java 学习助教'
+  }
+})
+
+watch(() => pet.bubbleOpen, (open) => {
+  if (!open) input.value = ''
+})
 
 /**
  * 气泡展开方向自适应：桌宠在页面上半部时向上展开会超出视口顶部，
@@ -189,7 +205,6 @@ function watchPetState() {
 }
 
 // 监听 store 里的状态变化
-import { watch } from 'vue'
 watch(
   () => pet.state,
   () => {
@@ -301,7 +316,14 @@ async function submit() {
   const q = input.value.trim()
   if (!q || pet.loading) return
   input.value = ''
-  await pet.ask(q)
+  await ask(q)
+}
+
+async function ask(question: string) {
+  const pending = pet.ask(question, requestOptions())
+  await nextTick()
+  scrollToBottom()
+  await pending
   await nextTick()
   scrollToBottom()
 }
@@ -310,24 +332,15 @@ function scrollToBottom() {
   if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight
 }
 
-function routeFullPath() {
-  return window.location.hash.replace(/^#/, '') || '/'
-}
-
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    void submit()
-  }
-}
-
 function openSettings() {
   pet.closeBubble()
   void router.push('/ai/settings')
 }
 
 function clearHistory() {
-  if (window.confirm('确定清空与鲸鲸的历史对话吗？此操作不可恢复。')) pet.clearHistory()
+  input.value = ''
+  pet.clearHistory()
+  focusInput()
 }
 
 // ------------------------------------------------------------------
@@ -371,8 +384,8 @@ onUnmounted(() => {
       >
         <div class="pet-bubble__head">
           <span class="pet-bubble__name">鲸鲸</span>
-          <span class="pet-bubble__tag" :class="{ 'is-degraded': pet.degraded }">
-            {{ pet.degraded ? '本地兜底' : '大模型' }}
+          <span class="pet-bubble__tag" :class="{ 'is-degraded': pet.source === 'unavailable' }">
+            {{ pet.loading ? '思考中…' : answerSource }}
           </span>
           <button
             class="pet-bubble__icon"
@@ -381,13 +394,14 @@ onUnmounted(() => {
           >
             ⚙
           </button>
-          <button class="pet-bubble__icon" title="清空对话" @click="clearHistory">⌫</button>
+          <button v-if="pet.messages.length || input" class="pet-bubble__icon" title="清空对话" @click="clearHistory">⌫</button>
           <button class="pet-bubble__close" title="收起" @click="pet.closeBubble()">×</button>
         </div>
 
-        <div ref="listEl" class="pet-bubble__list">
+        <div ref="listEl" class="pet-bubble__list" role="log" aria-label="助教对话">
           <div v-if="!pet.messages.length" class="pet-bubble__empty">
-            {{ pet.hint }}
+            <p>{{ WHALE_GREETING }}</p>
+            <button type="button" class="pet-cite" @click="ask(WHALE_INTRO_QUESTION)">{{ WHALE_INTRO_QUESTION }}</button>
           </div>
           <div
             v-for="m in pet.messages"
@@ -416,17 +430,24 @@ onUnmounted(() => {
         </div>
 
         <form class="pet-bubble__input" @submit.prevent="submit">
-          <input
-            id="pet-ask-input"
-            v-model="input"
-            type="text"
-            placeholder="问点 Java 的事…"
-            :disabled="pet.loading"
-            @keydown="onKeydown"
-          />
-          <button type="submit" class="pet-send" :disabled="pet.loading || !input.trim()">
-            {{ pet.loading ? '…' : '问' }}
-          </button>
+          <AssistantOptions v-model:local-only="localOnly" v-model:include-lesson="includeLesson" :can-include-lesson="!!lessonSlug" />
+          <p id="pet-privacy" class="pet-bubble__privacy">{{ localOnly ? WHALE_LOCAL_NOTICE : WHALE_PRIVACY_NOTICE }}</p>
+          <div class="pet-bubble__compose">
+            <input
+              id="pet-ask-input"
+              v-model="input"
+              type="text"
+              placeholder="问点 Java 的事…"
+              aria-label="要问鲸鲸的问题"
+              aria-describedby="pet-privacy"
+              :maxlength="MAX_QUESTION_LENGTH"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit" class="pet-send" :disabled="pet.loading || !input.trim()">
+              {{ pet.loading ? '…' : '问' }}
+            </button>
+          </div>
         </form>
       </div>
     </Transition>
@@ -710,8 +731,9 @@ onUnmounted(() => {
   color: var(--c-ink-faint);
   font-size: 13px;
   text-align: center;
-  padding: 18px 0;
+  padding: 4px 0;
 }
+.pet-bubble__empty p { margin: 0 0 8px; }
 
 .pet-msg {
   max-width: 88%;
@@ -755,6 +777,7 @@ onUnmounted(() => {
   font-weight: 700;
   color: var(--c-ink);
   text-decoration: none;
+  cursor: pointer;
 }
 .pet-cite:hover { background: var(--c-sun); }
 
@@ -779,12 +802,12 @@ onUnmounted(() => {
 }
 
 .pet-bubble__input {
-  display: flex;
-  gap: 6px;
   padding: 8px;
   border-top: var(--bw-thin) solid var(--c-line);
   background: var(--c-cream);
 }
+.pet-bubble__privacy { margin: 0 2px 6px; font-size: 11px; line-height: 1.45; color: var(--c-ink-soft); }
+.pet-bubble__compose { display: flex; gap: 6px; }
 .pet-bubble__input input {
   flex: 1;
   min-width: 0;
@@ -856,5 +879,4 @@ onUnmounted(() => {
   .pet-video { transition: none; }
 }
 </style>
-
 

@@ -14,46 +14,70 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** 应用启动时用本地 token 换取用户信息 */
   async function bootstrap() {
-    if (!token.value) {
+    const requestedToken = token.value
+    if (!requestedToken) {
       ready.value = true
       return
     }
+    const currentSession = () => token.value === requestedToken && getToken() === requestedToken
     try {
-      user.value = await authApi.me()
+      const profile = await authApi.me(requestedToken)
+      if (currentSession()) user.value = profile
     } catch {
-      token.value = ''
-      clearToken()
+      if (currentSession()) invalidateSession()
     } finally {
-      ready.value = true
+      if (currentSession()) ready.value = true
     }
+  }
+
+  async function syncStoredSession() {
+    const storedToken = getToken()
+    if (storedToken === token.value) return
+    user.value = null
+    ready.value = false
+    token.value = storedToken
+    await bootstrap()
   }
 
   async function login(username: string, password: string) {
     const r = await authApi.login(username, password)
-    token.value = r.token
     setToken(r.token)
+    token.value = r.token
     user.value = r.user
+    ready.value = true
     return r.user
   }
 
   async function register(username: string, password: string, nickname: string) {
     const r = await authApi.register(username, password, nickname)
-    token.value = r.token
     setToken(r.token)
+    token.value = r.token
     user.value = r.user
+    ready.value = true
     return r.user
   }
 
   async function logout() {
+    const oldToken = token.value
+    if (!oldToken) return
+    if (getToken() !== oldToken) {
+      await syncStoredSession()
+      return
+    }
     try {
-      await authApi.logout()
+      await authApi.logout(oldToken)
     } catch {
       // 即使服务端失败也要清本地
     }
-    token.value = ''
-    user.value = null
-    clearToken()
+    if (token.value === oldToken && getToken() === oldToken) invalidateSession()
   }
 
-  return { token, user, ready, isLogged, displayName, isAdmin, bootstrap, login, register, logout }
+  function invalidateSession() {
+    clearToken()
+    user.value = null
+    token.value = ''
+    ready.value = true
+  }
+
+  return { token, user, ready, isLogged, displayName, isAdmin, bootstrap, login, register, logout, syncStoredSession }
 })

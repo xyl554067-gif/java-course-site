@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
-import { errMsg } from '@/api/http'
+import AssistantOptions from '@/components/AssistantOptions.vue'
+import { isLessonSlug, MAX_QUESTION_LENGTH, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
 
 const agent = useAgentStore()
+const { localOnly, includeLesson, lessonSlug, requestOptions } = useAssistantRequestOptions()
 const router = useRouter()
 const input = ref('')
 const listEl = ref<HTMLElement | null>(null)
@@ -20,10 +22,10 @@ function lockOnLeave(el: Element) {
 }
 
 const QUICK = [
+  WHALE_INTRO_QUESTION,
+  '你能帮我什么？',
   'int 和 long 有什么区别？',
   '线程池参数怎么设置？',
-  'JVM 内存结构是怎样的？',
-  'HashMap 为什么线程不安全？',
 ]
 
 const memes = [
@@ -41,22 +43,28 @@ async function scrollDown() {
 
 function send() {
   const q = input.value.trim()
-  if (!q) return
+  if (!q || agent.loading) return
   input.value = ''
-  void agent.ask(q).then(scrollDown)
+  void agent.ask(q, requestOptions()).then(scrollDown)
 }
 
 function askQuick(q: string) {
-  void agent.ask(q).then(scrollDown)
+  void agent.ask(q, requestOptions()).then(scrollDown)
+}
+
+function clearConversation() {
+  input.value = ''
+  agent.clearHistory()
+  inputEl.value?.focus()
 }
 
 /** 把回答里的 [查看该课时](/lesson/xxx) 转成可点击跳转 */
 function onAnswerClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   const a = target.closest('a[data-slug]') as HTMLElement | null
-  if (!a) return
+  const slug = a?.dataset.slug
+  if (!slug || !isLessonSlug(slug) || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
   e.preventDefault()
-  const slug = a.dataset.slug
   agent.close()
   router.push(`/lesson/${slug}`)
 }
@@ -74,11 +82,11 @@ watch(
   () => agent.panelOpen,
   (v) => {
     if (v) {
-      void agent.loadProfile()
       void scrollDown()
       // 打开后把焦点移进输入框，键盘用户可以直接提问
       void nextTick(() => inputEl.value?.focus())
     } else {
+      input.value = ''
       // 关闭后把焦点还给触发入口，避免焦点残留在已销毁的抽屉里
       void nextTick(() => {
         const el = document.querySelector<HTMLElement>('.fab, .nav__agent')
@@ -87,12 +95,6 @@ watch(
     }
   },
 )
-
-// 按需加载：仅在抽屉打开时拉取助手资料。
-// 挂载即拉会在静态部署（GitHub Pages 无后端）时产生无意义的 404 请求。
-onMounted(() => {
-  if (agent.panelOpen) void agent.loadProfile()
-})
 
 // Esc 关闭抽屉，避免键盘用户被关在抽屉里
 function onKeydown(e: KeyboardEvent) {
@@ -120,21 +122,22 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         </div>
         <div class="drawer__meta">
           <h3 class="drawer__name title-round">{{ agent.profile?.name || '鲸鲸' }}</h3>
-          <span class="drawer__role">{{ agent.profile?.title || 'Ciallo~ 课程助教' }}</span>
+          <span class="drawer__role">Java 学习助教</span>
           <span class="drawer__status">
-            <i class="dot" /> {{ agent.loading ? '正在思考…' : '在线陪你学' }}
+            <i v-if="agent.loading" class="dot" /> {{ agent.loading ? '正在思考…' : '概念讲解 · 代码排错 · 练习提示' }}
           </span>
         </div>
+        <button v-if="agent.messages.length || input" class="drawer__clear" type="button" @click="clearConversation">清空</button>
         <button class="drawer__close" @click="agent.close()" title="收起">×</button>
       </header>
 
       <!-- 消息流 -->
-      <div ref="listEl" class="drawer__body">
+      <div ref="listEl" class="drawer__body" role="log" aria-label="助教对话">
         <!-- 欢迎语 -->
         <div class="msg msg--bot">
           <img :src="agent.avatar" class="msg__avatar" alt="鲸鲸" />
           <div class="msg__bubble">
-            {{ agent.profile?.greeting || 'Ciallo~ 我是鲸鲸！' }}
+            {{ WHALE_GREETING }}
           </div>
         </div>
 
@@ -146,22 +149,23 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               <template v-if="m.pending">
                 <span class="typing"><i /><i /><i /></span>
               </template>
-              <template v-else>
+              <template v-else-if="m.role === 'assistant'">
                 <div class="md" v-html="renderMarkdown(m.content)" />
               </template>
+              <template v-else>{{ m.content }}</template>
             </div>
             <!-- 引用来源 -->
             <div v-if="m.citations?.length" class="cites">
               <span class="cites__label">引用自</span>
-              <a
+              <RouterLink
                 v-for="(c, i) in m.citations"
                 :key="i"
                 class="badge badge--mint cites__item"
-                :data-slug="c.slug"
-                @click.stop="onAnswerClick"
+                :to="`/lesson/${c.slug}`"
+                @click="agent.close()"
               >
                 {{ c.title }}
-              </a>
+              </RouterLink>
             </div>
           </div>
         </div>
@@ -169,25 +173,35 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
       <!-- 快捷提问 -->
       <div class="drawer__quick">
-        <button v-for="q in QUICK" :key="q" class="quick-chip" @click="askQuick(q)">{{ q }}</button>
+        <button v-for="q in QUICK" :key="q" class="quick-chip" :disabled="agent.loading" @click="askQuick(q)">{{ q }}</button>
       </div>
 
       <!-- 输入区 -->
       <footer class="drawer__foot">
-        <input
-          ref="inputEl"
-          v-model="input"
-          class="input"
-          placeholder="问鲸鲸一个问题…（Enter 发送）"
-          @keyup.enter="send"
-        />
-        <button class="btn btn--primary" :disabled="agent.loading" @click="send">发送</button>
+        <AssistantOptions v-model:local-only="localOnly" v-model:include-lesson="includeLesson" :can-include-lesson="!!lessonSlug" />
+        <p id="drawer-privacy" class="drawer__privacy">{{ localOnly ? WHALE_LOCAL_NOTICE : WHALE_PRIVACY_NOTICE }}</p>
+        <form class="drawer__compose" @submit.prevent="send">
+          <input
+            ref="inputEl"
+            v-model="input"
+            class="input"
+            placeholder="问鲸鲸一个 Java 问题…"
+            aria-label="要问鲸鲸的问题"
+            aria-describedby="drawer-privacy"
+            :maxlength="MAX_QUESTION_LENGTH"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn btn--primary" type="submit" :disabled="agent.loading || !input.trim()">发送</button>
+        </form>
       </footer>
     </aside>
   </Transition>
 </template>
 
 <script lang="ts">
+import { isLessonSlug as validLessonSlug } from '@/stores/assistantConversation'
+
 /** 极简 Markdown 渲染：粗体、行内代码、引用、列表、课时链接 */
 function renderMarkdown(src: string): string {
   const esc = (s: string) =>
@@ -196,8 +210,8 @@ function renderMarkdown(src: string): string {
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>')
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, t, u) => {
-    const slug = String(u).split('/lesson/')[1] || ''
-    return slug ? `<a href="#" data-slug="${slug}">${t}</a>` : `<span>${t}</span>`
+    const slug = u.startsWith('/lesson/') ? u.slice('/lesson/'.length) : ''
+    return validLessonSlug(slug) ? `<a href="#/lesson/${slug}" data-slug="${slug}">${t}</a>` : t
   })
   // 引用块
   out = out.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>')
@@ -284,6 +298,14 @@ export default { methods: { renderMarkdown } }
   cursor: pointer;
 }
 .drawer__close:hover { background: var(--c-coral); color: #fff; }
+.drawer__clear {
+  border: 0;
+  background: transparent;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
 
 /* 消息流 */
 .drawer__body {
@@ -308,6 +330,7 @@ export default { methods: { renderMarkdown } }
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   word-break: break-word;
+  white-space: pre-wrap;
 }
 .msg--me .msg__bubble { background: var(--c-sun); }
 .msg__bubble.is-pending { padding: 16px; }
@@ -382,12 +405,13 @@ export default { methods: { renderMarkdown } }
 
 /* 输入 */
 .drawer__foot {
-  display: flex;
-  gap: 8px;
   padding: 14px;
   background: var(--c-paper);
   border-top: var(--bw-base) solid var(--c-line);
 }
+.drawer__privacy { margin: 0 0 8px; color: var(--c-ink-soft); font-size: 12px; line-height: 1.5; }
+.drawer__compose { display: flex; gap: 8px; }
+.drawer__compose .input { min-width: 0; flex: 1; }
 
 .slide-enter-active, .slide-leave-active { transition: transform .28s cubic-bezier(.34,1.4,.64,1); }
 .slide-enter-from, .slide-leave-to { transform: translateX(100%); }

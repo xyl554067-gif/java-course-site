@@ -3,9 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { courseApi, type Course, type CourseModule } from '@/api'
 import { useAgentStore } from '@/stores/agent'
+import { useProgressStore } from '@/stores/progress'
 
 const route = useRoute()
 const agent = useAgentStore()
+const progress = useProgressStore()
 
 const course = ref<Course | null>(null)
 const modules = ref<CourseModule[]>([])
@@ -34,7 +36,10 @@ async function load(slug: string) {
   }
 }
 
-onMounted(() => load(route.params.slug as string))
+onMounted(() => {
+  void load(route.params.slug as string)
+  void progress.load().catch(() => {})
+})
 </script>
 
 <template>
@@ -73,8 +78,12 @@ onMounted(() => load(route.params.slug as string))
             <ul v-if="openModules[m.id]" class="cmod__lessons">
               <li v-for="(l, li) in m.lessons || []" :key="l.id">
                 <RouterLink :to="`/lesson/${l.slug}`" class="clink">
-                  <span class="clink__no">{{ li + 1 }}</span>
-                  <span class="clink__title">{{ l.title }}</span>
+                  <span class="clink__no" :aria-label="progress.isCompleted(l.id) ? '已完成' : undefined">{{ progress.isCompleted(l.id) ? '✓' : li + 1 }}</span>
+                  <span class="clink__title">
+                    {{ l.title }}
+                    <small v-if="progress.progressOf(l.id)?.selfCheckStage === 2" class="badge badge--mint">自测通过</small>
+                    <small v-if="progress.progressOf(l.id)?.progressPct" class="clink__reading">已读 {{ progress.progressOf(l.id)?.progressPct }}%</small>
+                  </span>
                   <span class="clink__sum">{{ l.summary }}</span>
                   <span class="clink__go">→</span>
                 </RouterLink>
@@ -97,6 +106,7 @@ onMounted(() => load(route.params.slug as string))
 </template>
 
 <style scoped>
+.clink__reading { margin-left: 6px; color: var(--c-ink-soft); font-weight: 400; }
 .cview { padding-top: var(--space-lg); }
 .cview__loading { display: grid; place-items: center; padding: 70px 0; }
 

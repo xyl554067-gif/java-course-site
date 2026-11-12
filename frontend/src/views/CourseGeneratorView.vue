@@ -1,18 +1,69 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { generatedCourseApi, type GeneratedCourse, type GeneratedCourseRecord } from '@/api'
+import { generatedCourseApi, type GeneratedCourse, type GeneratedCourseRecord, type FileRedactionPreview } from '@/api'
 import { errMsg } from '@/api/http'
 
 const route=useRoute(), router=useRouter()
 const file=ref<File|null>(null), url=ref(''), busy=ref(false), saving=ref(false), error=ref(''), notice=ref('')
 const record=ref<GeneratedCourseRecord|null>(null), draft=ref<GeneratedCourse|null>(null), shareUrl=ref('')
+const redact = ref(true)
+const preview = ref<FileRedactionPreview | null>(null)
 const lessonCount=computed(()=>draft.value?.modules.reduce((n,m)=>n+m.lessons.length,0)??0)
 const canEdit=computed(()=>record.value?.status==='DRAFT')
 
 function cloneCourse(c:GeneratedCourse){return JSON.parse(JSON.stringify(c)) as GeneratedCourse}
 async function load(id:number){busy.value=true;try{record.value=await generatedCourseApi.get(id);draft.value=cloneCourse(record.value.course);if(record.value.shareToken&&!record.value.shareRevoked)shareUrl.value=`${location.origin}${location.pathname}#/shared/${record.value.shareToken}`}catch(e){error.value=errMsg(e)}finally{busy.value=false}}
-async function fromFile(){if(!file.value)return;busy.value=true;error.value='';notice.value='正在提取资料并分析生成课程…';try{record.value=await generatedCourseApi.importFile(file.value);draft.value=cloneCourse(record.value.course);notice.value=record.value.degraded?'课程草稿已保存（当前使用本地资料模板，请核对并补充）':'课程草稿已生成并保存';await router.replace({query:{id:String(record.value.id)}})}catch(e){error.value=errMsg(e);notice.value=''}finally{busy.value=false}}
+function selectFile(event: Event) {
+  file.value = (event.target as HTMLInputElement).files?.[0] ?? null
+  preview.value = null
+  error.value = ''
+}
+
+async function fromFile() {
+  if (!file.value || busy.value || preview.value) return
+  busy.value = true
+  error.value = ''
+  notice.value = redact.value ? '正在提取并脱敏…' : '正在提取资料并生成课程…'
+  try {
+    if (redact.value) {
+      preview.value = await generatedCourseApi.previewFile(file.value)
+      notice.value = ''
+    } else {
+      await acceptFileDraft(await generatedCourseApi.importFile(file.value, false))
+    }
+  } catch (e) {
+    error.value = errMsg(e)
+    notice.value = ''
+  } finally {
+    busy.value = false
+  }
+}
+
+async function generateReviewed() {
+  if (!preview.value?.text.trim() || busy.value) return
+  busy.value = true
+  error.value = ''
+  notice.value = '正在用预览正文生成课程…'
+  try {
+    const { format, text } = preview.value
+    await acceptFileDraft(await generatedCourseApi.importReviewedFile(format, text))
+    preview.value = null
+  } catch (e) {
+    error.value = errMsg(e)
+    notice.value = ''
+  } finally {
+    busy.value = false
+  }
+}
+
+async function acceptFileDraft(generated: GeneratedCourseRecord) {
+  record.value = generated
+  draft.value = cloneCourse(generated.course)
+  shareUrl.value = ''
+  notice.value = generated.degraded ? '课程草稿已保存（当前使用本地资料模板，请核对并补充）' : '课程草稿已生成并保存'
+  await router.replace({ query: { id: String(generated.id) } })
+}
 async function fromUrl(){if(!url.value.trim())return;busy.value=true;error.value='';notice.value='正在读取公开网页并分析…';try{record.value=await generatedCourseApi.importUrl(url.value.trim());draft.value=cloneCourse(record.value.course);notice.value=record.value.degraded?'课程草稿已保存（当前使用本地资料模板，请核对并补充）':'课程草稿已生成并保存';await router.replace({query:{id:String(record.value.id)}})}catch(e){error.value=errMsg(e);notice.value=''}finally{busy.value=false}}
 async function save(){if(!record.value||!draft.value)return false;saving.value=true;error.value='';try{record.value=await generatedCourseApi.save(record.value.id,draft.value);draft.value=cloneCourse(record.value.course);notice.value='修改已保存到个人课程草稿';return true}catch(e){error.value=errMsg(e);return false}finally{saving.value=false}}
 async function publish(){if(!await save()||!record.value)return;busy.value=true;try{record.value=await generatedCourseApi.publish(record.value.id);notice.value='课程已发布到你的个人课程库，默认仅自己可见'}catch(e){error.value=errMsg(e)}finally{busy.value=false}}
@@ -33,13 +84,30 @@ onMounted(()=>{const id=Number(route.query.id);if(id)void load(id)})
       <p>导入 PDF、Word、PPT 或公开网页，鲸鲸会整理成可编辑的课程草稿。课程先保存在你的个人课程库，发布后仍默认私有。</p>
       <div class="import-grid">
         <form class="import-card" @submit.prevent="fromFile"><h2>上传本地资料</h2><p>支持文本型 PDF、DOCX、PPTX，单文件最大 20 MB。</p>
-          <input type="file" accept=".pdf,.docx,.pptx,application/pdf" @change="file=($event.target as HTMLInputElement).files?.[0]||null" />
-          <button class="btn btn--primary" :disabled="busy||!file">{{busy?'处理中…':'分析并生成课程'}}</button></form>
+          <input type="file" accept=".pdf,.docx,.pptx,application/pdf" :disabled="busy" @change="selectFile" />
+          <label class="redaction-toggle">
+            <input v-model="redact" type="checkbox" :disabled="busy" @change="preview = null" />
+            自动脱敏并预览
+          </label>
+          <p v-if="redact">文件由本站后端提取文字。系统会替换可识别的邮箱、手机号、证件号和常见密钥，并隐藏原文件名。</p>
+          <p v-else>关闭后，提取的原文会直接用于模型分析，原文件名和文字摘录会保存在草稿中。</p>
+          <button class="btn btn--primary" :disabled="busy || !file || !!preview">{{ redact ? '提取并预览' : '分析并生成课程' }}</button></form>
         <form class="import-card" @submit.prevent="fromUrl"><h2>分析公开网页</h2><p>网页应无需登录即可访问；仅提取正文与来源段落。</p>
           <input v-model="url" type="url" placeholder="https://example.com/learning-material" />
           <button class="btn btn--primary" :disabled="busy||!url.trim()">{{busy?'处理中…':'分析链接并生成课程'}}</button></form>
       </div>
-      <p v-if="notice" class="notice">{{notice}}</p><p v-if="error" class="error">{{error}}</p>
+      <section v-if="preview" class="redaction-preview" aria-labelledby="redaction-preview-title">
+        <h2 id="redaction-preview-title">核对脱敏后的正文</h2>
+        <p>已匹配 {{ preview.matches }} 处，草稿中的资料名将显示为「{{ preview.sourceName }}」。请检查姓名、地址等未必能识别的信息，再确认发送给模型。</p>
+        <label>可编辑预览
+          <textarea v-model="preview.text" rows="10" maxlength="60000" :disabled="busy" />
+        </label>
+        <div class="actions">
+          <button type="button" class="btn btn--primary" :disabled="busy || !preview.text.trim()" @click="generateReviewed">确认并生成课程</button>
+          <button type="button" class="btn btn--ghost" :disabled="busy" @click="preview = null">取消预览</button>
+        </div>
+      </section>
+      <p v-if="notice" class="notice" role="status">{{notice}}</p><p v-if="error" class="error">{{error}}</p>
       <p v-if="record?.aiNote" class="muted">模型通道提示：{{record.aiNote}}</p>
     </section>
 
@@ -59,10 +127,15 @@ onMounted(()=>{const id=Number(route.query.id);if(id)void load(id)})
       <div v-if="shareUrl" class="share-box"><label>只读分享链接<input :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" /></label><button class="btn btn--sm btn--ghost" @click="copyShare">复制</button><button class="btn btn--sm btn--ghost" @click="revokeShare">撤销链接</button></div>
       <div v-else-if="record.shareToken&&!record.shareRevoked" class="share-box"><span>已创建分享链接</span><button class="btn btn--sm btn--ghost" @click="revokeShare">撤销链接</button></div>
     </section>
-    <section class="card guidance"><h2>默认课程结构</h2><p>学习目标、先修知识、单元与课时、重点笔记、示例、总结、自测题。编程课程可包含代码单元，其他主题不会强加代码实验。</p><p class="muted">文件内容会发给你配置的 AI 模型进行分析；来源标签用于回查原文。扫描版 PDF OCR 和需要登录的网页暂不支持。</p></section>
+    <section class="card guidance"><h2>默认课程结构</h2><p>学习目标、先修知识、单元与课时、重点笔记、示例、总结、自测题。编程课程可包含代码单元，其他主题不会强加代码实验。</p><p class="muted">提交生成时，模型会收到预览确认后的正文，或你选择直接分析的资料文字。来源标签用于回查原文。扫描版 PDF OCR 和需要登录的网页暂不支持。</p></section>
   </div>
 </template>
 
 <style scoped>
 .gen-page{padding:28px 0;max-width:1080px}.gen-hero,.editor-card,.guidance{padding:28px;margin-bottom:22px}.eyebrow{margin:0 0 6px;color:var(--c-mint);font-weight:800}.gen-hero h1,.editor-head h2{margin:0 0 8px}.gen-hero>p:not(.eyebrow){line-height:1.8;color:var(--c-ink-soft)}.import-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.import-card{display:flex;flex-direction:column;gap:12px;padding:18px;border:2px solid var(--c-line);border-radius:18px;background:var(--c-paper)}.import-card h2{margin:0}.import-card p{margin:0;color:var(--c-ink-soft)}input,textarea{width:100%;padding:11px 13px;border:2px solid var(--c-line);border-radius:12px;background:var(--c-paper);color:var(--c-ink);font:inherit}.editor-head,.module-head,.lesson-fields,.share-box{display:flex;align-items:center;justify-content:space-between;gap:12px}.editor-head{margin-bottom:20px}.editor-head p{margin:4px 0}.actions{display:flex;gap:10px;flex-wrap:wrap}.course-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.course-form label,.share-box label{display:flex;flex-direction:column;gap:6px;font-weight:700}.module-editor{margin-top:22px;padding:18px;border:2px solid var(--c-line);border-radius:18px;background:var(--c-cream)}.module-head input{max-width:70%;font-size:19px;font-weight:800}.lesson-editor{margin:14px 0;padding:16px;border:1px solid var(--c-line);border-radius:14px;background:var(--c-paper)}.lesson-fields{margin-bottom:10px}.lesson-fields input:first-child{max-width:30%;font-weight:700}.lesson-fields input:nth-child(2){flex:1}.lesson-editor textarea{font-family:var(--font-mono);line-height:1.65;white-space:pre-wrap}.source-ref,.muted{font-size:13px;color:var(--c-ink-faint)}.source-ref{margin-bottom:0}.share-box{margin-top:18px;padding:14px;border-radius:12px;background:var(--c-mint-soft,#e4f7f2)}.share-box label{flex:1}.notice{color:#21815d;font-weight:700}.error{color:var(--c-coral-deep);font-weight:700}.guidance h2{margin:0 0 8px}.guidance p{line-height:1.8}.guidance .muted{font-size:13px}@media(max-width:720px){.import-grid,.course-form{grid-template-columns:1fr}.editor-head{align-items:flex-start;flex-direction:column}.lesson-fields{flex-wrap:wrap}.lesson-fields input:first-child,.lesson-fields input:nth-child(2){max-width:none;flex-basis:100%}.share-box{flex-wrap:wrap}}
+.redaction-toggle{display:flex;align-items:center;gap:8px;font-weight:700}
+.redaction-toggle input{width:auto}
+.redaction-preview{margin-top:18px;padding:18px;border:2px solid var(--c-line);border-radius:18px}
+.redaction-preview label{display:block;font-weight:700}
+.redaction-preview textarea{display:block;margin:8px 0 14px;resize:vertical}
 </style>
