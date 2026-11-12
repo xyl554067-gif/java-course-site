@@ -5,10 +5,10 @@ import { useAgentStore } from '@/stores/agent'
 import { useProgressStore } from '@/stores/progress'
 
 const courseSlug = 'java-mastery'
-const topicLesson = { slug: 'oop-core' }
+const firstLesson = { slug: 'hello-world' }
 const courseRoute = { name: 'course', params: { slug: courseSlug } }
-const topicRoute = { name: 'lesson', params: topicLesson }
-const labRoute = { name: 'lesson-lab', params: topicLesson }
+const firstLessonRoute = { name: 'lesson', params: firstLesson }
+const labRoute = { name: 'lesson-lab', params: firstLesson }
 const assistantImage = import.meta.env.BASE_URL + 'assets/agent/agent-idle.png'
 
 const modules = ref<CourseModule[]>([])
@@ -17,6 +17,10 @@ const agent = useAgentStore()
 const progress = useProgressStore()
 
 const lessons = computed(() => modules.value.flatMap((module) => module.lessons ?? []))
+const courseStats = computed(() => [
+  { label: '模块', count: modules.value.length },
+  { label: '课时', count: lessons.value.length },
+])
 const lastLesson = computed(() => progress.items.find((item) =>
   lessons.value.some((lesson) => lesson.id === item.lessonId),
 ))
@@ -29,7 +33,7 @@ const entryLesson = computed(() => {
     ?? recent
 })
 const entryLabel = computed(() => {
-  if (!entryLesson.value) return '开始专题学习'
+  if (!entryLesson.value) return '开始学习'
   return entryLesson.value === lastLesson.value && lastLesson.value.completed ? '复习课时' : '继续学习'
 })
 const entryRoute = computed(() => entryLesson.value
@@ -38,7 +42,7 @@ const entryRoute = computed(() => entryLesson.value
       params: { slug: entryLesson.value.slug },
       query: entryLabel.value === '继续学习' ? { resume: '1' } : {},
     }
-  : topicRoute,
+  : firstLessonRoute,
 )
 
 const links = [
@@ -67,10 +71,9 @@ onMounted(() => {
   <div class="container home">
     <section class="hero" aria-labelledby="home-title">
       <div class="hero__intro">
-        <p class="hero__site">Java 精通之路 · 课程专题</p>
-        <h1 id="home-title">封装、访问控制<br />与包管理</h1>
+        <h1 id="home-title">Java 精通之路</h1>
         <p class="hero__description">
-          从一个账户类入手，学习怎样保护对象的数据、控制谁能访问类的成员，以及用包组织 Java 代码。
+          从第一个 Java 程序出发，逐步学习面向对象、集合、JVM、并发和框架实战。读课时笔记、看配套视频，再动手编写和运行代码。
         </p>
         <div class="home__actions">
           <RouterLink :to="entryRoute" class="home-button home-button--primary">
@@ -87,24 +90,17 @@ onMounted(() => {
         </div>
       </div>
 
-      <figure class="example">
-        <figcaption class="example__header">
-          <span>Account.java</span>
-          <span class="example__language">Java</span>
-        </figcaption>
-        <pre><code><span class="example__keyword">package</span> demo.bank;
-
-<span class="example__keyword">public class</span> <span class="example__type">Account</span> {
-    <span class="example__keyword">private int</span> balance;
-
-    <span class="example__keyword">public void</span> <span class="example__method">deposit</span>(<span class="example__keyword">int</span> amount) {
-        <span class="example__keyword">if</span> (amount &gt; <span class="example__literal">0</span>) {
-            balance += amount;
-        }
-    }
-}</code></pre>
-        <p class="example__note">试着解释为什么外部类可以调用 <code>deposit</code>，却不能直接修改 <code>balance</code>。</p>
-      </figure>
+      <aside class="course-overview" aria-labelledby="course-overview-title">
+        <h2 id="course-overview-title">课程概览</h2>
+        <dl v-if="lessons.length" class="course-overview__stats">
+          <div v-for="stat in courseStats" :key="stat.label">
+            <dt>{{ stat.label }}</dt>
+            <dd>{{ stat.count }}</dd>
+          </div>
+        </dl>
+        <p>适合初学者，也可按模块复习。</p>
+        <RouterLink :to="{ name: 'learning-center' }">查看我的学习进度 <span aria-hidden="true">→</span></RouterLink>
+      </aside>
     </section>
 
     <section class="home__section" aria-labelledby="home-entry-title">
@@ -131,26 +127,26 @@ onMounted(() => {
 
     <section class="featured home__section" aria-labelledby="home-featured-title">
       <div class="featured__intro">
-        <p class="featured__label">专题体验课</p>
-        <h2 id="home-featured-title">封装、继承与多态</h2>
-        <p>打开课时笔记，或进入实验室观看「封装」分集，在视频旁编辑并运行 Java。</p>
+        <p class="featured__label">体验课</p>
+        <h2 id="home-featured-title">运行你的第一个 Java 程序</h2>
+        <p>跟着 HelloWorld 视频写出第一个程序，修改输出文字，再运行一次看看结果。</p>
         <div class="home__actions">
           <RouterLink :to="labRoute" class="home-button home-button--primary">边看边练 <span aria-hidden="true">→</span></RouterLink>
-          <RouterLink :to="topicRoute" class="home-text-button">阅读课时笔记</RouterLink>
+          <RouterLink :to="firstLessonRoute" class="home-text-button">阅读课时笔记</RouterLink>
         </div>
       </div>
       <dl class="featured__goals">
         <div>
-          <dt>封装</dt>
-          <dd>把字段设为 <code>private</code>，在公开方法里校验输入。</dd>
+          <dt>读笔记</dt>
+          <dd>理解知识点，先预测示例会怎样运行。</dd>
         </div>
         <div>
-          <dt>访问控制</dt>
-          <dd>比较同包类、异包类和异包子类可以访问哪些成员。</dd>
+          <dt>动手练</dt>
+          <dd>跟着配套视频修改代码，对照运行结果。</dd>
         </div>
         <div>
-          <dt>包管理</dt>
-          <dd>用 <code>package</code> 声明所属包，用 <code>import</code> 引用其他包中的可访问类型。</dd>
+          <dt>问助教</dt>
+          <dd>带上你的思路和报错，请鲸鲸帮你找原因。</dd>
         </div>
       </dl>
     </section>
@@ -166,7 +162,7 @@ onMounted(() => {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: clamp(24px, 5vw, 64px);
   align-items: center;
   padding: clamp(24px, 4.4vw, 56px);
@@ -177,21 +173,12 @@ onMounted(() => {
   box-shadow: 0 9px 24px rgba(45, 53, 97, .06);
 }
 
-.hero__site, .featured__label {
+.featured__label {
   margin: 0 0 14px;
   color: #4f487e;
   font-size: .875rem;
   font-weight: 800;
   letter-spacing: .08em;
-}
-.hero__site::before {
-  display: inline-block;
-  width: 20px;
-  height: 3px;
-  margin-right: 10px;
-  vertical-align: middle;
-  background: var(--c-sun-deep);
-  content: '';
 }
 .hero h1 {
   margin: 0;
@@ -239,45 +226,37 @@ onMounted(() => {
 }
 .home :is(a, button):focus-visible { outline: 3px solid #7253c5; outline-offset: 3px; }
 
-.example {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
+.course-overview {
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid #dfd9ee;
   border-radius: var(--radius-md);
-  background: #212743;
-  color: #eef0ff;
-  box-shadow: 0 14px 30px rgba(33, 39, 67, .2);
+  background: #f0ecf9;
 }
-.example__header {
+.course-overview h2 { margin: 0; font-size: 1.125rem; }
+.course-overview__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 0;
+}
+.course-overview__stats > div {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 13px 20px;
-  border-bottom: 1px solid #474e71;
-  background: #2c3457;
-  font: 600 .875rem var(--font-mono);
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--home-surface);
 }
-.example__language { color: #c5cce9; font-size: .75rem; }
-.example pre {
+.course-overview__stats dt, .course-overview p { color: var(--c-ink-soft); font-size: .875rem; }
+.course-overview__stats dd {
   margin: 0;
-  padding: 16px 20px;
-  overflow-x: auto;
-  font: clamp(.75rem, 1.1vw, .875rem)/1.52 var(--font-mono);
-  tab-size: 4;
+  font-family: var(--font-round);
+  font-size: clamp(1.625rem, 3vw, 2.125rem);
+  font-weight: 800;
+  line-height: 1.1;
 }
-.example code, .featured__goals code { font-family: var(--font-mono); }
-.example__keyword { color: #d4c3ff; }
-.example__type { color: #ffd888; }
-.example__method { color: #8ce5cf; }
-.example__literal { color: #ffd888; }
-.example__note {
-  margin: 0;
-  padding: 12px 20px;
-  border-top: 1px solid #474e71;
-  color: #d6dcf1;
-  font-size: .8125rem;
-  line-height: 1.55;
-}
+.course-overview p { margin: 16px 0 10px; line-height: 1.5; }
+.course-overview a { color: var(--c-ink); font-size: .875rem; font-weight: 700; text-underline-offset: .22em; }
 
 .home__section { margin-top: clamp(24px, 3vw, 38px); }
 .home__section h2 { margin: 0 0 14px; font-size: clamp(1.375rem, 2.4vw, 1.875rem); }
@@ -349,7 +328,6 @@ onMounted(() => {
   .home { padding-inline: 14px; }
   .hero { padding: 20px 16px; }
   .hero h1 { font-size: clamp(1.75rem, 8.4vw, 2.375rem); }
-  .example pre, .example__header, .example__note { padding-inline: 12px; }
   .entry-card { padding: 12px; }
   .entry-grid { gap: 10px; }
   .featured { padding: 18px 16px; }

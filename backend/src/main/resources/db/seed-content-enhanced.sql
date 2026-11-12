@@ -1785,202 +1785,177 @@ Map<UserKey, Profile> cache = new ConcurrentHashMap<>();
 -- oop-core
 UPDATE lesson SET content = '## 本节要点
 
-用封装保护状态，用继承共享行为，再观察重写后的方法如何按实际对象选择实现。
+用账户类保护余额，再用两个包验证访问边界。完成后，你能选用访问修饰符、用 `package` 和 `import` 组织代码，并根据编译报错修正访问方式。
 
 ## 核心概念
 
-- **封装**：隐藏内部实现，通过方法暴露访问。降低耦合、允许内部自由演进。
-- **继承**：复用代码 + 建立 is-a 关系。Java 单继承（类）+ 多实现（接口）。
-- **多态**：父类引用指向子类对象，调用同一方法表现出不同行为。前提是**方法被重写**。
+**封装**是把对象状态和修改状态的规则放进同一个类。账户余额由 `private` 字段保存，调用者通过 `deposit` 存款。方法拒绝负数、零和会导致整数溢出的金额，余额只有在校验通过后才变化。
+
+#### 四种成员访问权限
+
+下表讨论普通顶层类的实例成员，假设声明成员的类型本身可访问。表中的「本类」也涵盖同一顶层类内部的嵌套类型访问情形。
+
+| 成员声明 | 本类 | 同包其他类 | 异包子类 | 异包普通类 |
+| --- | --- | --- | --- | --- |
+| `public` | 可以 | 可以 | 可以 | 可以 |
+| `protected` | 可以 | 可以 | 有条件 | 不可以 |
+| 省略修饰符（包访问） | 可以 | 可以 | 不可以 | 不可以 |
+| `private` | 可以 | 不可以 | 不可以 | 不可以 |
+
+异包子类访问父类的 `protected` 实例成员时，访问代码须位于子类内部。通过表达式访问时，表达式的编译期类型须为该子类或它的子类。例如，`SavingsAccount` 中的 `this.auditCode()` 和 `otherSavings.auditCode()` 合法，`Account` 类型引用上的同一调用会报错。
+
+#### 用包组织代码
+
+- `package demo.bank;` 声明源文件属于 `demo.bank`。项目中通常把它放在源代码根目录下的 `demo/bank` 目录。
+- `import demo.bank.Account;` 让代码能用简单名 `Account`。也可直接写全限定名 `demo.bank.Account`。两种写法都遵守同一套访问权限。
+- `demo.bank` 和 `demo.bank.tools` 是不同的包。`import demo.bank.*;` 只按需引入该包中可访问的类型，子包中的类型需要单独引入。
+- 普通顶层类可声明为 `public` 或省略访问修饰符。使用文件编译时，`public class Account` 写在 `Account.java` 中。
 
 ## 关键代码
 
+打开「边看边练」，选择「账户余额的封装」，先预测三行输出，再运行。
+
 ```java
-class Animal {
-    void speak() { System.out.println("..."); }
-    protected void breathe() { }              // protected：子类可见
-    private void hidden() { }                 // private：子类不可见
-    final void cannotOverride() { }           // final：禁止重写
-    static void staticMethod() { }            // static：隐藏而非重写
+class Account {
+    private int balance;
+
+    public boolean deposit(int amount) {
+        if (amount <= 0 || amount > Integer.MAX_VALUE - balance) {
+            return false;
+        }
+        balance += amount;
+        return true;
+    }
+
+    public int getBalance() {
+        return balance;
+    }
 }
 
-class Dog extends Animal {
-    @Override
-    void speak() { System.out.println("汪"); }   // 访问权限不能更严格
-
-    // 协变返回类型：返回更具体的类型
-    @Override
-    Dog clone() { return new Dog(); }
-}
-
-// 运行时多态
-Animal a = new Dog();
-a.speak();          // 输出「汪」——实际调用 Dog.speak()
-
-// 向下转型
-if (a instanceof Dog d) {
-    d.bark();        // Java 16+ 模式匹配
-}
-
-// 组合优于继承
-class Engine { void start() {} }
-class Car {
-    private final Engine engine = new Engine();   // has-a
-    void drive() { engine.start(); }
+public class AccountDemo {
+    public static void main(String[] args) {
+        Account account = new Account();
+        System.out.println(account.deposit(100));
+        System.out.println(account.deposit(-20));
+        System.out.println(account.getBalance());
+        // account.balance = -20; // 取消注释，观察 private 访问报错
+    }
 }
 ```
 
-> 注意：代码需 JDK 17 及以上，直接复制即可编译运行。
-
-#### 进阶细节
-
-- **方法重写（Override）**：子类重新实现父类方法，签名相同。
-- **方法重载（Overload）**：同一类中多个同名不同参的方法，与继承无关。
-- **重写规则**：访问权限不能更严格、返回值协变、checked 异常不能更宽、final 不能重写、static 不能重写、private 不能重写。
-- **协变返回类型**：JDK 5+ 支持，子类可返回更具体的类型。
-- **组合优于继承**：用「has-a」组合代替「is-a」继承，避免脆弱基类。
-- **里氏替换原则（LSP）**：子类必须能替换父类 wherever 父类被使用。
-- **向上转型（Upcasting）** 与 **向下转型（Downcasting）**。
-- **重写与重载的区分**：重写发生在父子类之间（运行时多态），重载发生在同一类中（编译期多态）。
+输出依次是 `true`、`false`、`100`。取消最后一行的注释会产生编译错误。恢复注释后，试着把 `deposit(-20)` 改成 `deposit(25)`，再预测余额。
 
 ## 常见误区
 
-- 认为重载是「多态」——重载是编译期静态绑定，只有重写才是运行时多态
-- 认为子类能访问父类的 private 字段——只能通过父类的 public/protected 方法间接访问
-- 用 `instanceof` 层层判断代替多态——这是「面向对象之反模式」
-- 继承层次过深，导致「脆弱基类」问题
+- 给私有余额配一个无条件赋值的 `setBalance` 仍允许调用者绕过业务规则。用带校验的 `deposit` 表达业务操作。
+- 省略修饰符得到包访问权限。父类和子类即使有继承关系，只要位于不同包，子类就无法访问父类的包内成员。
+- 异包子类能访问的 `protected` 成员与访问位置、引用的编译期类型有关。仅把对象赋给 `Account` 类型变量，访问检查就可能发生变化。
 
 ## 动手练习
 
-用继承实现 `Animal → Dog / Cat`，再用组合重写同一个需求，对比两种方案在需求变更时的改动量。
+#### 判断访问权限
+
+在项目根目录新建以下文件。先预测注释里的每一行能否编译，再逐行验证。
+
+```text
+src/
+  demo/bank/Account.java
+  demo/bank/BankCheck.java
+  demo/app/SavingsAccount.java
+```
+
+`src/demo/bank/Account.java`
+
+```java
+package demo.bank;
+
+public class Account {
+    private int balance = 100;
+
+    public int getBalance() {
+        return balance;
+    }
+
+    protected String auditCode() {
+        return "AUDIT";
+    }
+
+    String branchCode() {
+        return "BANK";
+    }
+}
+```
+
+`src/demo/bank/BankCheck.java`
+
+```java
+package demo.bank;
+
+public class BankCheck {
+    public static void main(String[] args) {
+        Account account = new Account();
+        System.out.println(account.getBalance());
+        System.out.println(account.auditCode());
+        System.out.println(account.branchCode());
+        // System.out.println(account.balance);
+    }
+}
+```
+
+`src/demo/app/SavingsAccount.java`
+
+```java
+package demo.app;
+
+import demo.bank.Account;
+
+public class SavingsAccount extends Account {
+    void check(SavingsAccount other) {
+        System.out.println(this.auditCode());
+        System.out.println(other.auditCode());
+
+        Account parent = other;
+        System.out.println(parent.getBalance());
+        // System.out.println(parent.auditCode());
+        // System.out.println(other.branchCode());
+    }
+
+    public static void main(String[] args) {
+        SavingsAccount account = new SavingsAccount();
+        account.check(account);
+    }
+}
+```
+
+#### 代码纠错
+
+在终端使用 JDK 编译这三个文件，也可以在 IDEA 或 VS Code 中打开同一个源代码目录。
+
+```text
+javac -d out src/demo/bank/Account.java src/demo/bank/BankCheck.java src/demo/app/SavingsAccount.java
+java -cp out demo.bank.BankCheck
+java -cp out demo.app.SavingsAccount
+```
+
+- 同包程序输出 `100`、`AUDIT`、`BANK`。把 `account.balance` 取消注释，记录编译错误，再改用 `getBalance()`。
+- 异包程序输出 `AUDIT`、`AUDIT`、`100`。每次只取消一行注释。将 `parent.auditCode()` 改用 `other.auditCode()` 可恢复编译。把包内方法的调用留在 `BankCheck`，再验证同包访问。
+
+#### 封装重构
+
+从一个带 `public int balance` 的账户类开始，把字段改为 `private`，删除调用方的直接写入，改用带校验的 `deposit`。依次测试正常存款、零金额、负数和整数溢出，记录返回值与余额。校验失败时余额应保持原值。
 
 ## 知识拓展
 
+**继承**让子类建立在父类的行为之上。**重写**使用相同签名重新实现可继承的方法，访问范围可以扩大。**重载**使用同名方法和不同的参数列表，编译器在调用处选择签名。
 
-**优先使用组合而非继承**
-
-继承的缺陷：
-
-- **脆弱基类（Fragile Base Class）**：继承的实现细节可能变化，导致子类失效
-- **无法阻止子类破坏约定**：子类可以覆盖父类方法，破坏 Liskov 替换原则
-- **类的命名空间冲突**：继承会把父类的所有方法带入子类作用域
-
-组合替代方案：
-
-```java
-// 继承：is-a
-class LoggingArrayList<E> extends ArrayList<E> { ... }   // 脆弱
-
-// 组合：has-a（装饰器模式）
-class LoggingList<E> implements List<E> {
-    private final List<E> delegate;
-    @Override public boolean add(E e) {
-        System.out.println("adding " + e);
-        return delegate.add(e);
-    }
-    // 其余方法全部转发
-}
-```
-
-**用组合代替继承**。
-
-**里氏替换原则的具体体现**
-
-继承必须保证「子类在语义上确实是父类」。反例是经典的「正方形不是矩形」：
-
-```java
-class Rectangle {
-    void setWidth(int w) { ... }
-    void setHeight(int h) { ... }
-}
-class Square extends Rectangle {
-    @Override void setWidth(int w) { setHeight(w); }   // 破坏 LSP
-}
-```
-
-解决方案是**组合 + 抽象接口**，让正方形不继承矩形。
-
-**重写规则的完整清单**
-
-重写的约束：
-
-| 规则 | 说明 |
-| --- | --- |
-| 返回类型 | 相同或协变（JDK 5+） |
-| 访问权限 | 不能比父类更严格（protected → public 可以，反之不行） |
-| 受检异常 | 不能抛出比父类更宽的异常 |
-| final 方法 | 不能重写 |
-| static 方法 | 只能隐藏（hide），不是重写 |
-| private 方法 | 不参与继承，子类可定义同名方法（不是重写） |
-| final 类 | 不能被继承 |
-
-**重写与重载的判定**
-
-判断方法：
-
-- **重写**：发生在父子类之间，方法签名相同，运行时动态分发
-- **重载**：同一类中，参数列表不同，编译期静态绑定
-
-一个常见误解是「重载也是多态」——准确说重载是**编译期多态**（静态绑定），重写才是**运行时多态**（动态绑定）。
-
-**构造器中调用可重写方法的问题**
-
-构造器中调用 `this` 或可被重写的方法时，子类的重写版本会被调用，而此时**子类的字段还没初始化**，会导致读到默认值（null / 0）。
-
-```java
-class Bad extends Base {
-    private final String name = "initialized";
-    Bad() {
-        super();                 // 父类构造器若调用可重写方法
-    }
-    @Override String getName() { return name; }   // 此时 name 还是 null！
-}
-```
-
-**模板方法模式（Template Method）**
-
-经典解决方案是 Template Method：把可变步骤抽成抽象方法，由父类的模板流程控制调用顺序。
+对实例方法，编译器用引用的声明类型检查签名和访问权限，运行时再用实际对象类型选择重写后的实现。在实验室选择「多态的运行时绑定」，观察 `Animal animal = new Dog()` 之后调用的是哪个方法。
 
 ## 实战提示
 
-**多态的实战价值**：
+先用较小的访问范围定义成员，再按调用方的实际需要开放接口。包名可以按职责划分，例如 `demo.bank` 放账户模型，`demo.app` 放应用入口。跨包验证时，记下调用位置、引用类型、访问修饰符和编译器诊断。
 
-```java
-// 调用方只面向抽象编程，不需要 if-else 判断类型
-void process(List<Animal> animals) {
-    for (Animal a : animals) {
-        a.speak();       // 各自表现不同行为
-    }
-}
-```
+Java SE 21 语言规范第 6.6 节说明访问控制，第 7 章说明包声明和导入。
 
-新增物种时**不需要修改调用方**——这是开闭原则（OCP）的体现。
-
-**组合优于继承的判断标准**：如果被继承的类来自第三方库、或继承层次超过 2 层、或父类有可变字段，优先用组合。
-
-**协变返回类型的实用场景**：
-
-```java
-// 替代克隆模式
-class Node {
-    Node copy() { return new Node(); }
-}
-class SpecialNode extends Node {
-    @Override SpecialNode copy() { return new SpecialNode(); }  // 返回更具体
-}
-```
-
-**静态方法与实例方法的隐藏/重写区别**：
-
-```java
-class Parent { static void s() {} void i() {} }
-class Child extends Parent {
-    static void s() {}     // 隐藏（hide），不是重写
-    @Override void i() {}  // 重写
-}
-Parent.s();   // 调 Parent 的 static
-Child.s();    // 调 Child 的 static —— 编译期静态绑定
-```
 ' WHERE slug = 'oop-core';
 
 -- interface-vs-abstract

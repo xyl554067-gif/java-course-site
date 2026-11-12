@@ -6,6 +6,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +77,18 @@ class LessonProseUpgrade implements ApplicationRunner {
                         cleaned, entry.id(), entry.body());
             }
         }
+
+        seedEncapsulationExample();
+    }
+
+    private void seedEncapsulationExample() {
+        // Serialize seeding for this lesson across app instances. The SQL skips any existing example.
+        var lessons = jdbc.queryForList("SELECT l.id " + BUILT_IN_LESSONS
+                + "WHERE c.slug = ? AND l.slug = ? FOR UPDATE OF l", Long.class, COURSE, "oop-core");
+        if (lessons.isEmpty()) return;
+        var seed = new ResourceDatabasePopulator(new ClassPathResource("db/seed-encapsulation-lab.sql"));
+        seed.setSqlScriptEncoding(UTF_8.name());
+        seed.execute(jdbc.getDataSource());
     }
 
     private static Map<String, String> readingLayouts() throws IOException {
