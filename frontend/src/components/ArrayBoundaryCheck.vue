@@ -211,3 +211,4 @@ div.array-check__feedback { margin-top: 12px; }
 .array-check__hint { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: center; }
 .array-check__hint p { margin: 0; }
 </style>
+

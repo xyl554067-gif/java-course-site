@@ -56,6 +56,7 @@ const comicPrompt = computed(() => {
 })
 function jumpToHeading(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
 const snippets = ref<any[]>([])
+const hasLessonVideos = ref(false)
 const knowledge = ref<any[]>([])
 const prev = ref<any>(null)
 const next = ref<any>(null)
@@ -542,6 +543,7 @@ async function load(slug: string) {
     // 后端返回的是平铺结构（无 lesson 嵌套）
     lesson.value = r.lesson || r
     snippets.value = r.snippets || []
+    hasLessonVideos.value = Boolean(r.videos?.length)
     knowledge.value = r.knowledge || []
     prev.value = r.prev || null
     next.value = r.next || null
@@ -721,7 +723,7 @@ watch(() => route.params.slug, (slug) => {
 
       <nav class="lesson-tabs card" aria-label="课程区域">
         <RouterLink :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'notes' } }" :class="{ active: activeTab === 'notes' }">笔记</RouterLink>
-        <RouterLink v-if="snippets.length" :to="{ name: 'lesson-lab', params: { slug: route.params.slug } }" :class="{ active: route.name === 'lesson-lab' }">代码实验室</RouterLink>
+        <RouterLink v-if="snippets.length || hasLessonVideos" :to="{ name: 'lesson-lab', params: { slug: route.params.slug } }" :class="{ active: route.name === 'lesson-lab' }">{{ hasLessonVideos ? '边看边练' : '代码实验室' }}</RouterLink>
         <RouterLink v-if="lessonExercises.length||lessonQa.length" :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'exercises' } }" :class="{ active: activeTab === 'exercises' }">习题</RouterLink>
       </nav>
 

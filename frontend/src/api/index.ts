@@ -47,6 +47,36 @@ export interface CodeSnippet {
   explanation?: string
 }
 
+export interface LearningVideo {
+  id: number
+  bvid: string
+  sourceUrl: string
+  title: string
+  uploader: string
+  partNumber: number
+  startSeconds: number
+  label: string
+  recommendation?: string
+  sortOrder: number
+  lessonId: number
+  lessonSlug: string
+  lessonTitle: string
+  courseSlug: string
+  courseTitle: string
+}
+
+export interface VideoInput {
+  url: string
+  title: string
+  uploader: string
+  lessonId: number
+  label: string
+  partNumber: number
+  startSeconds: number
+  recommendation: string
+  sortOrder: number
+}
+
 export interface KnowledgePoint {
   id: number
   name: string
@@ -232,6 +262,14 @@ export const courseApi = {
   updateQa: (id: number, item: Record<string, unknown>) => request<QaItem>(http.put(`/qa/items/${id}`, item)),
   deleteQa: (id: number) => request<void>(http.delete(`/qa/items/${id}`)),
   importQa: (items: Record<string, unknown>[]) => request<{ imported: number; skipped: number; total: number }>(http.post('/qa/import', { items })),
+}
+
+export const learningVideoApi = {
+  list: () => request<LearningVideo[]>(http.get('/learning-videos')),
+  save: (video: VideoInput, id?: number) => request<void>(id === undefined
+    ? http.post('/learning-videos', video)
+    : http.put(`/learning-videos/${id}`, video)),
+  remove: (id: number) => request<void>(http.delete(`/learning-videos/${id}`)),
 }
 
 export const searchApi = {

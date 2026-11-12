@@ -3,7 +3,11 @@ import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHashHistory(),
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior(to, from) {
+    if (to.name === 'lesson-lab' && from.path === to.path && to.query.video !== from.query.video
+      && to.query.snippet === from.query.snippet) return false
+    return { top: 0 }
+  },
   routes: [
     {
       path: '/login',
@@ -31,6 +35,7 @@ const router = createRouter({
       name: 'lesson-lab',
       component: () => import('@/views/CodeLabView.vue'),
     },
+    { path: '/learning-videos', name: 'learning-videos', component: () => import('@/views/LearningVideosView.vue') },
     { path: '/ai/courses', name: 'course-generator', component: () => import('@/views/CourseGeneratorView.vue') },
     { path: '/ai/settings', name: 'ai-settings', component: () => import('@/views/AiSettingsView.vue') },
     { path: '/me', name: 'learning-center', component: () => import('@/views/LearningCenterView.vue') },

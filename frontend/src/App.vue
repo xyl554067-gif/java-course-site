@@ -2,7 +2,7 @@
 
 // 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
 const ASSET_BASE = import.meta.env.BASE_URL || '/'
-import { onMounted, onUnmounted, computed, watch } from 'vue'
+import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AUTH_EXPIRED_EVENT, TOKEN_KEY } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -20,6 +20,16 @@ const pet = usePetStore()
 const progress = useProgressStore()
 
 const bare = computed(() => route.meta.bare === true)
+const mobileNavOpen = ref(false)
+const menuButton = ref<HTMLButtonElement | null>(null)
+
+watch(() => route.fullPath, () => { mobileNavOpen.value = false })
+
+function closeMobileNav() {
+  if (!mobileNavOpen.value) return
+  mobileNavOpen.value = false
+  menuButton.value?.focus()
+}
 
 function onAuthExpired() {
   void auth.syncStoredSession()
@@ -77,20 +87,34 @@ async function handleLogout() {
 <template>
   <div class="app-shell">
     <!-- 顶部导航 -->
-    <header v-if="!bare" class="nav">
+    <header v-if="!bare" class="nav" @keydown.esc="closeMobileNav">
       <div class="container nav__inner">
         <RouterLink to="/" class="nav__brand">
           <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" class="nav__logo" />
           <span class="nav__title title-round">Java 精通之路</span>
         </RouterLink>
 
-          <nav class="nav__links">
+          <button
+            ref="menuButton"
+            class="btn btn--sm btn--ghost nav__menu"
+            type="button"
+            aria-label="导航菜单"
+            :aria-expanded="mobileNavOpen"
+            aria-controls="site-navigation"
+            @click="mobileNavOpen = !mobileNavOpen"
+          >
+            <span aria-hidden="true">☰</span>
+          </button>
+
+          <nav id="site-navigation" class="nav__links" :class="{ 'nav__links--open': mobileNavOpen }" aria-label="站点导航" @click="mobileNavOpen = false">
             <RouterLink to="/" class="nav__link">首页</RouterLink>
             <RouterLink to="/course/java-mastery" class="nav__link">课程目录</RouterLink>
+            <RouterLink to="/learning-videos" class="nav__link">学习视频</RouterLink>
             <RouterLink to="/exercises" class="nav__link">代码练习</RouterLink>
             <RouterLink to="/qa" class="nav__link">题库</RouterLink>
             <RouterLink to="/ai/courses" class="nav__link">AI 课程工坊</RouterLink>
             <RouterLink to="/ai/settings" class="nav__link">AI 接入</RouterLink>
+            <button class="nav__link nav__link--assistant" type="button" @click="agent.open()">鲸鲸助教</button>
           </nav>
 
         <div class="nav__right">
@@ -163,6 +187,7 @@ async function handleLogout() {
 .nav__brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--c-ink); }
 .nav__logo { width: 42px; height: 42px; image-rendering: auto; }
 .nav__title { font-size: 21px; font-weight: 800; white-space: nowrap; }
+.nav__menu, .nav__link--assistant { display: none; }
 
 .nav__links { display: flex; gap: 6px; }
 .nav__link {
@@ -217,13 +242,53 @@ async function handleLogout() {
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-@media (max-width: 1000px) {
-  .nav__links { display: none; }
+@media (max-width: 1240px) {
+  .nav__menu {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    padding: 0;
+    font-size: 17px;
+  }
+  .nav__right { margin-left: 0; }
+  .nav__links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: max(12px, calc((100% - var(--container)) / 2 + 16px));
+    right: max(12px, calc((100% - var(--container)) / 2 + 16px));
+    grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+    padding: 8px;
+    background: var(--c-paper);
+    border: var(--bw-thin) solid var(--c-line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    max-height: min(60vh, 370px);
+    overflow-y: auto;
+  }
+  .nav__links--open { display: grid; }
+  .nav__link { padding: 8px 10px; }
   .nav__title { font-size: 17px; }
 }
 @media (max-width: 640px) {
+  .nav__inner { gap: 8px; padding-inline: 12px; }
+  .nav__brand { gap: 6px; flex-shrink: 0; }
+  .nav__logo { width: 30px; height: 30px; }
+  .nav__title { font-size: clamp(14px, 4.3vw, 17px); }
+  .nav__right { gap: 6px; }
+  .nav__right .btn { padding-inline: 8px; white-space: nowrap; }
+  .nav__link--assistant { display: block; background: transparent; text-align: left; cursor: pointer; }
   .nav__user .badge { display: none; }
   .nav__agent { display: none; }
+}
+@media (max-width: 360px) {
+  .nav__inner { gap: 6px; padding-inline: 9px; }
+  .nav__logo { width: 26px; height: 26px; }
+  .nav__right { gap: 4px; }
+  .nav__right .btn { padding-inline: 6px; }
 }
 </style>
 

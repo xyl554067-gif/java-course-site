@@ -2,7 +2,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import CodeEditor from '@/components/CodeEditor.vue'
-import { courseApi, codeApi, type CodeRuntime, type CodeRunResult, type CodeSnippet, type Lesson } from '@/api'
+import LessonVideoPanel from '@/components/LessonVideoPanel.vue'
+import { courseApi, codeApi, type CodeRuntime, type CodeRunResult, type CodeSnippet, type LearningVideo, type Lesson } from '@/api'
 import { errMsg } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 
@@ -13,6 +14,10 @@ const router = useRouter()
 const auth = useAuthStore()
 const lesson = ref<Lesson | null>(null)
 const snippets = ref<LabSnippet[]>([])
+const videos = ref<LearningVideo[]>([])
+const selectedVideo = computed(() => videos.value.find((video) => String(video.id) === route.query.video) ?? videos.value[0])
+const videoArea = ref<HTMLElement | null>(null)
+const editorArea = ref<HTMLElement | null>(null)
 const selected = ref<LabSnippet | null>(null)
 const code = ref('')
 const stdin = ref('')
@@ -88,6 +93,10 @@ function select(snippet: LabSnippet) {
   void router.replace({ query: { ...route.query, snippet: String(snippet.id) } })
 }
 
+function selectVideo(id: number) {
+  void router.replace({ query: { ...route.query, video: String(id) } })
+}
+
 watch(() => route.params.slug, async (slug, _, onCleanup) => {
   if (typeof slug !== 'string') return
   let current = true
@@ -98,6 +107,7 @@ watch(() => route.params.slug, async (slug, _, onCleanup) => {
   lesson.value = null
   selected.value = null
   snippets.value = []
+  videos.value = []
   hasLessonPractice.value = false
   runtime.value = null
   try {
@@ -106,14 +116,17 @@ watch(() => route.params.slug, async (slug, _, onCleanup) => {
     const loadedLesson: Lesson = detail.lesson || detail
     lesson.value = loadedLesson
     snippets.value = detail.snippets || []
-    if (!snippets.value.length) {
+    videos.value = detail.videos || []
+    if (!snippets.value.length && !videos.value.length) {
       error.value = '这节课没有可用的代码示例。'
       return
     }
-    syncSelection()
-    void codeApi.runtime().then((value) => {
-      if (current) runtime.value = value
-    }).catch(() => {})
+    if (snippets.value.length) {
+      syncSelection()
+      void codeApi.runtime().then((value) => {
+        if (current) runtime.value = value
+      }).catch(() => {})
+    }
     void Promise.allSettled([codeApi.exercises(loadedLesson.id), courseApi.qa()]).then(([exercises, questions]) => {
       if (!current) return
       hasLessonPractice.value =
@@ -181,15 +194,22 @@ async function exportProject() {
 
     <p v-if="loading || !auth.ready" role="status">正在加载示例…</p>
     <p v-else-if="error" class="card lab-error" role="alert">{{ error }}</p>
-    <div v-else-if="selected" class="lab-layout">
-      <aside class="card lab-list">
-        <h2>示例单元</h2>
-        <button v-for="snippet in snippets" :key="snippet.id" :class="{ active: snippet.id === selected.id }" :aria-pressed="snippet.id === selected.id" @click="select(snippet)">
-          <b>{{ snippet.title }}</b><small>{{ snippet.language || 'java' }}</small>
-        </button>
-      </aside>
+    <div v-else-if="selected || selectedVideo" class="lab-layout" :class="{ 'lab-layout--video': selectedVideo }">
+      <div class="lab-sidebar" ref="videoArea">
+        <LessonVideoPanel v-if="selectedVideo" :videos="videos" :selected="selectedVideo" @select="selectVideo" />
+        <button v-if="selectedVideo && selected" type="button" class="btn btn--ghost lab-jump"
+          @click="editorArea?.scrollIntoView({ block: 'start' })">跳到练习 ↓</button>
+        <aside v-if="selected" class="card lab-list">
+          <h2>示例单元</h2>
+          <button v-for="snippet in snippets" :key="snippet.id" :class="{ active: snippet.id === selected.id }" :aria-pressed="snippet.id === selected.id" @click="select(snippet)">
+            <b>{{ snippet.title }}</b><small>{{ snippet.language || 'java' }}</small>
+          </button>
+        </aside>
+      </div>
 
-      <section class="card lab-editor">
+      <section v-if="selected" ref="editorArea" class="card lab-editor">
+        <button v-if="selectedVideo" type="button" class="btn btn--ghost lab-jump"
+          @click="videoArea?.scrollIntoView({ block: 'start' })">返回视频 ↑</button>
         <div class="editor-head">
           <div><span class="badge badge--lilac">{{ selected.language || 'java' }}</span><b>{{ selected.title }}</b></div>
           <div class="lab-actions">
@@ -214,6 +234,7 @@ async function exportProject() {
           <pre v-if="result.output || result.stdout || result.stderr">{{ result.output || result.stdout || result.stderr }}</pre>
         </div>
       </section>
+      <p v-else class="card lab-error">这节课暂时没有可运行的代码示例。</p>
     </div>
 
     <section v-if="!loading && auth.ready && !error" class="card lab-exercises">
@@ -224,4 +245,13 @@ async function exportProject() {
   </div>
 </template>
 
-<style scoped>.lab-page{padding:28px 0}.lab-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}.lab-top h1{margin:8px 0}.lab-top p,.lab-exercises p{color:var(--c-ink-soft)}.lab-top a{color:var(--c-mint)}.lab-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}.lab-list,.lab-editor,.lab-exercises{padding:20px}.lab-list{display:flex;flex-direction:column;gap:8px}.lab-list h2,.lab-exercises h2{margin:0 0 8px}.lab-list button{text-align:left;padding:12px;border:1px solid var(--c-line);border-radius:12px;background:var(--c-paper);color:var(--c-ink);cursor:pointer;display:flex;flex-direction:column;gap:4px}.lab-list button.active{background:var(--c-mint);color:#fff}.lab-list small{opacity:.75}.editor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.editor-head>div{display:flex;align-items:center;gap:10px}.warn{padding:10px;background:#fff2d6;border-radius:10px;color:#745619}.explanation{line-height:1.7}.stdin{display:block;margin-top:14px;font-weight:700}.stdin textarea{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-paper);color:var(--c-ink);font:inherit}.result{margin-top:14px;padding:12px;border-radius:10px}.result.pass{background:#e8f8ef;color:#146543}.result.fail{background:#fff0ee;color:#8f3129}.result span{float:right}.result pre{white-space:pre-wrap;overflow:auto}.lab-exercises{margin-top:18px}.lab-error{padding:20px}@media(max-width:800px){.lab-layout{grid-template-columns:1fr}.lab-list{display:grid;grid-template-columns:1fr 1fr}.lab-list h2{grid-column:1/-1}.editor-head{align-items:flex-start;flex-direction:column}}.lab-actions{flex-wrap:wrap}.lab-export-hint{font-size:.875rem;color:var(--c-ink-soft)}</style>
+<style scoped>.lab-page{padding:28px 0}.lab-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}.lab-top h1{margin:8px 0}.lab-top p,.lab-exercises p{color:var(--c-ink-soft)}.lab-top a{color:var(--c-mint)}.lab-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}.lab-list,.lab-editor,.lab-exercises{padding:20px}.lab-list{display:flex;flex-direction:column;gap:8px}.lab-list h2,.lab-exercises h2{margin:0 0 8px}.lab-list button{text-align:left;padding:12px;border:1px solid var(--c-line);border-radius:12px;background:var(--c-paper);color:var(--c-ink);cursor:pointer;display:flex;flex-direction:column;gap:4px}.lab-list button.active{background:var(--c-mint);color:#fff}.lab-list small{opacity:.75}.editor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.editor-head>div{display:flex;align-items:center;gap:10px}.warn{padding:10px;background:#fff2d6;border-radius:10px;color:#745619}.explanation{line-height:1.7}.stdin{display:block;margin-top:14px;font-weight:700}.stdin textarea{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-paper);color:var(--c-ink);font:inherit}.result{margin-top:14px;padding:12px;border-radius:10px}.result.pass{background:#e8f8ef;color:#146543}.result.fail{background:#fff0ee;color:#8f3129}.result span{float:right}.result pre{white-space:pre-wrap;overflow:auto}.lab-exercises{margin-top:18px}.lab-error{padding:20px}@media(max-width:800px){.lab-layout{grid-template-columns:1fr}.lab-list{display:grid;grid-template-columns:1fr 1fr}.lab-list h2{grid-column:1/-1}.editor-head{align-items:flex-start;flex-direction:column}}.lab-actions{flex-wrap:wrap}.lab-export-hint{font-size:.875rem;color:var(--c-ink-soft)}
+.lab-sidebar { min-width: 0; display: grid; gap: 14px; scroll-margin-top: calc(var(--nav-h) + 10px); }
+.lab-editor { min-width: 0; scroll-margin-top: calc(var(--nav-h) + 10px); }
+.lab-layout--video { grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr); }
+.lab-jump { display: none; }
+@media (max-width: 900px) {
+  .lab-layout--video { grid-template-columns: minmax(0, 1fr); }
+  .lab-jump { display: inline-flex; justify-self: start; margin-bottom: 8px; }
+}
+</style>

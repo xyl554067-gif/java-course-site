@@ -37,7 +37,10 @@ const { localOnly, includeLesson, lessonSlug, requestOptions } = useAssistantReq
 
 /** 桌宠尺寸（px，指宽度），移动端自动缩小 */
 const SIZE = ref(150)
-const isMobile = ref(false)
+const mobileLayout = window.matchMedia('(max-width: 720px), (hover: none) and (pointer: coarse)')
+const isMobile = ref(mobileLayout.matches)
+const posterSrc = import.meta.env.BASE_URL + 'pet/idle-poster.png'
+const visibleViewport = ref({ height: window.innerHeight, bottom: 0 })
 /** 位置（视口坐标，左上角） */
 const pos = ref({ x: 0, y: 0 })
 /** 拖拽中 */
@@ -99,7 +102,7 @@ const STORAGE_KEY = 'javacourse.pet.pos'
 // 位置初始化
 // ------------------------------------------------------------------
 function initSize() {
-  isMobile.value = window.innerWidth < 720
+  isMobile.value = mobileLayout.matches
   SIZE.value = isMobile.value ? 116 : 156
 }
 
@@ -167,8 +170,9 @@ const backVideo = computed(() => (front.value === 'a' ? videoB.value : videoA.va
  * 若目标动画就是当前动画，直接跳过（避免无意义的重载）
  */
 async function switchAnimation(src: string) {
-  if (src === loadedSrc.value) return
+  if (isMobile.value) return
   const requestId = ++animationRequestId
+  if (src === loadedSrc.value) return
   const back = backVideo.value
   if (!back) return
 
@@ -196,20 +200,18 @@ async function switchAnimation(src: string) {
   // 复用时压过 CSS 的 .is-front opacity: 1，导致点击后角色彻底不可见。
 }
 
-watchPetState()
-
-function watchPetState() {
-  // 立即切换当前状态对应的动画
-  const src = pet.animation
-  void switchAnimation(src)
-}
-
-// 监听 store 里的状态变化
 watch(
-  () => pet.state,
-  () => {
+  [() => pet.animation, isMobile],
+  ([, mobile], [, wasMobile]) => {
+    if (mobile !== wasMobile) {
+      animationRequestId++
+      videoReady.value = false
+      loadedSrc.value = ''
+      front.value = 'a'
+    }
     void switchAnimation(pet.animation)
   },
+  { flush: 'post' },
 )
 
 // ------------------------------------------------------------------
@@ -220,27 +222,33 @@ let startPos = { x: 0, y: 0 }
 let rafId = 0
 let vel = { x: 0, y: 0 }
 let lastMove = { x: 0, y: 0, t: 0 }
+let pointerId: number | null = null
 
 function onPointerDown(e: PointerEvent) {
-  if (!auth.isLogged) {
+  if (!auth.isLogged || pointerId !== null || !e.isPrimary || e.button !== 0) {
     // 登录页也保留桌宠形象，但未登录时不允许拖动或打开助教，避免跳回当前页。
     return
   }
-  ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+  ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+  pointerId = e.pointerId
   dragging.value = true
+  cancelAnimationFrame(rafId)
   dragMoved.value = false
   startPointer = { x: e.clientX, y: e.clientY }
   startPos = { ...pos.value }
   lastMove = { x: e.clientX, y: e.clientY, t: performance.now() }
   vel = { x: 0, y: 0 }
-  pet.setState('dragging')
 }
 
 function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return
+  if (pointerId !== e.pointerId) return
   const dx = e.clientX - startPointer.x
   const dy = e.clientY - startPointer.y
-  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved.value = true
+  if (!dragMoved.value) {
+    if (Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return
+    dragMoved.value = true
+    pet.setState('dragging')
+  }
   pos.value.x = startPos.x + dx
   pos.value.y = startPos.y + dy
   clampPos()
@@ -254,27 +262,24 @@ function onPointerMove(e: PointerEvent) {
   }
 }
 
-function onPointerUp() {
-  if (!dragging.value) return
+function onPointerUp(e: PointerEvent) {
+  if (pointerId !== e.pointerId) return
+  pointerId = null
   dragging.value = false
-  savePos()
   if (!dragMoved.value) {
-    // 视为点击：唤出气泡
-    //
-    // ⚠ 状态机收尾必须放在这里：之前这个分支直接 return，
-    //   导致 pet.setState('dragging') 之后没有任何路径把它改回 idle，
-    //   桌宠的动画会永久卡在 dragging（实测 class 恒为 pet-body--dragging）。
-    //   openBubble() 只在 state==='idle' 时才播 happy 动画，
-    //   所以不先复位的话点击后连打招呼动画都不会播。
-    pet.setState('idle')
-    computeBubbleDir()
-    pet.openBubble()
-    void nextTick(() => focusInput())
+    if (e.type === 'pointerup') toggleChat()
     return
   }
   pet.setState('idle')
-  // 惯性滑动
-  glide()
+  savePos()
+  if (e.type === 'pointerup') glide()
+}
+
+function toggleChat() {
+  if (!auth.isLogged) return
+  computeBubbleDir()
+  pet.toggleBubble()
+  if (pet.bubbleOpen && !isMobile.value) void nextTick(focusInput)
 }
 
 /** 松手后的惯性滑动 + 边界回弹（简化版抛掷物理） */
@@ -349,21 +354,34 @@ function clearHistory() {
 function onResize() {
   initSize()
   clampPos()
-  savePos()
+  updateVisualViewport()
+}
+
+function updateVisualViewport() {
+  const viewport = window.visualViewport
+  visibleViewport.value = {
+    height: viewport?.height ?? window.innerHeight,
+    bottom: viewport ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0,
+  }
 }
 
 onMounted(() => {
   initSize()
   restorePos()
+  updateVisualViewport()
   window.addEventListener('resize', onResize)
+  window.visualViewport?.addEventListener('resize', updateVisualViewport)
+  window.visualViewport?.addEventListener('scroll', updateVisualViewport)
   // 预载待机动画
   void switchAnimation(pet.animation)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
+  window.visualViewport?.removeEventListener('resize', updateVisualViewport)
+  window.visualViewport?.removeEventListener('scroll', updateVisualViewport)
+  animationRequestId++
   cancelAnimationFrame(rafId)
-  savePos()
 })
 </script>
 
@@ -371,18 +389,25 @@ onUnmounted(() => {
   <!-- 悬浮层：fixed + 最高 z-index，始终盖在页面内容之上 -->
   <div
     class="pet-layer"
-    :style="{ left: pos.x + 'px', top: pos.y + 'px', width: SIZE + 'px' }"
+    :class="{ 'pet-layer--mobile': isMobile }"
+    :style="{
+      left: pos.x + 'px', top: pos.y + 'px', width: SIZE + 'px',
+      '--pet-viewport-height': visibleViewport.height + 'px',
+      '--pet-viewport-bottom': visibleViewport.bottom + 'px',
+    }"
   >
     <!-- 对话气泡 -->
     <Transition name="pet-bubble" @before-leave="lockOnLeave">
       <div
         v-if="pet.bubbleOpen"
+        id="pet-chat"
         ref="bubble"
         class="pet-bubble"
         :class="{ 'pet-bubble--down': bubbleDown }"
         @click.stop
       >
         <div class="pet-bubble__head">
+          <img v-if="isMobile" :src="posterSrc" class="pet-bubble__avatar" alt="" width="28" height="35" />
           <span class="pet-bubble__name">鲸鲸</span>
           <span class="pet-bubble__tag" :class="{ 'is-degraded': pet.source === 'unavailable' }">
             {{ pet.loading ? '思考中…' : answerSource }}
@@ -457,16 +482,25 @@ onUnmounted(() => {
       class="pet-body"
       :class="[
         'pet-body--' + pet.state,
-        { 'is-dragging': dragging, 'is-mobile': isMobile },
+        { 'is-dragging': dragging && dragMoved },
       ]"
+      :role="auth.isLogged ? 'button' : undefined"
+      :tabindex="auth.isLogged ? 0 : undefined"
+      :aria-expanded="auth.isLogged ? pet.bubbleOpen : undefined"
+      :aria-controls="pet.bubbleOpen ? 'pet-chat' : undefined"
+      :aria-label="auth.isLogged ? '鲸鲸助教' : undefined"
+      @keydown.enter.prevent="toggleChat"
+      @keydown.space.prevent="toggleChat"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
+      @lostpointercapture="onPointerUp"
       @contextmenu.prevent
     >
-      <div v-if="!videoReady" class="pet-placeholder" aria-hidden="true">🐳</div>
+      <img v-show="!videoReady" :src="posterSrc" class="pet-poster" alt="" width="280" height="350" draggable="false" />
       <video
+        v-if="!isMobile"
         ref="videoA"
         class="pet-video"
         :class="{ 'is-front': front === 'a' }"
@@ -477,6 +511,7 @@ onUnmounted(() => {
         preload="auto"
       />
       <video
+        v-if="!isMobile"
         ref="videoB"
         class="pet-video"
         :class="{ 'is-front': front === 'b' }"
@@ -504,7 +539,6 @@ onUnmounted(() => {
   position: fixed;
   z-index: 9999; /* 盖住导航(40)、抽屉、fab(45) */
   pointer-events: none; /* 只有桌宠本体与气泡可交互 */
-  touch-action: none;
 }
 .pet-layer > * {
   pointer-events: auto;
@@ -523,14 +557,14 @@ onUnmounted(() => {
   transition: transform .18s cubic-bezier(.34, 1.56, .64, 1);
   filter: drop-shadow(0 6px 10px rgba(45, 53, 97, .28));
 }
-.pet-placeholder {
+.pet-poster {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: clamp(76px, 10vw, 132px);
-  line-height: 1;
-  filter: drop-shadow(0 6px 10px rgba(45, 53, 97, .2));
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 .pet-body.is-dragging {
   cursor: grabbing;
@@ -658,6 +692,7 @@ onUnmounted(() => {
 }
 
 .pet-bubble__head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -802,13 +837,14 @@ onUnmounted(() => {
 }
 
 .pet-bubble__input {
+  flex: none;
   padding: 8px;
   border-top: var(--bw-thin) solid var(--c-line);
   background: var(--c-cream);
 }
 .pet-bubble__privacy { margin: 0 2px 6px; font-size: 11px; line-height: 1.45; color: var(--c-ink-soft); }
 .pet-bubble__compose { display: flex; gap: 6px; }
-.pet-bubble__input input {
+.pet-bubble__compose input {
   flex: 1;
   min-width: 0;
   padding: 8px 11px;
@@ -820,7 +856,7 @@ onUnmounted(() => {
   border-radius: var(--radius-full);
   outline: none;
 }
-.pet-bubble__input input:focus {
+.pet-bubble__compose input:focus {
   border-color: var(--c-mint-deep);
   box-shadow: 0 0 0 3px rgba(78, 205, 196, .28);
 }
@@ -854,22 +890,22 @@ onUnmounted(() => {
 }
 
 /* ---------- 移动端适配 ---------- */
-@media (max-width: 720px) {
-  .pet-bubble,
-  .pet-bubble--down {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    top: auto;
-    width: auto;
-    max-height: 56vh;
-  }
-  .pet-bubble::after,
-  .pet-bubble--down::after { display: none; }
-  .pet-body { filter: drop-shadow(0 4px 8px rgba(45, 53, 97, .24)); }
-  .pet-msg { max-width: 92%; }
+.pet-layer--mobile > .pet-bubble {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--pet-viewport-bottom) + max(12px, env(safe-area-inset-bottom)));
+  top: auto;
+  width: auto;
+  max-height: min(420px, calc(var(--pet-viewport-height) - 24px));
 }
+.pet-layer--mobile > .pet-bubble::after { display: none; }
+.pet-layer--mobile .pet-body { filter: drop-shadow(0 4px 8px rgba(45, 53, 97, .24)); }
+.pet-layer--mobile .pet-msg { max-width: 92%; }
+.pet-layer--mobile .pet-bubble__head { gap: 6px; padding: 6px 10px; }
+.pet-layer--mobile .pet-bubble__avatar { display: block; flex: none; object-fit: contain; }
+.pet-layer--mobile .pet-bubble__list { min-height: 0; overscroll-behavior: contain; }
+.pet-layer--mobile .pet-bubble__compose input { font-size: 16px; }
 
 /* 尊重系统的「减少动态效果」偏好 */
 @media (prefers-reduced-motion: reduce) {

@@ -11,6 +11,7 @@ const progress = useProgressStore()
 
 const course = ref<Course | null>(null)
 const modules = ref<CourseModule[]>([])
+const videoLessonIds = ref<number[]>([])
 const loading = ref(true)
 const openModules = ref<Record<number, boolean>>({})
 
@@ -30,6 +31,7 @@ async function load(slug: string) {
     // 后端把课程信息平铺在顶层，modules 为其兄弟键
     course.value = (detail.course || detail) as Course
     modules.value = detail.modules || []
+    videoLessonIds.value = detail.videoLessonIds || []
     modules.value.forEach((m) => (openModules.value[m.id] = true))
   } finally {
     loading.value = false
@@ -57,6 +59,7 @@ onMounted(() => {
           <span class="badge badge--mint">{{ course.totalLessons }} 课时</span>
           <span class="badge badge--sun">{{ modules.length }} 模块</span>
           <span class="badge badge--lilac">{{ course.instructor }}</span>
+          <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'learning-videos' }">学习视频</RouterLink>
         </div>
       </header>
 
@@ -87,6 +90,8 @@ onMounted(() => {
                   <span class="clink__sum">{{ l.summary }}</span>
                   <span class="clink__go">→</span>
                 </RouterLink>
+                <RouterLink v-if="videoLessonIds.includes(l.id)" class="btn btn--sm btn--ghost clink-video"
+                  :to="{ name: 'lesson-lab', params: { slug: l.slug } }">边看边练</RouterLink>
               </li>
             </ul>
           </Transition>
@@ -106,6 +111,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.clink-video { margin: 0 0 8px 14px; }
 .clink__reading { margin-left: 6px; color: var(--c-ink-soft); font-weight: 400; }
 .cview { padding-top: var(--space-lg); }
 .cview__loading { display: grid; place-items: center; padding: 70px 0; }

@@ -1,6 +1,7 @@
 package com.javacourse.service;
 
 import com.javacourse.repository.CourseRepository;
+import com.javacourse.repository.LearningVideoRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -15,9 +16,11 @@ import java.util.Map;
 public class CourseService {
 
     private final CourseRepository repo;
+    private final LearningVideoRepository videos;
 
-    public CourseService(CourseRepository repo) {
+    public CourseService(CourseRepository repo, LearningVideoRepository videos) {
         this.repo = repo;
+        this.videos = videos;
     }
 
     public List<Map<String, Object>> listCourses() {
@@ -42,6 +45,7 @@ public class CourseService {
             tree.add(node);
         }
         course.put("modules", tree);
+        course.put("videoLessonIds", videos.lessonIdsForCourse(courseId));
         return course;
     }
 
@@ -63,6 +67,7 @@ public class CourseService {
         repo.incrementView(id);
         lesson.put("viewCount", ((Number) brief.getOrDefault("viewCount", 0)).longValue() + 1);
         lesson.put("snippets", repo.listSnippets(id));
+        lesson.put("videos", videos.forLesson(id));
         lesson.put("knowledge", repo.listKnowledgeOfLesson(id));
         // 上下课时导航
         List<Map<String, Object>> siblings = repo.listLessonsByModule((Long) lesson.get("moduleId"));

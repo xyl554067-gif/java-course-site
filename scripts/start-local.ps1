@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $runDir = Join-Path $repo '.local-run'
 $logDir = Join-Path $runDir 'logs'
@@ -34,7 +34,9 @@ try {
     $configKeyFile = Join-Path $runDir 'ai-config-encryption.key'
     if (-not (Test-Path $configKeyFile)) {
       $random = [byte[]]::new(32)
-      [System.Security.Cryptography.RandomNumberGenerator]::Fill($random)
+      $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+      try { $generator.GetBytes($random) }
+      finally { $generator.Dispose() }
       [Convert]::ToBase64String($random) | Set-Content -Path $configKeyFile -NoNewline -Encoding ascii
     }
     $env:AI_CONFIG_ENCRYPTION_KEY = (Get-Content -Path $configKeyFile -Raw).Trim()
@@ -73,4 +75,3 @@ try {
   [System.Windows.MessageBox]::Show($message, 'Java 课程站启动器', 'OK', 'Error') | Out-Null
   exit 1
 }
-

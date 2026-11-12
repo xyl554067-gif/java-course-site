@@ -111,11 +111,11 @@ onMounted(load)
       <div class="overview__body">
         <h3 class="title-round overview__title">继续加油喵~</h3>
         <p class="overview__sub">
-          已完成 <strong>{{ progress.summary.completed }}</strong> / {{ progress.summary.totalLessons }} 节
-          <template v-if="progress.summary.inProgress"> · 在学 {{ progress.summary.inProgress }} 节</template>
-          <template v-if="progress.summary.favoriteCount"> · 收藏 {{ progress.summary.favoriteCount }} 节</template>
-          <template v-if="progress.learningMinutes"> · 累计 {{ progress.learningMinutes }} 分钟</template>
-          <template v-if="progress.summary.studyCount"> · 学习 {{ progress.summary.studyCount }} 次</template>
+          <span>已完成 <strong>{{ progress.summary.completed }}</strong> / {{ progress.summary.totalLessons }} 节</span>
+          <span v-if="progress.summary.inProgress">在学 {{ progress.summary.inProgress }} 节</span>
+          <span v-if="progress.summary.favoriteCount">收藏 {{ progress.summary.favoriteCount }} 节</span>
+          <span v-if="progress.learningMinutes">累计 {{ progress.learningMinutes }} 分钟</span>
+          <span v-if="progress.summary.studyCount">学习 {{ progress.summary.studyCount }} 次</span>
         </p>
       </div>
       <img :src="ASSET_BASE + 'assets/agent/agent-idle.png'" alt="鲸鲸" class="overview__whale anim-float" />
@@ -237,7 +237,8 @@ onMounted(load)
 }
 .overview__body { flex: 1; min-width: 0; }
 .overview__title { margin: 0 0 6px; font-size: 21px; }
-.overview__sub { margin: 0 0 12px; font-size: 13.5px; color: var(--c-ink-soft); }
+.overview__sub { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--c-ink-soft); }
+.overview__sub span { white-space: nowrap; }
 .overview__sub strong { color: var(--c-coral-deep); font-size: 16px; }
 .overview__whale { width: 92px; height: 92px; flex-shrink: 0; }
 
@@ -336,5 +337,15 @@ onMounted(load)
   .hero__img { width: 160px; height: 160px; }
   .lesson-link { grid-template-columns: 30px 1fr 20px; }
   .lesson-link__sum { display: none; }
+}
+@media (max-width: 640px) {
+  .overview { gap: 10px; padding: 14px; }
+  .overview__ring { width: 58px; height: 58px; }
+  .overview__ring::after { inset: 6px; }
+  .overview__pct { font-size: 16px; }
+  .overview__title { font-size: 17px; line-height: 1.35; }
+  .overview__sub { font-size: 12px; column-gap: 8px; }
+  .overview__sub strong { font-size: inherit; }
+  .overview__whale { width: 40px; height: 40px; }
 }
 </style>

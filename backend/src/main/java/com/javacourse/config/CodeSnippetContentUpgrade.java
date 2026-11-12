@@ -310,4 +310,3 @@ public class CodeSnippetContentUpgrade implements ApplicationRunner {
         jdbc.update("INSERT INTO app_schema_migration(version) VALUES (?) ON CONFLICT (version) DO NOTHING", VERSION);
     }
 }
-
