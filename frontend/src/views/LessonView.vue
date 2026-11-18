@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ArrayBoundaryCheck from '@/components/ArrayBoundaryCheck.vue'
+import AccessControlCheck from '@/components/AccessControlCheck.vue'
 import LessonComicCheck from '@/components/LessonComicCheck.vue'
 import LessonIllustration from '@/components/LessonIllustration.vue'
 import lessonComics from '@/content/lesson-comics.json'
@@ -731,6 +732,7 @@ watch(() => route.params.slug, (slug) => {
         <!-- 正文 -->
         <article class="lesson__body card">
           <div class="md-body" v-html="renderedLesson.html" @click="copyLessonCode" />
+          <AccessControlCheck v-if="lessonSlug === 'oop-core'" :key="lessonSlug" />
 
           <section v-if="snippets.length" class="notebook-examples">
             <div class="section-head"><span class="dot" /><h2>本节代码示例</h2><span class="line" /></div>

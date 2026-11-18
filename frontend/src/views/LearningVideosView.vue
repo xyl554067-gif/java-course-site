@@ -16,10 +16,35 @@ const editingId = ref<number>()
 const draft = ref<VideoInput>()
 const formHeading = ref<HTMLHeadingElement | null>(null)
 const removingId = ref<number>()
+const query = ref('')
+const selectedLesson = ref('')
+
+const lessonOptions = computed(() => {
+  const options = new Map<number, { title: string; courseTitle: string }>()
+  for (const video of videos.value) {
+    options.set(video.lessonId, { title: video.lessonTitle, courseTitle: video.courseTitle })
+  }
+  return options
+})
+
+const filteredVideos = computed(() => {
+  const terms = query.value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
+  return videos.value.filter((video) => {
+    if (selectedLesson.value && String(video.lessonId) !== selectedLesson.value) return false
+    const text = [video.label, video.lessonTitle, video.title, video.uploader,
+      video.recommendation, video.courseTitle].join(' ').toLocaleLowerCase()
+    return terms.every((term) => text.includes(term))
+  })
+})
+
+function clearFilters() {
+  query.value = ''
+  selectedLesson.value = ''
+}
 
 const courses = computed(() => {
   const groups = new Map<string, { title: string; videos: LearningVideo[] }>()
-  for (const video of videos.value) {
+  for (const video of filteredVideos.value) {
     const group = groups.get(video.courseSlug) ?? { title: video.courseTitle, videos: [] }
     group.videos.push(video)
     groups.set(video.courseSlug, group)
@@ -124,6 +149,22 @@ onMounted(load)
     <p v-if="notice" role="status">{{ notice }}</p>
     <p v-if="editError" role="alert">{{ editError }}</p>
 
+    <div v-if="!loading && !loadError && videos.length" class="video-filters">
+      <label>查找视频
+        <input v-model="query" type="search" placeholder="视频、课时或 UP 主" />
+      </label>
+      <label>对应课时
+        <select v-model="selectedLesson">
+          <option value="">全部课时</option>
+          <option v-for="[id, lesson] in lessonOptions" :key="id" :value="String(id)">
+            {{ lesson.courseTitle }} · {{ lesson.title }}
+          </option>
+        </select>
+      </label>
+      <button v-if="query || selectedLesson" type="button" class="btn btn--sm btn--ghost" @click="clearFilters">清除筛选</button>
+      <p role="status" aria-live="polite">找到 {{ filteredVideos.length }} 个配套视频</p>
+    </div>
+
     <form v-if="auth.isAdmin && draft" class="card video-form" @submit.prevent="save">
       <h2 ref="formHeading" tabindex="-1">{{ editingId ? '编辑课时视频' : '添加课时视频' }}</h2>
       <p>原视频标题和 UP 主会同步到引用同一 BV 号的课时。</p>
@@ -154,6 +195,7 @@ onMounted(load)
     <p v-if="loading" role="status">正在加载学习视频…</p>
     <p v-else-if="loadError" role="alert">{{ loadError }} <button class="btn btn--sm btn--ghost" @click="load">重试</button></p>
     <p v-else-if="!videos.length">暂时没有学习视频。</p>
+    <p v-else-if="!filteredVideos.length">没有匹配的视频。试试其他关键词，或清除筛选。</p>
     <template v-else>
       <section v-for="[slug, course] in courses" :key="slug" class="video-course">
         <h2><RouterLink :to="{ name: 'course', params: { slug } }">{{ course.title }}</RouterLink></h2>
@@ -183,7 +225,7 @@ onMounted(load)
 </template>
 
 <style scoped>
-.videos-page { padding: 28px 0; }
+.videos-page { padding-block: 28px; }
 .videos-head, .video-actions { display: flex; align-items: center; gap: 10px; }
 .videos-head { justify-content: space-between; flex-wrap: wrap; }
 .video-item { display: grid; gap: 12px; }
@@ -199,4 +241,8 @@ onMounted(load)
 .video-form input, .video-form select, .video-form textarea { width: 100%; min-width: 0; font: inherit; color: var(--c-ink); padding: 8px; border: 1px solid var(--c-line); border-radius: 8px; }
 .wide { grid-column: 1 / -1; }
 .video-actions { flex-wrap: wrap; }
+.video-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 20px 0; }
+.video-filters label { display: grid; gap: 6px; flex: 1 1 220px; min-width: 0; font-weight: 700; }
+.video-filters input, .video-filters select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--c-line); border-radius: 10px; color: var(--c-ink); background: var(--c-paper); font: inherit; }
+.video-filters p { margin: 0; padding-block: 10px; color: var(--c-ink-soft); font-size: .875rem; }
 </style>
