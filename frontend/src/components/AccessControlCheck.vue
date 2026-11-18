@@ -45,8 +45,8 @@ function choose(index: number, answer: boolean) {
 </script>
 
 <template>
-  <section class="access-check" aria-labelledby="access-check-title">
-    <h2 id="access-check-title">访问权限判断练习</h2>
+  <section id="access-check" class="access-check" aria-labelledby="access-check-title">
+    <h2 id="access-check-title" tabindex="-1">访问权限判断练习</h2>
     <p>以笔记中的 Account 类为例，先判断调用能否通过编译，再核对原因。</p>
     <pre class="access-check__reference"><code>// demo.bank.Account 中的成员
 private int balance;

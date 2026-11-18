@@ -511,6 +511,11 @@ function scrollToQuiz() {
   jumpToHeading(lessonSlug.value === 'arrays' && !reviewing.value ? 'array-check' : 'comic-check')
 }
 
+function scrollToAccessCheck() {
+  document.getElementById('access-check-title')?.focus({ preventScroll: true })
+  document.getElementById('access-check')?.scrollIntoView({ behavior: 'instant', block: 'start' })
+}
+
 watch(quizArea, (area, _, onCleanup) => {
   if (!area) return
   const observer = new IntersectionObserver(([entry]) => {
@@ -715,6 +720,9 @@ watch(() => route.params.slug, (slug) => {
           </button>
           <button v-if="lessonComic && activeTab !== 'exercises'" class="btn btn--sm btn--ghost" @click="scrollToQuiz">
             🐳 漫画自测
+          </button>
+          <button v-if="lessonSlug === 'oop-core' && activeTab !== 'exercises'" type="button" class="btn btn--sm btn--ghost" @click="scrollToAccessCheck">
+            访问权限判断
           </button>
           <span v-if="selfCheckStage >= 2" class="badge badge--mint">自测通过</span>
           <span v-if="saving" class="lesson__saving">进度保存中…</span>
