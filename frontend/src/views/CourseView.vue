@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { courseApi, type Course, type CourseModule } from '@/api'
 import { useAgentStore } from '@/stores/agent'
 import { useProgressStore } from '@/stores/progress'
+import { errMsg } from '@/api/http'
 
 const route = useRoute()
 const agent = useAgentStore()
@@ -13,7 +14,9 @@ const course = ref<Course | null>(null)
 const modules = ref<CourseModule[]>([])
 const videoLessonIds = ref<number[]>([])
 const loading = ref(true)
+const error = ref('')
 const openModules = ref<Record<number, boolean>>({})
+let loadVersion = 0
 
 const ICONS: Record<string, string> = {
   coffee: '☕',
@@ -25,21 +28,31 @@ const ICONS: Record<string, string> = {
 }
 
 async function load(slug: string) {
+  const version = ++loadVersion
   loading.value = true
+  error.value = ''
+  course.value = null
+  modules.value = []
+  videoLessonIds.value = []
+  openModules.value = {}
   try {
     const detail = await courseApi.detail(slug)
+    if (version !== loadVersion) return
     // 后端把课程信息平铺在顶层，modules 为其兄弟键
     course.value = (detail.course || detail) as Course
     modules.value = detail.modules || []
     videoLessonIds.value = detail.videoLessonIds || []
     modules.value.forEach((m) => (openModules.value[m.id] = true))
+  } catch (e) {
+    if (version === loadVersion) error.value = errMsg(e)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
+watch(() => route.params.slug, (slug) => { void load(String(slug)) }, { immediate: true })
+
 onMounted(() => {
-  void load(route.params.slug as string)
   void progress.load().catch(() => {})
 })
 </script>
@@ -47,6 +60,10 @@ onMounted(() => {
 <template>
   <div class="container cview">
     <div v-if="loading" class="cview__loading"><div class="spinner" /></div>
+    <div v-else-if="error" class="card cview__error" role="alert">
+      <p>{{ error }}</p>
+      <button type="button" class="btn btn--primary" @click="load(String(route.params.slug))">重试加载课程</button>
+    </div>
 
     <template v-else-if="course">
       <header class="cview__hero card anim-pop">
@@ -115,6 +132,8 @@ onMounted(() => {
 .clink__reading { margin-left: 6px; color: var(--c-ink-soft); font-weight: 400; }
 .cview { padding-top: var(--space-lg); }
 .cview__loading { display: grid; place-items: center; padding: 70px 0; }
+.cview__error { padding: 24px; }
+.cview__error p { margin: 0 0 16px; }
 
 .cview__hero { padding: 32px; margin-bottom: 24px; background: linear-gradient(135deg, var(--c-paper) 60%, var(--c-cream-deep)); }
 .cview__crumb { display: inline-block; margin-bottom: 10px; font-size: 13px; }
