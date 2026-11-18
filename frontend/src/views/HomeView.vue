@@ -48,6 +48,7 @@ const entryRoute = computed(() => entryLesson.value
 const links = [
   { to: courseRoute, icon: '☷', title: '课程目录', description: '按模块浏览课时、笔记和配套练习。' },
   { to: { name: 'learning-videos' }, icon: '▷', title: '学习视频', description: '按课时查找配套讲解，跟着视频学。' },
+  { to: { name: 'resources' }, icon: '▤', title: '资料库', description: '查阅补充讲解、官方文档和练习。' },
   { to: { name: 'exercises' }, icon: '{ }', title: '代码练习', description: '选择编程题，编写代码并查看判题结果。' },
 ]
 

@@ -77,6 +77,7 @@ onMounted(() => {
           <span class="badge badge--sun">{{ modules.length }} 模块</span>
           <span class="badge badge--lilac">{{ course.instructor }}</span>
           <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'learning-videos' }">学习视频</RouterLink>
+          <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'resources' }">资料库</RouterLink>
         </div>
       </header>
 

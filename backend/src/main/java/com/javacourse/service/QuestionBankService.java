@@ -16,6 +16,12 @@ import java.util.*;
 public class QuestionBankService {
     private static final Set<String> TYPES = Set.of("CHOICE", "JUDGE", "SHORT_ANSWER");
     private static final Set<String> DIFFICULTIES = Set.of("EASY", "MEDIUM", "HARD");
+    private static final String QUESTION_SELECT = """
+            SELECT q.id, q.lesson_id, q.owner_id, q.resource_note_id, q.question, q.answer_text,
+                   q.options_json, q.answer_key, q.qa_type, q.difficulty, l.title AS lesson_title,
+                   l.slug AS lesson_slug
+            FROM qa_item q LEFT JOIN lesson l ON l.id = q.lesson_id
+            """;
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
@@ -26,8 +32,7 @@ public class QuestionBankService {
     }
 
     public List<Map<String, Object>> list(long ownerId) {
-        return jdbc.query("SELECT q.id,q.lesson_id,q.owner_id,q.question,q.answer_text,q.options_json,q.answer_key,q.qa_type,q.difficulty,l.title AS lesson_title,l.slug AS lesson_slug "
-                        + "FROM qa_item q LEFT JOIN lesson l ON l.id=q.lesson_id WHERE q.owner_id IS NULL OR q.owner_id=? "
+        return jdbc.query(QUESTION_SELECT + "WHERE q.owner_id IS NULL OR q.owner_id=? "
                         + "ORDER BY CASE WHEN q.owner_id IS NULL THEN 0 ELSE 1 END,q.id DESC",
                 (rs, row) -> mapRow(rs), ownerId);
     }
@@ -227,8 +232,7 @@ public class QuestionBankService {
     }
 
     private Map<String, Object> getMine(long ownerId, long id) {
-        List<Map<String, Object>> rows = jdbc.query("SELECT q.id,q.lesson_id,q.owner_id,q.question,q.answer_text,q.options_json,q.answer_key,q.qa_type,q.difficulty,l.title AS lesson_title,l.slug AS lesson_slug "
-                        + "FROM qa_item q LEFT JOIN lesson l ON l.id=q.lesson_id WHERE q.id=? AND q.owner_id=?",
+        List<Map<String, Object>> rows = jdbc.query(QUESTION_SELECT + "WHERE q.id=? AND q.owner_id=?",
                 (rs, row) -> mapRow(rs), id, ownerId);
         if (rows.isEmpty()) throw new IllegalArgumentException("找不到这道个人题目");
         return rows.get(0);
@@ -242,6 +246,7 @@ public class QuestionBankService {
         item.put("lessonId", lessonId == null ? null : ((Number) lessonId).longValue());
         item.put("lessonTitle", rs.getString("lesson_title"));
         item.put("lessonSlug", rs.getString("lesson_slug"));
+        item.put("resourceNoteId", rs.getString("resource_note_id"));
         item.put("question", rs.getString("question"));
         item.put("answer", rs.getString("answer_text"));
         item.put("options", rs.getString("options_json"));

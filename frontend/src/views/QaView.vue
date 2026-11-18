@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { courseApi, type QaItem, type QaLessonOption } from '@/api'
 import { errMsg } from '@/api/http'
+import { resourceExerciseSlug, resourceNoteById, resourceNotes } from '@/content/course-resources'
 
+const route = useRoute()
+const router = useRouter()
 const items = ref<QaItem[]>([])
 const lessons = ref<QaLessonOption[]>([])
 const loading = ref(true)
@@ -38,7 +41,21 @@ const form = ref({
   optionsLines: '',
 })
 
-const list = computed(() => filter.value === 'ALL' ? items.value : items.value.filter((item) => normalizeType(item.qaType) === filter.value))
+const resourceFilter = computed(() => {
+  const resource = route.query.resource
+  return typeof resource === 'string' && (resource === 'all' || resourceNoteById(resource)) ? resource : ''
+})
+const list = computed(() => items.value.filter((item) => {
+  const matchesType = filter.value === 'ALL' || normalizeType(item.qaType) === filter.value
+  const source = resourceFilter.value
+  const matchesSource = !source || item.resourceNoteId === source || (source === 'all' && Boolean(item.resourceNoteId))
+  return matchesType && matchesSource
+}))
+
+function changeResourceFilter(event: Event) {
+  const resource = (event.target as HTMLSelectElement).value
+  void router.replace({ query: { ...route.query, resource: resource || undefined } })
+}
 const choiceOptions = computed(() => {
   if (!form.value.optionsLines.trim()) return []
   return form.value.optionsLines.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
@@ -280,6 +297,14 @@ onMounted(load)
     <div class="qa__tools">
       <div class="qa__filters">
         <button v-for="f in FILTERS" :key="f.key" class="btn btn--sm" :class="filter === f.key ? 'btn--primary' : 'btn--ghost'" @click="filter = f.key">{{ f.label }}</button>
+        <label class="qa__resource-filter">
+          <span>资料库专题</span>
+          <select :value="resourceFilter" @change="changeResourceFilter">
+            <option value="">全部来源</option>
+            <option value="all">全部资料库题目</option>
+            <option v-for="note in resourceNotes" :key="note.id" :value="note.id">{{ note.title }}</option>
+          </select>
+        </label>
       </div>
       <button class="template-link" @click="downloadTemplate">下载导入模板</button>
     </div>
@@ -328,6 +353,7 @@ onMounted(load)
           <span class="badge badge--lilac">{{ typeLabel(q.qaType) }}</span>
           <span v-if="q.lessonTitle" class="badge badge--mint">{{ q.lessonTitle }}</span>
           <span v-else class="badge badge--sun">通用题</span>
+          <span v-if="q.resourceNoteId" class="badge badge--lilac">资料库</span>
           <span v-if="q.mine" class="qitem__owner">我的题目</span>
           <div v-if="q.mine" class="qitem__manage"><button class="text-button" @click="openEdit(q)">编辑</button><button class="text-button is-danger" @click="deleteQuestion(q)">删除</button></div>
         </header>
@@ -339,8 +365,16 @@ onMounted(load)
           <p v-if="q.answerKey" class="qitem__key">参考答案：{{ normalizeType(q.qaType) === 'JUDGE' ? judgeKey(q.answerKey) : q.answerKey }}</p>
           <p v-if="q.qaType === 'CODE'" class="qitem__legacy">这是旧版代码问答。如需编写并运行程序，请在代码挑战中创建对应任务。</p>
         </div></Transition>
+        <div v-if="q.resourceNoteId && resourceNoteById(q.resourceNoteId)" class="qitem__links">
+          <RouterLink class="text-button" :to="{ name: 'resources', params: { note: q.resourceNoteId } }">来源讲解</RouterLink>
+          <RouterLink class="text-button" :to="{ name: 'exercise', params: { slug: resourceExerciseSlug(q.resourceNoteId) } }">配套代码练习</RouterLink>
+        </div>
       </article>
     </div>
+    <section v-else-if="resourceFilter && !error" class="card qa__empty">
+      <h2>没有符合当前筛选的资料库题目</h2>
+      <RouterLink class="btn btn--ghost" to="/resources">返回资料库</RouterLink>
+    </section>
     <section v-else class="card qa__empty">
       <div class="qa__empty-icon">✓</div>
       <h2>{{ filter === 'ALL' ? '题库刚刚起步' : '这个分类还没有题目' }}</h2>
@@ -356,6 +390,9 @@ onMounted(load)
 .qa__title{margin:0;font-size:34px}.qa__sub{max-width:760px;margin:8px 0 0;color:var(--c-ink-faint);line-height:1.7}
 .qa__actions,.qa__filters,.qa__tools,.qa-editor__actions,.qa__empty>div{display:flex;align-items:center;gap:9px}
 .qa__tools{justify-content:space-between;margin-bottom:22px}.qa__filters{flex-wrap:wrap}.template-link,.text-button{border:0;background:none;color:var(--c-ink-soft);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.template-link{font:inherit;font-size:13px}
+.qa__resource-filter{display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:14px;font-weight:700}
+.qa__resource-filter select{max-width:100%;padding:6px 9px;border:1px solid var(--c-line);border-radius:8px;background:var(--c-paper);color:var(--c-ink);font:inherit}
+.qitem__links{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}
 .qa__notice,.qa__error{max-width:860px;margin:12px auto;padding:12px 16px;border-radius:12px}.qa__notice{background:var(--c-cream-deep);color:var(--c-ink)}.qa__error{background:#fff0ee;color:#8f3129}
 .qa-import-preview{max-width:900px;margin:12px auto 22px;padding:20px}.qa-import-preview__head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.qa-import-preview__head h2{margin:0 0 4px}.qa-import-preview__head p{margin:0;color:var(--c-ink-faint)}.qa-import-preview__rows{display:flex;flex-direction:column;gap:8px;margin-top:14px}.qa-import-preview__rows article{display:flex;justify-content:space-between;gap:16px;padding:10px 12px;border-radius:10px;background:var(--c-cream)}.qa-import-preview__rows article b{overflow:hidden;text-overflow:ellipsis}.qa-import-preview__rows article span{flex:none;color:var(--c-ink-faint);font-size:12px}.qa-import-preview__actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
 .qa__loading{display:grid;place-items:center;padding:60px 0}.qa__list{display:flex;flex-direction:column;gap:15px;max-width:900px;margin:0 auto}

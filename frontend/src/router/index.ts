@@ -36,6 +36,7 @@ const router = createRouter({
       component: () => import('@/views/CodeLabView.vue'),
     },
     { path: '/learning-videos', name: 'learning-videos', component: () => import('@/views/LearningVideosView.vue') },
+    { path: '/resources/:note?', name: 'resources', component: () => import('@/views/ResourceLibraryView.vue') },
     { path: '/ai/courses', name: 'course-generator', component: () => import('@/views/CourseGeneratorView.vue') },
     { path: '/ai/settings', name: 'ai-settings', component: () => import('@/views/AiSettingsView.vue') },
     { path: '/me', name: 'learning-center', component: () => import('@/views/LearningCenterView.vue') },

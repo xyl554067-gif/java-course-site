@@ -1,0 +1,632 @@
+[
+  {
+    "noteId": "array-boundaries",
+    "lessonSlug": "arrays",
+    "question": {
+      "type": "CHOICE",
+      "difficulty": "EASY",
+      "prompt": "遍历长度为 0 的数组时，如果循环从 i = 0 开始并用 i <= values.length 作为条件，会发生什么？",
+      "explanation": "条件 0 <= 0 成立，循环会尝试读取下标 0。空数组没有合法下标，因此抛出 ArrayIndexOutOfBoundsException。",
+      "options": [
+        "A. 循环体不会执行",
+        "B. 第一次读取 values[0] 时越界",
+        "C. values[0] 自动得到 0",
+        "D. 数组会自动扩容"
+      ],
+      "answerKey": "B"
+    },
+    "exercise": {
+      "title": "统计相邻上升次数",
+      "description": "输入第一项为整数 n（0 到 1000），后面是 n 个整数。统计相邻元素中，右边严格大于左边的次数，输出一个整数。数组为空或只有一个元素时输出 0。\n\n示例输入\n5\n2 4 4 -1 3\n\n示例输出\n2",
+      "difficulty": "BEGINNER",
+      "hint": "第一个可比较的右侧元素下标是 1。比较 values[i - 1] 与 values[i]。",
+      "sortOrder": 101,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static int countRises(int[] values) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        try (Scanner input = new Scanner(System.in)) {",
+        "            int[] values = new int[input.nextInt()];",
+        "            for (int i = 0; i < values.length; i++) {",
+        "                values[i] = input.nextInt();",
+        "            }",
+        "            System.out.println(countRises(values));",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        int rises = 0;",
+        "        for (int i = 1; i < values.length; i++) {",
+        "            if (values[i] > values[i - 1]) {",
+        "                rises++;",
+        "            }",
+        "        }",
+        "        return rises;"
+      ],
+      "cases": [
+        {
+          "name": "常规数组",
+          "stdin": "5\n2 4 4 -1 3\n",
+          "expected": "2"
+        },
+        {
+          "name": "空数组",
+          "stdin": "0\n",
+          "expected": "0"
+        },
+        {
+          "name": "单元素",
+          "stdin": "1\n7\n",
+          "expected": "0"
+        },
+        {
+          "name": "没有严格上升",
+          "stdin": "5\n5 5 2 -1 -2\n",
+          "expected": "0"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "encapsulation-rules",
+    "lessonSlug": "oop-core",
+    "question": {
+      "type": "JUDGE",
+      "difficulty": "EASY",
+      "prompt": "提现方法先校验金额和余额，校验失败时在扣款前返回 false，因此账户原有余额会保留。",
+      "explanation": "扣款语句只在校验通过后执行。将写入集中在方法内，可确保所有调用遵循同一规则。",
+      "options": [
+        "正确",
+        "错误"
+      ],
+      "answerKey": "TRUE"
+    },
+    "exercise": {
+      "title": "实现带最低余额的积分账户",
+      "description": "首行给出初始余额和最低保留余额，满足 0 ≤ 最低保留余额 ≤ 初始余额。第二行给出请求数 n，接下来是 n 个带符号的整数金额。提现必须为正，成功后余额须至少等于最低保留余额。\n\n每个请求输出一行 true 或 false，最后一行输出最终余额。金额与余额均在 int 范围内。\n\n示例输入\n100 20\n3\n30 60 50\n\n示例输出\ntrue\nfalse\ntrue\n20",
+      "difficulty": "BEGINNER",
+      "hint": "可提现金额是 balance - reserve。确认请求合法后再更新余额。",
+      "sortOrder": 102,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static final class Account {",
+        "        private int balance;",
+        "        private final int reserve;",
+        "",
+        "        Account(int balance, int reserve) {",
+        "            this.balance = balance;",
+        "            this.reserve = reserve;",
+        "        }",
+        "",
+        "        boolean withdraw(int amount) {",
+        "            throw new UnsupportedOperationException(\"请完成方法\");",
+        "        }",
+        "",
+        "        int balance() {",
+        "            return balance;",
+        "        }",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        try (Scanner input = new Scanner(System.in)) {",
+        "            Account account = new Account(input.nextInt(), input.nextInt());",
+        "            int requests = input.nextInt();",
+        "            for (int i = 0; i < requests; i++) {",
+        "                System.out.println(account.withdraw(input.nextInt()));",
+        "            }",
+        "            System.out.println(account.balance());",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "            if (amount <= 0 || amount > balance - reserve) {",
+        "                return false;",
+        "            }",
+        "            balance -= amount;",
+        "            return true;"
+      ],
+      "cases": [
+        {
+          "name": "正常提现与拒绝",
+          "stdin": "100 20\n3\n30 60 50\n",
+          "expected": "true\nfalse\ntrue\n20"
+        },
+        {
+          "name": "零和负数金额",
+          "stdin": "10 2\n2\n0 -8\n",
+          "expected": "false\nfalse\n10"
+        },
+        {
+          "name": "余额已等于最低保留值",
+          "stdin": "3 3\n1\n1\n",
+          "expected": "false\n3"
+        },
+        {
+          "name": "没有提现请求",
+          "stdin": "50 0\n0\n",
+          "expected": "50"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "list-snapshots",
+    "lessonSlug": "collection-overview",
+    "question": {
+      "type": "JUDGE",
+      "difficulty": "EASY",
+      "prompt": "List.copyOf(draft) 会递归复制草稿中每个可变对象，所以修改某个对象的字段不会反映在快照里。",
+      "explanation": "List.copyOf 保存创建时的元素顺序并返回不可修改列表。它保存的元素仍可引用同一个可变对象。",
+      "options": [
+        "正确",
+        "错误"
+      ],
+      "answerKey": "FALSE"
+    },
+    "exercise": {
+      "title": "为提交名单创建独立快照",
+      "description": "第一项为原名单人数 n，接着读入 n 个不含空格的名字，最后读入两个新名字。实现 snapshot，返回按原顺序保存的独立名单。主程序先获取快照，再向草稿追加两个名字，最后输出快照与草稿各一行，以空格分隔。空快照输出 EMPTY。\n\n示例输入\n2\nLin Yu\nZhou Han\n\n示例输出\nLin Yu\nLin Yu Zhou Han",
+      "difficulty": "BEGINNER",
+      "hint": "先复制名单，再修改草稿。要保留出现顺序和重复名字。",
+      "sortOrder": 103,
+      "starterCode": [
+        "import java.util.ArrayList;",
+        "import java.util.List;",
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static List<String> snapshot(List<String> draft) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        try (Scanner input = new Scanner(System.in)) {",
+        "            int size = input.nextInt();",
+        "            var draft = new ArrayList<String>();",
+        "            for (int i = 0; i < size; i++) {",
+        "                draft.add(input.next());",
+        "            }",
+        "            List<String> submitted = snapshot(draft);",
+        "            draft.add(input.next());",
+        "            draft.add(input.next());",
+        "            System.out.println(submitted.isEmpty() ? \"EMPTY\" : String.join(\" \", submitted));",
+        "            System.out.println(String.join(\" \", draft));",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        return List.copyOf(draft);"
+      ],
+      "cases": [
+        {
+          "name": "常规名单",
+          "stdin": "2\nLin Yu\nZhou Han\n",
+          "expected": "Lin Yu\nLin Yu Zhou Han"
+        },
+        {
+          "name": "空名单",
+          "stdin": "0\nA B\n",
+          "expected": "EMPTY\nA B"
+        },
+        {
+          "name": "保留重复及顺序",
+          "stdin": "4\nC A C B\nX Y\n",
+          "expected": "C A C B\nC A C B X Y"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "stream-results",
+    "lessonSlug": "stream-api",
+    "question": {
+      "type": "CHOICE",
+      "difficulty": "MEDIUM",
+      "prompt": "使用 Stream 对及格成绩调用 average() 时，如果所有分数都被 filter 排除，结果是什么？",
+      "explanation": "整数流的 average() 返回 OptionalDouble。没有元素时返回空值，调用方可选择显示「无及格成绩」。",
+      "options": [
+        "A. 0.0",
+        "B. NaN",
+        "C. 空的 OptionalDouble",
+        "D. ArithmeticException"
+      ],
+      "answerKey": "C"
+    },
+    "exercise": {
+      "title": "按动态分数线计算平均分",
+      "description": "第一行给出成绩数 n 和分数线 t，接下来是 n 个 0 到 100 的整数成绩。用 Stream 计算大于等于 t 的成绩的平均分。没有符合条件的成绩时输出 NONE，其余情况输出保留两位小数的平均值。\n\n示例输入\n4 70\n100 65 70 85\n\n示例输出\n85.00",
+      "difficulty": "INTERMEDIATE",
+      "hint": "filter 负责筛选，然后转换为整数流并调用 average()。",
+      "sortOrder": 104,
+      "starterCode": [
+        "import java.util.ArrayList;",
+        "import java.util.List;",
+        "import java.util.Locale;",
+        "import java.util.OptionalDouble;",
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static OptionalDouble passingAverage(List<Integer> scores, int threshold) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        try (Scanner input = new Scanner(System.in)) {",
+        "            int size = input.nextInt();",
+        "            int threshold = input.nextInt();",
+        "            var scores = new ArrayList<Integer>();",
+        "            for (int i = 0; i < size; i++) {",
+        "                scores.add(input.nextInt());",
+        "            }",
+        "            OptionalDouble average = passingAverage(scores, threshold);",
+        "            if (average.isPresent()) {",
+        "                System.out.printf(Locale.ROOT, \"%.2f%n\", average.getAsDouble());",
+        "            } else {",
+        "                System.out.println(\"NONE\");",
+        "            }",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        return scores.stream()",
+        "                .filter(score -> score >= threshold)",
+        "                .mapToInt(Integer::intValue)",
+        "                .average();"
+      ],
+      "cases": [
+        {
+          "name": "包含边界成绩",
+          "stdin": "4 70\n100 65 70 85\n",
+          "expected": "85.00"
+        },
+        {
+          "name": "平均值需要舍入",
+          "stdin": "4 60\n60 61 61 59\n",
+          "expected": "60.67"
+        },
+        {
+          "name": "无人达到分数线",
+          "stdin": "3 80\n44 79 70\n",
+          "expected": "NONE"
+        },
+        {
+          "name": "没有成绩",
+          "stdin": "0 0\n",
+          "expected": "NONE"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "future-results",
+    "lessonSlug": "thread-pool",
+    "question": {
+      "type": "CHOICE",
+      "difficulty": "MEDIUM",
+      "prompt": "调用 Future.get(2, TimeUnit.SECONDS) 等到超时后，后台任务会怎样？",
+      "explanation": "带超时的 get 限制调用方的等待时间。抛出 TimeoutException 后任务仍可能执行，若需取消，应显式调用 cancel，并让任务配合中断。",
+      "options": [
+        "A. 任务保证立刻停止",
+        "B. 任务仍可能继续运行",
+        "C. 线程池会自动关闭",
+        "D. Future 保证返回默认值"
+      ],
+      "answerKey": "B"
+    },
+    "exercise": {
+      "title": "用 Future 按提交顺序收集平方结果",
+      "description": "读入任务数 n 和 n 个整数，每个整数的绝对值不超过 46340。使用 ExecutorService 为每个数字提交平方计算，按输入顺序收集 Future 的结果并返回。主程序将结果以空格分隔输出，任务为空时输出 EMPTY。\n\n示例输入\n4\n-3 2 0 -5\n\n示例输出\n9 4 0 25",
+      "difficulty": "INTERMEDIATE",
+      "hint": "先按输入顺序保存 submit 返回的 Future，再遍历 Future 获取结果。用 finally 关闭线程池。",
+      "sortOrder": 105,
+      "starterCode": [
+        "import java.util.ArrayList;",
+        "import java.util.List;",
+        "import java.util.Scanner;",
+        "import java.util.concurrent.ExecutionException;",
+        "import java.util.concurrent.Executors;",
+        "import java.util.concurrent.Future;",
+        "",
+        "public class Main {",
+        "    static List<Integer> squareInOrder(List<Integer> numbers)",
+        "            throws InterruptedException, ExecutionException {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) throws Exception {",
+        "        try (Scanner input = new Scanner(System.in)) {",
+        "            int size = input.nextInt();",
+        "            var numbers = new ArrayList<Integer>();",
+        "            for (int i = 0; i < size; i++) {",
+        "                numbers.add(input.nextInt());",
+        "            }",
+        "            List<Integer> results = squareInOrder(numbers);",
+        "            System.out.println(results.isEmpty() ? \"EMPTY\"",
+        "                    : String.join(\" \", results.stream().map(String::valueOf).toList()));",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        var pool = Executors.newFixedThreadPool(2);",
+        "        try {",
+        "            var tasks = new ArrayList<Future<Integer>>();",
+        "            for (int number : numbers) {",
+        "                tasks.add(pool.submit(() -> number * number));",
+        "            }",
+        "            var results = new ArrayList<Integer>();",
+        "            for (Future<Integer> task : tasks) {",
+        "                results.add(task.get());",
+        "            }",
+        "            return results;",
+        "        } finally {",
+        "            pool.shutdown();",
+        "        }"
+      ],
+      "cases": [
+        {
+          "name": "保持输入顺序",
+          "stdin": "4\n-3 2 0 -5\n",
+          "expected": "9 4 0 25"
+        },
+        {
+          "name": "无任务",
+          "stdin": "0\n",
+          "expected": "EMPTY"
+        },
+        {
+          "name": "最大安全平方",
+          "stdin": "3\n46340 -1 -46340\n",
+          "expected": "2147395600 1 2147395600"
+        },
+        {
+          "name": "重复任务",
+          "stdin": "4\n3 3 1 3\n",
+          "expected": "9 9 1 9"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "jvm-heap-observation",
+    "lessonSlug": "jvm-tuning-tools",
+    "question": {
+      "type": "SHORT_ANSWER",
+      "difficulty": "MEDIUM",
+      "prompt": "两次 jcmd GC.heap_info 采样发现已用堆增加。至少应补做哪些观察，才能判断是否值得继续排查内存泄漏？",
+      "explanation": "在同一测试程序和相近负载下多次采样，对照垃圾回收后的用量是否持续增长。若增长持续，再检查相关对象是否仍被引用。"
+    },
+    "exercise": {
+      "title": "比较两次堆用量采样",
+      "description": "读入两次简化的堆用量记录，只包含非负整数和单位 K、M 或 G。将记录换算成字节，输出第二次用量减第一次用量。K、M、G 分别表示 1024、1024²、1024³ 字节。结果可能为负，输入及换算结果保证在 long 范围内。\n\n示例输入\n512K 2M\n\n示例输出\n1572864",
+      "difficulty": "INTERMEDIATE",
+      "hint": "通过末尾字符判断单位，去掉单位后用 Long.parseLong 读取数字。",
+      "sortOrder": 106,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static long toBytes(String reading) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        try (Scanner input = new Scanner(System.in)) {",
+        "            long before = toBytes(input.next());",
+        "            long after = toBytes(input.next());",
+        "            System.out.println(after - before);",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        int unitIndex = reading.length() - 1;",
+        "        long amount = Long.parseLong(reading.substring(0, unitIndex));",
+        "        long multiplier = switch (reading.charAt(unitIndex)) {",
+        "            case 'K' -> 1024L;",
+        "            case 'M' -> 1024L * 1024;",
+        "            case 'G' -> 1024L * 1024 * 1024;",
+        "            default -> throw new IllegalArgumentException(\"未知单位\");",
+        "        };",
+        "        return amount * multiplier;"
+      ],
+      "cases": [
+        {
+          "name": "混合单位",
+          "stdin": "512K 2M\n",
+          "expected": "1572864"
+        },
+        {
+          "name": "用量下降",
+          "stdin": "3G 2G\n",
+          "expected": "-1073741824"
+        },
+        {
+          "name": "不同单位但相等",
+          "stdin": "1M 1024K\n",
+          "expected": "0"
+        },
+        {
+          "name": "超过 int 范围",
+          "stdin": "0K 4G\n",
+          "expected": "4294967296"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "rest-query-parameters",
+    "lessonSlug": "restful-api",
+    "question": {
+      "type": "CHOICE",
+      "difficulty": "MEDIUM",
+      "prompt": "示例控制器使用 @RequestParam(name = \"topic\", defaultValue = \"hello-world\")。GET /api/lesson-preview?topic=arrays 的响应中，topic 取什么值？",
+      "explanation": "显式传入的 topic 由 Spring 绑定为 arrays。缺省时才由 defaultValue 提供 hello-world。",
+      "options": [
+        "A. hello-world",
+        "B. /api/lesson-preview",
+        "C. arrays",
+        "D. topic"
+      ],
+      "answerKey": "C"
+    },
+    "exercise": {
+      "title": "为课时预览应用默认主题",
+      "description": "从标准输入读取一行，模拟 HTTP 框架传入的 topic 参数。输入缺失、空字符串或只含空白时，使用 hello-world。有效输入去除首尾空白，保留原主题。题目保证去掉空白后的非空主题只含小写字母、数字与连字符。主程序打印预览 JSON，本题练习控制器中的参数规则。\n\n示例输入\n  arrays  \n\n示例输出\n{\"topic\":\"arrays\",\"status\":\"ready\"}",
+      "difficulty": "INTERMEDIATE",
+      "hint": "先处理 null，再使用 strip() 与 isEmpty() 判断是否采用默认值。",
+      "sortOrder": 107,
+      "starterCode": [
+        "import java.io.BufferedReader;",
+        "import java.io.IOException;",
+        "import java.io.InputStreamReader;",
+        "",
+        "public class Main {",
+        "    static String resolveTopic(String topic) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) throws IOException {",
+        "        try (var input = new BufferedReader(new InputStreamReader(System.in))) {",
+        "            String topic = resolveTopic(input.readLine());",
+        "            System.out.println(\"{\\\"topic\\\":\\\"\" + topic + \"\\\",\\\"status\\\":\\\"ready\\\"}\");",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        if (topic == null || topic.isBlank()) {",
+        "            return \"hello-world\";",
+        "        }",
+        "        return topic.strip();"
+      ],
+      "cases": [
+        {
+          "name": "给定主题",
+          "stdin": "  arrays  \n",
+          "expected": "{\"topic\":\"arrays\",\"status\":\"ready\"}"
+        },
+        {
+          "name": "空参数",
+          "stdin": "\n",
+          "expected": "{\"topic\":\"hello-world\",\"status\":\"ready\"}"
+        },
+        {
+          "name": "仅空白",
+          "stdin": " \t \n",
+          "expected": "{\"topic\":\"hello-world\",\"status\":\"ready\"}"
+        },
+        {
+          "name": "缺失参数",
+          "stdin": "",
+          "expected": "{\"topic\":\"hello-world\",\"status\":\"ready\"}"
+        },
+        {
+          "name": "含连字符",
+          "stdin": "stream-api\n",
+          "expected": "{\"topic\":\"stream-api\",\"status\":\"ready\"}"
+        }
+      ]
+    }
+  },
+  {
+    "noteId": "jdbc-bind-values",
+    "lessonSlug": "kingbase-persistence",
+    "question": {
+      "type": "SHORT_ANSWER",
+      "difficulty": "MEDIUM",
+      "prompt": "SQL 为 SELECT title FROM lesson WHERE slug = ? AND module_id = ?。如何绑定两个参数，并在执行查询后读到第一行？",
+      "explanation": "先调用 statement.setString(1, slug) 和 statement.setLong(2, moduleId)，然后调用 executeQuery()。ResultSet 的 next() 返回 true 后，才能用 getString(\"title\") 读取该行。"
+    },
+    "exercise": {
+      "title": "遍历 JDBC 结果集读取课时标题",
+      "description": "第一行是查询结果的行数 n，后面 n 行各为一个非空课时标题，可以包含空格。主程序用这些输入构造内存中的 JDBC 结果集。实现 readTitles，从光标位于首行之前的 ResultSet 中按顺序读取 title 列。主程序每行输出一个标题，结果为空时输出 EMPTY。\n\n示例输入\n2\nJava Basics\nWorking with JDBC\n\n示例输出\nJava Basics\nWorking with JDBC",
+      "difficulty": "INTERMEDIATE",
+      "hint": "在 while 循环内用 next() 移动光标，并通过列名 title 读取数据。",
+      "sortOrder": 108,
+      "starterCode": [
+        "import java.io.BufferedReader;",
+        "import java.io.InputStreamReader;",
+        "import java.sql.ResultSet;",
+        "import java.sql.SQLException;",
+        "import java.sql.Types;",
+        "import java.util.ArrayList;",
+        "import java.util.List;",
+        "import javax.sql.rowset.RowSetMetaDataImpl;",
+        "import javax.sql.rowset.RowSetProvider;",
+        "",
+        "public class Main {",
+        "    static List<String> readTitles(ResultSet rows) throws SQLException {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) throws Exception {",
+        "        try (var input = new BufferedReader(new InputStreamReader(System.in));",
+        "             var rows = RowSetProvider.newFactory().createCachedRowSet()) {",
+        "            var metadata = new RowSetMetaDataImpl();",
+        "            metadata.setColumnCount(1);",
+        "            metadata.setColumnName(1, \"title\");",
+        "            metadata.setColumnType(1, Types.VARCHAR);",
+        "            rows.setMetaData(metadata);",
+        "            int count = Integer.parseInt(input.readLine());",
+        "            for (int i = 0; i < count; i++) {",
+        "                rows.last();",
+        "                rows.moveToInsertRow();",
+        "                rows.updateString(1, input.readLine());",
+        "                rows.insertRow();",
+        "                rows.moveToCurrentRow();",
+        "            }",
+        "            rows.beforeFirst();",
+        "            List<String> titles = readTitles(rows);",
+        "            if (titles.isEmpty()) {",
+        "                System.out.println(\"EMPTY\");",
+        "            } else {",
+        "                titles.forEach(System.out::println);",
+        "            }",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        var titles = new ArrayList<String>();",
+        "        while (rows.next()) {",
+        "            titles.add(rows.getString(\"title\"));",
+        "        }",
+        "        return titles;"
+      ],
+      "cases": [
+        {
+          "name": "多行及空格",
+          "stdin": "2\nJava Basics\nWorking with JDBC\n",
+          "expected": "Java Basics\nWorking with JDBC"
+        },
+        {
+          "name": "空结果",
+          "stdin": "0\n",
+          "expected": "EMPTY"
+        },
+        {
+          "name": "单行",
+          "stdin": "1\nInterfaces\n",
+          "expected": "Interfaces"
+        },
+        {
+          "name": "保留顺序和重复行",
+          "stdin": "4\nThreads\nArrays\nThreads\nStreams\n",
+          "expected": "Threads\nArrays\nThreads\nStreams"
+        }
+      ]
+    }
+  }
+]

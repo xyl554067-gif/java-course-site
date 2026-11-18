@@ -12,8 +12,12 @@ import java.util.List;
 @Component
 public class QuestionBankSchemaUpgrade implements ApplicationRunner {
     private final JdbcTemplate jdbc;
+    private final ResourcePracticeSeed resourcePractice;
 
-    public QuestionBankSchemaUpgrade(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public QuestionBankSchemaUpgrade(JdbcTemplate jdbc, ResourcePracticeSeed resourcePractice) {
+        this.jdbc = jdbc;
+        this.resourcePractice = resourcePractice;
+    }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -28,6 +32,7 @@ public class QuestionBankSchemaUpgrade implements ApplicationRunner {
         }
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_qa_owner ON qa_item(owner_id, id)");
         seedStarterQuestions();
+        resourcePractice.apply();
     }
 
     private boolean hasColumn(DatabaseMetaData metadata, String table, String column) throws Exception {

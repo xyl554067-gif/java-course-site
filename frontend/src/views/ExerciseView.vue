@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 import CodeEditor from '@/components/CodeEditor.vue'
 import { codeApi, type CodeExercise, type CodeRuntime, type JudgeResult, type CodeRunResult, type CodeSubmission } from '@/api'
 import { errMsg } from '@/api/http'
+import { resourceNoteForExercise } from '@/content/course-resources'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,9 +30,15 @@ const running = ref(false)
 const submitting = ref(false)
 const error = ref('')
 const showHint = ref(false)
+const resourceOnly = ref(false)
 const editorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 
 const ready = computed(() => runtime.value?.ready === true)
+const resourceNote = computed(() => resourceNoteForExercise(current.value?.slug))
+const shownExercises = computed(() => resourceOnly.value
+  ? exercises.value.filter((exercise) => resourceNoteForExercise(exercise.slug))
+  : exercises.value,
+)
 
 const statusMeta = computed(() => {
   const s = judgeResult.value?.status
@@ -76,8 +83,7 @@ async function load() {
     exercises.value = list
     if (list.length) {
       const slug = (route.params.slug as string) || list[0].slug
-      const found = list.find((e) => e.slug === slug) || list[0]
-      selectExercise(found)
+      selectBySlug(slug)
     } else {
       error.value = '暂无习题数据'
     }
@@ -88,7 +94,18 @@ async function load() {
   }
 }
 
+function selectBySlug(slug: string) {
+  const exercise = exercises.value.find((item) => item.slug === slug)
+  if (!exercise) {
+    current.value = null
+    error.value = '未找到这道代码练习，请从列表选择其他练习。'
+  } else if (exercise.id !== current.value?.id) {
+    selectExercise(exercise)
+  }
+}
+
 function selectExercise(ex: CodeExercise) {
+  error.value = ''
   current.value = ex
   code.value = ex.starterCode || ''
   stdin.value = ''
@@ -148,12 +165,8 @@ function resetCode() {
   }
 }
 
-watch(() => route.params.slug, async (slug) => {
-  if (!slug || !exercises.value.length) return
-  const found = exercises.value.find((e) => e.slug === slug)
-  if (found && found.id !== current.value?.id) {
-    selectExercise(found)
-  }
+watch(() => route.params.slug, (slug) => {
+  if (typeof slug === 'string' && exercises.value.length) selectBySlug(slug)
 })
 
 onMounted(async () => {
@@ -201,9 +214,13 @@ onMounted(async () => {
         <div class="section-head">
           <span class="dot" /><h2>课后习题</h2><span class="line" />
         </div>
-        <p class="ex__side-tip">共 {{ exercises.length }} 道，写完点「提交」自动判题</p>
+        <p class="ex__side-tip">共 {{ shownExercises.length }} 道，写完点「提交」自动判题</p>
+        <button type="button" class="btn btn--sm ex__resource-filter"
+                :class="resourceOnly ? 'btn--primary' : 'btn--ghost'" :aria-pressed="resourceOnly"
+                @click="resourceOnly = !resourceOnly">只看资料库练习</button>
+        <p v-if="resourceOnly && !shownExercises.length && !loading" class="ex__side-tip">暂无资料库练习。</p>
         <button
-          v-for="e in exercises"
+          v-for="e in shownExercises"
           :key="e.id"
           class="ex__item"
           :class="{ 'is-active': current?.id === e.id }"
@@ -229,10 +246,15 @@ onMounted(async () => {
             <div class="ex__head-top">
               <span class="badge badge--coral">{{ current.difficulty }}</span>
               <span v-if="current.lessonTitle" class="badge badge--mint">{{ current.lessonTitle }}</span>
+              <span v-if="resourceNote" class="badge badge--lilac">资料库</span>
               <button class="btn btn--sm btn--ghost" @click="resetCode">重置代码</button>
             </div>
             <h1 class="title-round ex__title">{{ current.title }}</h1>
             <pre class="ex__desc">{{ current.description }}</pre>
+            <div v-if="resourceNote" class="ex__resource-links">
+              <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'resources', params: { note: resourceNote.id } }">来源讲解</RouterLink>
+              <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'qa', query: { resource: resourceNote.id } }">专题题库</RouterLink>
+            </div>
             <p v-if="caseNames.length" class="ex__cases-hint">
               本题共 {{ caseNames.length }} 个测试用例：{{ caseNames.join('、') }}
             </p>
@@ -372,6 +394,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.ex__resource-filter { margin-bottom: 10px; }
+.ex__resource-links { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
 .ex {
   padding: var(--space-lg) 0;
 }
@@ -401,16 +425,17 @@ onMounted(async () => {
 /* ---------- 布局 ---------- */
 .ex__layout {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: 270px minmax(0, 1fr);
   gap: var(--space-md);
   align-items: start;
-}
-@media (max-width: 900px) {
-  .ex__layout { grid-template-columns: 1fr; }
 }
 
 /* ---------- 侧栏 ---------- */
 .ex__side { padding: var(--space-md); position: sticky; top: 90px; }
+@media (max-width: 900px) {
+  .ex__layout { grid-template-columns: minmax(0, 1fr); }
+  .ex__side { position: static; max-height: min(50vh, 24rem); overflow-y: auto; }
+}
 .ex__side-tip { font-size: 12px; color: var(--c-ink-faint); margin: 6px 0 12px; }
 .ex__item {
   display: block;
@@ -442,7 +467,7 @@ onMounted(async () => {
 
 /* ---------- 题面 ---------- */
 .ex__head { padding: var(--space-md); margin-bottom: var(--space-md); }
-.ex__head-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ex__head-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
 .ex__head-top .btn { margin-left: auto; }
 .ex__title { font-size: 24px; margin: 0 0 10px; }
 .ex__desc {
@@ -450,6 +475,7 @@ onMounted(async () => {
   font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--c-ink-soft);
   margin: 0;
 }

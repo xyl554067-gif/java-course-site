@@ -5,6 +5,7 @@ import LessonComicCheck from '@/components/LessonComicCheck.vue'
 import LessonIllustration from '@/components/LessonIllustration.vue'
 import lessonComics from '@/content/lesson-comics.json'
 import { lessonComicPrompts, type LessonComicPrompt } from '@/content/lesson-comic-prompts'
+import { resourceNotes } from '@/content/course-resources'
 
 // 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
 const ASSET_BASE = import.meta.env.BASE_URL || '/'
@@ -42,6 +43,7 @@ const arrayReviewPrompt: LessonComicPrompt = {
 }
 const activeTab = computed(() => String(route.query.tab || 'notes'))
 const lessonSlug = computed(() => String(route.params.slug || ''))
+const resourceNote = computed(() => resourceNotes.find((note) => note.lessonSlug === lessonSlug.value))
 const lessonComic = computed(() => {
   const slug = lessonSlug.value
   return Object.prototype.hasOwnProperty.call(lessonComics, slug)
@@ -790,6 +792,14 @@ watch(() => route.params.slug, (slug) => {
             </p>
           </div>
 
+          <section v-if="resourceNote" class="lesson-resource">
+            <div class="section-head"><span class="dot" /><h2>延伸学习</h2><span class="line" /></div>
+            <RouterLink :to="{ name: 'resources', params: { note: resourceNote.id } }">
+              {{ resourceNote.title }} →
+            </RouterLink>
+            <p>{{ resourceNote.summary }}</p>
+          </section>
+
           <!-- 上下课时 -->
           <nav class="lesson__nav">
             <RouterLink v-if="prev" :to="`/lesson/${prev.slug}`" class="lesson__nav-btn card">
@@ -840,6 +850,10 @@ watch(() => route.params.slug, (slug) => {
 </template>
 
 <style scoped>
+.lesson-resource { margin-block: var(--space-lg); }
+.lesson-resource a { text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
+.lesson-resource p { margin-top: 6px; color: var(--c-ink-soft); }
+
 .lesson-quiz-area { scroll-margin-top: calc(var(--nav-h) + 16px); }
 @media (max-width: 720px) {
   :global(body:has(.lesson-page .md-body) .pet-layer),

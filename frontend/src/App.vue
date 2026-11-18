@@ -109,6 +109,7 @@ async function handleLogout() {
             <RouterLink to="/" class="nav__link">首页</RouterLink>
             <RouterLink to="/course/java-mastery" class="nav__link">课程目录</RouterLink>
             <RouterLink to="/learning-videos" class="nav__link">学习视频</RouterLink>
+            <RouterLink to="/resources" class="nav__link">资料库</RouterLink>
             <RouterLink to="/exercises" class="nav__link">代码练习</RouterLink>
             <RouterLink to="/qa" class="nav__link">题库</RouterLink>
             <RouterLink to="/ai/courses" class="nav__link">AI 课程工坊</RouterLink>

@@ -90,6 +90,7 @@ export interface QaItem {
   lessonId: number | null
   lessonTitle?: string | null
   lessonSlug?: string | null
+  resourceNoteId?: string | null
   question: string
   answer: string
   options: string | null
