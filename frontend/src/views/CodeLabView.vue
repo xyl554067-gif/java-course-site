@@ -25,6 +25,10 @@ const stdin = ref('')
 const runtime = ref<CodeRuntime | null>(null)
 const result = ref<CodeRunResult | null>(null)
 const loading = ref(true)
+const lessonRetry = ref(0)
+const runtimeRetry = ref(0)
+const checkingRuntime = ref(false)
+const runtimeError = ref('')
 const running = ref(false)
 const error = ref('')
 const runError = ref('')
@@ -98,7 +102,7 @@ function selectVideo(id: number) {
   void router.replace({ query: { ...route.query, video: String(id) } })
 }
 
-watch(() => route.params.slug, async (slug, _, onCleanup) => {
+watch([() => route.params.slug, lessonRetry], async ([slug], _, onCleanup) => {
   if (typeof slug !== 'string') return
   let current = true
   onCleanup(() => { current = false })
@@ -110,7 +114,6 @@ watch(() => route.params.slug, async (slug, _, onCleanup) => {
   snippets.value = []
   videos.value = []
   hasLessonPractice.value = false
-  runtime.value = null
   try {
     const detail = await courseApi.lesson(slug)
     if (!current) return
@@ -118,16 +121,8 @@ watch(() => route.params.slug, async (slug, _, onCleanup) => {
     lesson.value = loadedLesson
     snippets.value = detail.snippets || []
     videos.value = detail.videos || []
-    if (!snippets.value.length && !videos.value.length) {
-      error.value = '这节课没有可用的代码示例。'
-      return
-    }
-    if (snippets.value.length) {
-      syncSelection()
-      void codeApi.runtime().then((value) => {
-        if (current) runtime.value = value
-      }).catch(() => {})
-    }
+    syncSelection()
+    if (!snippets.value.length && !videos.value.length) return
     void Promise.allSettled([codeApi.exercises(loadedLesson.id), courseApi.qa()]).then(([exercises, questions]) => {
       if (!current) return
       hasLessonPractice.value =
@@ -140,6 +135,26 @@ watch(() => route.params.slug, async (slug, _, onCleanup) => {
     if (current) loading.value = false
   }
 }, { immediate: true })
+
+watch([() => lesson.value?.slug, () => snippets.value.length > 0, runtimeRetry],
+  async ([slug, hasSnippets], _, onCleanup) => {
+    runtime.value = null
+    runtimeError.value = ''
+    checkingRuntime.value = Boolean(slug && hasSnippets)
+    if (!slug || !hasSnippets) return
+
+    let current = true
+    onCleanup(() => { current = false })
+    try {
+      const status = await codeApi.runtime()
+      if (current) runtime.value = status
+    } catch (e) {
+      if (current) runtimeError.value = errMsg(e)
+    } finally {
+      if (current) checkingRuntime.value = false
+    }
+  },
+)
 watch(() => route.query.snippet, syncSelection)
 watch(account, restoreStoredDraft)
 
@@ -194,7 +209,10 @@ async function exportProject() {
     </div>
 
     <p v-if="loading || !auth.ready" role="status">正在加载示例…</p>
-    <p v-else-if="error" class="card lab-error" role="alert">{{ error }}</p>
+    <div v-else-if="error" class="card lab-error" role="alert">
+      <p>{{ error }}</p>
+      <button type="button" class="btn btn--sm btn--ghost" @click="lessonRetry++">重新加载实验室</button>
+    </div>
     <div v-else-if="selected || selectedVideo" class="lab-layout" :class="{ 'lab-layout--video': selectedVideo }">
       <div class="lab-sidebar" ref="videoArea">
         <LessonVideoPanel v-if="selectedVideo" :videos="videos" :selected="selectedVideo" @select="selectVideo" />
@@ -222,8 +240,11 @@ async function exportProject() {
         <LocalIdePanel :code="code" :stdin="stdin" />
         <p v-if="draftUnavailable" class="warn" role="status">当前浏览器无法读取或保存草稿。离开前可以导出代码。</p>
         <p v-if="exportError" class="warn" role="alert">{{ exportError }}</p>
-        <p v-if="runtime && !runtime.ready" class="warn">{{ runtime.note }}</p>
-        <p v-else-if="!runtime" class="warn">代码运行环境暂未就绪。</p>
+        <p v-if="checkingRuntime" class="warn" role="status">正在检查 Java 运行环境…</p>
+        <div v-else-if="!runtime?.ready" class="warn">
+          <p role="status">{{ runtimeError || runtime?.note || 'Java 运行环境暂未就绪。' }}</p>
+          <button type="button" class="btn btn--sm btn--ghost" @click="runtimeRetry++">重试检查运行环境</button>
+        </div>
         <p v-if="selected.explanation" class="explanation">{{ selected.explanation }}</p>
         <CodeEditor :model-value="code" :min-rows="18" @update:model-value="setDraft($event, stdin)" @run="run" />
         <label class="stdin">标准输入（可选）
@@ -242,8 +263,9 @@ async function exportProject() {
       </section>
       <p v-else class="card lab-error">这节课暂时没有可运行的代码示例。</p>
     </div>
+    <p v-else class="card lab-error">这节课暂无配套视频或代码示例。</p>
 
-    <section v-if="!loading && auth.ready && !error" class="card lab-exercises">
+    <section v-if="!loading && auth.ready && !error && (selected || selectedVideo)" class="card lab-exercises">
       <h2>课后习题</h2>
       <RouterLink v-if="hasLessonPractice" class="btn btn--ghost" :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'exercises' } }">返回本节习题 →</RouterLink>
       <RouterLink v-else class="btn btn--ghost" to="/exercises">前往代码练习 →</RouterLink>
@@ -256,6 +278,7 @@ async function exportProject() {
 .lab-editor { min-width: 0; scroll-margin-top: calc(var(--nav-h) + 10px); }
 .lab-layout--video { grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr); }
 .lab-jump { display: none; }
+.lab-error p, .warn p { margin: 0 0 10px; }
 @media (max-width: 900px) {
   .lab-layout--video { grid-template-columns: minmax(0, 1fr); }
   .lab-jump { display: inline-flex; justify-self: start; margin-bottom: 8px; }
