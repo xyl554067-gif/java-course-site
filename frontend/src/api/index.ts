@@ -45,6 +45,7 @@ export interface CodeSnippet {
   language: string
   code: string
   explanation?: string
+  expectedOut?: string | null
 }
 
 export interface LearningVideo {

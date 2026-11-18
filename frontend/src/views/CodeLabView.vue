@@ -246,6 +246,10 @@ async function exportProject() {
           <button type="button" class="btn btn--sm btn--ghost" @click="runtimeRetry++">重试检查运行环境</button>
         </div>
         <p v-if="selected.explanation" class="explanation">{{ selected.explanation }}</p>
+        <details v-if="selected.expectedOut?.trim()" class="lab-expected">
+          <summary>查看原始示例的预期输出</summary>
+          <pre>{{ selected.expectedOut }}</pre>
+        </details>
         <CodeEditor :model-value="code" :min-rows="18" @update:model-value="setDraft($event, stdin)" @run="run" />
         <label class="stdin">标准输入（可选）
           <textarea :value="stdin" rows="3" @input="setDraft(code, ($event.target as HTMLTextAreaElement).value)" />
@@ -279,6 +283,9 @@ async function exportProject() {
 .lab-layout--video { grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr); }
 .lab-jump { display: none; }
 .lab-error p, .warn p { margin: 0 0 10px; }
+.lab-expected { margin: 12px 0; }
+.lab-expected summary { width: fit-content; font-weight: 700; cursor: pointer; }
+.lab-expected pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--c-cream-deep); overflow: auto; }
 @media (max-width: 900px) {
   .lab-layout--video { grid-template-columns: minmax(0, 1fr); }
   .lab-jump { display: inline-flex; justify-self: start; margin-bottom: 8px; }
