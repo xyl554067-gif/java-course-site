@@ -4,8 +4,8 @@ import { useAuthStore } from '@/stores/auth'
 const router = createRouter({
   history: createWebHashHistory(),
   scrollBehavior(to, from) {
-    if (to.name === 'lesson-lab' && from.path === to.path && to.query.video !== from.query.video
-      && to.query.snippet === from.query.snippet) return false
+    if (to.name === 'lesson-lab' && from.path === to.path
+      && (to.query.video !== from.query.video || to.query.snippet !== from.query.snippet)) return false
     return { top: 0 }
   },
   routes: [
