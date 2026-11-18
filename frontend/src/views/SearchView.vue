@@ -2,27 +2,49 @@
 
 // 静态资源基址：GitHub Pages 子路径部署时用 BASE_URL 拼接，避免绝对路径 404
 const ASSET_BASE = import.meta.env.BASE_URL || '/'
-import { ref, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, watch, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import GlobalSearch from '@/components/GlobalSearch.vue'
 import { searchApi, type SearchHit } from '@/api'
+import { errMsg } from '@/api/http'
 
 const route = useRoute()
-const q = ref((route.query.q as string) || '')
+const router = useRouter()
+const q = ref('')
 const hits = ref<SearchHit[]>([])
 const loading = ref(false)
 const searched = ref(false)
+const error = ref('')
+let searchVersion = 0
 
-async function doSearch(kw?: string) {
-  const key = (kw ?? q.value).trim()
+async function doSearch(keyword: string) {
+  const version = ++searchVersion
+  const key = keyword.trim()
   q.value = key
+  hits.value = []
+  error.value = ''
+  searched.value = false
+  loading.value = Boolean(key)
   if (!key) return
-  loading.value = true
   try {
-    hits.value = await searchApi.search(key)
+    const results = await searchApi.search(key)
+    if (version !== searchVersion) return
+    hits.value = results
     searched.value = true
+  } catch (e) {
+    if (version === searchVersion) error.value = errMsg(e)
   } finally {
-    loading.value = false
+    if (version === searchVersion) loading.value = false
+  }
+}
+
+function submitSearch(keyword: string) {
+  const key = keyword.trim()
+  if (!key) return
+  if (key === route.query.q) {
+    void doSearch(key)
+  } else {
+    void router.push({ name: 'search', query: { ...route.query, q: key } })
   }
 }
 
@@ -44,27 +66,29 @@ const TYPE_BADGE: Record<string, string> = {
 watch(
   () => route.query.q,
   (v) => {
-    if (v && v !== q.value) {
-      q.value = v as string
-      void doSearch(v as string)
-    }
+    void doSearch(typeof v === 'string' ? v : '')
   },
+  { immediate: true },
 )
 
-onMounted(() => doSearch())
+onUnmounted(() => { searchVersion++ })
 </script>
 
 <template>
   <div class="container search">
     <header class="search__head">
       <h1 class="title-round search__title">搜索结果</h1>
-      <GlobalSearch :initial="q" @submit="doSearch" />
+      <GlobalSearch :initial="q" @submit="submitSearch" />
     </header>
 
-    <div v-if="loading" class="search__loading"><div class="spinner" /></div>
+    <div v-if="loading" class="search__loading" role="status" aria-label="正在搜索"><div class="spinner" /></div>
+    <div v-else-if="error" class="card search__error" role="alert">
+      <p>{{ error }}</p>
+      <button type="button" class="btn btn--primary" @click="doSearch(q)">重试搜索</button>
+    </div>
 
     <template v-else-if="searched">
-      <p class="search__count">
+      <p class="search__count" role="status">
         找到 <strong>{{ hits.length }}</strong> 条与「<em>{{ q }}</em>」相关的内容
       </p>
 
@@ -91,6 +115,7 @@ onMounted(() => doSearch())
         </li>
       </ul>
     </template>
+    <p v-else>输入关键词，查找课时、知识点和代码示例。</p>
   </div>
 </template>
 
@@ -108,6 +133,8 @@ onMounted(() => doSearch())
 .search__head :deep(.gs__input) { width: 100%; }
 
 .search__loading { display: grid; place-items: center; padding: 60px 0; }
+.search__error { padding: 24px; }
+.search__error p { margin: 0 0 16px; }
 .search__count { margin: 0 0 18px; font-size: 14px; color: var(--c-ink-soft); }
 .search__count strong { color: var(--c-coral-deep); font-size: 17px; }
 .search__count em { font-style: normal; font-weight: 700; color: var(--c-ink); }

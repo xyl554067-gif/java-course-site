@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { searchApi } from '@/api'
 
 const props = defineProps<{ initial?: string }>()
@@ -10,29 +10,34 @@ const suggest = ref<string[]>([])
 const focused = ref(false)
 
 let timer: number | undefined
+let suggestionVersion = 0
+
+function clearSuggestions() {
+  suggestionVersion++
+  window.clearTimeout(timer)
+  suggest.value = []
+}
 
 async function loadSuggest() {
+  const version = ++suggestionVersion
   const q = kw.value.trim()
-  if (q.length < 2) {
-    suggest.value = []
-    return
-  }
   try {
-    suggest.value = await searchApi.suggest(q)
+    const results = await searchApi.suggest(q)
+    if (version === suggestionVersion) suggest.value = results
   } catch {
-    suggest.value = []
+    if (version === suggestionVersion) suggest.value = []
   }
 }
 
 function onInput() {
-  window.clearTimeout(timer)
-  timer = window.setTimeout(loadSuggest, 220)
+  clearSuggestions()
+  if (kw.value.trim().length >= 2) timer = window.setTimeout(loadSuggest, 220)
 }
 
 function submit() {
   const q = kw.value.trim()
   if (!q) return
-  suggest.value = []
+  clearSuggestions()
   focused.value = false
   emit('submit', q)
 }
@@ -42,9 +47,12 @@ function pick(s: string) {
   submit()
 }
 
-onMounted(() => {
-  if (props.initial) kw.value = props.initial
+watch(() => props.initial, (value) => {
+  clearSuggestions()
+  kw.value = value || ''
 })
+
+onUnmounted(clearSuggestions)
 </script>
 
 <template>
