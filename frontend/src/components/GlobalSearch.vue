@@ -51,6 +51,8 @@ onMounted(() => {
   <div class="gs">
     <input
       v-model="kw"
+      type="search"
+      aria-label="搜索课时、知识点和代码"
       class="input gs__input"
       placeholder="搜课时、知识点、代码片段…"
       @input="onInput"
@@ -67,9 +69,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.gs { position: relative; display: flex; align-items: center; gap: 8px; }
-.gs__input { width: 260px; height: 42px; padding: 8px 16px; font-size: 14px; }
-.gs__btn { height: 42px; }
+.gs { position: relative; display: flex; min-width: 0; align-items: center; gap: 8px; }
+.gs__input { width: 260px; min-width: 0; height: 42px; padding: 8px 16px; font-size: 14px; }
+.gs__btn { flex: none; height: 42px; white-space: nowrap; }
 .gs__list {
   position: absolute;
   top: 48px; left: 0;

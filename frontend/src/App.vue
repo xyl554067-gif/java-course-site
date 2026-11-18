@@ -75,10 +75,6 @@ watch(() => auth.isLogged, (v) => {
   }
 })
 
-function onSearch(kw: string) {
-  if (kw.trim()) router.push({ name: 'search', query: { q: kw.trim() } })
-}
-
 async function handleLogout() {
   resetAssistant()
   await auth.logout()
@@ -117,11 +113,12 @@ async function handleLogout() {
             <RouterLink to="/qa" class="nav__link">题库</RouterLink>
             <RouterLink to="/ai/courses" class="nav__link">AI 课程工坊</RouterLink>
             <RouterLink to="/ai/settings" class="nav__link">AI 接入</RouterLink>
+            <RouterLink to="/search" class="nav__link nav__link--search">搜索</RouterLink>
             <button class="nav__link nav__link--assistant" type="button" @click="agent.open()">鲸鲸助教</button>
           </nav>
 
         <div class="nav__right">
-          <GlobalSearch @submit="onSearch" />
+          <RouterLink to="/search" class="btn btn--sm btn--ghost nav__search">搜索</RouterLink>
           <button
             class="btn btn--sm btn--sun nav__agent"
             :aria-expanded="agent.panelOpen"
@@ -132,7 +129,7 @@ async function handleLogout() {
           </button>
           <RouterLink to="/me" class="btn btn--sm btn--ghost nav__profile">学习中心</RouterLink>
           <div class="nav__user">
-            <span class="badge badge--lilac">{{ auth.displayName }}</span>
+            <span class="badge badge--lilac" :title="auth.displayName">{{ auth.displayName }}</span>
             <button class="btn btn--sm btn--ghost" @click="handleLogout">退出</button>
           </div>
         </div>
@@ -182,15 +179,16 @@ async function handleLogout() {
   box-shadow: 0 4px 0 rgba(45, 53, 97, .12);
 }
 .nav__inner {
+  max-width: 1600px;
   height: var(--nav-h);
   display: flex;
   align-items: center;
   gap: var(--space-md);
 }
-.nav__brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--c-ink); }
+.nav__brand { display: flex; flex-shrink: 0; align-items: center; gap: 10px; text-decoration: none; color: var(--c-ink); }
 .nav__logo { width: 42px; height: 42px; image-rendering: auto; }
 .nav__title { font-size: 21px; font-weight: 800; white-space: nowrap; }
-.nav__menu, .nav__link--assistant { display: none; }
+.nav__menu, .nav__link--assistant, .nav__link--search { display: none; }
 
 .nav__links { display: flex; gap: 6px; }
 .nav__link {
@@ -198,6 +196,7 @@ async function handleLogout() {
   font-family: var(--font-round);
   font-size: 15px;
   font-weight: 700;
+  white-space: nowrap;
   color: var(--c-ink-soft);
   text-decoration: none;
   border: var(--bw-thin) solid transparent;
@@ -212,9 +211,11 @@ async function handleLogout() {
   box-shadow: var(--shadow-sm);
 }
 
-.nav__right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav__right { margin-left: auto; display: flex; flex-shrink: 0; align-items: center; gap: 10px; }
+.nav__right .btn { white-space: nowrap; }
 .nav__agent { white-space: nowrap; }
 .nav__user { display: flex; align-items: center; gap: 8px; }
+.nav__user .badge { display: block; max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
 
 .fab {
   position: fixed;
@@ -245,7 +246,7 @@ async function handleLogout() {
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-@media (max-width: 1240px) {
+@media (max-width: 1500px) {
   .nav__menu {
     display: grid;
     place-items: center;
@@ -284,6 +285,8 @@ async function handleLogout() {
   .nav__right { gap: 6px; }
   .nav__right .btn { padding-inline: 8px; white-space: nowrap; }
   .nav__link--assistant { display: block; background: transparent; text-align: left; cursor: pointer; }
+  .nav__link--search { display: block; }
+  .nav__search { display: none; }
   .nav__user .badge { display: none; }
   .nav__agent { display: none; }
 }
