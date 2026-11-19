@@ -578,8 +578,14 @@ async function load(slug: string) {
     await nextTick()
     if (version !== loadVersion) return
     window.scrollTo({ top: 0, behavior: 'instant' })
+    const example = activeTab.value === 'notes' && route.hash.startsWith('#lesson-example-')
+      ? document.getElementById(route.hash.slice(1))
+      : null
     if (route.hash === '#access-check' && hasAccessCheck.value && activeTab.value === 'notes') {
       scrollToAccessCheck()
+    } else if (example) {
+      example.focus({ preventScroll: true })
+      example.scrollIntoView({ block: 'start', behavior: 'instant' })
     } else if (reviewing.value) {
       quizArea.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
     } else if (route.query.resume === '1' && stored?.progress?.readingSection) {
@@ -688,7 +694,8 @@ async function runSnippet(s: LessonSnippet) {
 
 /** 打开独立代码实验室，不进入习题列表 */
 function openInLab(s: LessonSnippet) {
-  void router.push({ name: 'lesson-lab', params: { slug: route.params.slug }, query: { snippet: String(s.id) } })
+  const snippet = String(s.id)
+  void router.push({ name: 'lesson-lab', params: { slug: route.params.slug }, query: { snippet, fromExample: snippet } })
 }
 
 onMounted(() => {
@@ -795,7 +802,8 @@ watch(() => route.params.slug, (slug) => {
             <section v-for="part in renderedLesson.sections" :key="part.id" class="topic-lesson-section">
               <div class="md-body" v-html="part.html" @click="copyLessonCode" />
 
-              <div v-if="part.id === 'lesson-section-1' && accountDemo" class="topic-lesson-action">
+              <section v-if="part.id === 'lesson-section-1' && accountDemo" :id="'lesson-example-' + accountDemo.id"
+                class="topic-lesson-action lesson-example" :aria-label="accountDemo.title" tabindex="-1">
                 <div class="topic-lesson-action__links">
                   <button type="button" class="btn btn--sm btn--primary" :disabled="!codeRuntime?.ready || runningSnippet !== null" @click="runSnippet(accountDemo)">
                     {{ runningSnippet === accountDemo.id ? '运行中…' : '运行账户示例' }}
@@ -811,7 +819,7 @@ watch(() => route.params.slug, (slug) => {
                   <strong>{{ accountDemoResult.success ? '实际输出' : accountDemoResult.message }}</strong>
                   <pre v-if="accountDemoOutput">{{ accountDemoOutput }}</pre>
                 </div>
-              </div>
+              </section>
 
               <AccessControlCheck v-if="part.id === 'lesson-section-2'" lab-slug="encapsulation-account" demo />
 
@@ -832,7 +840,8 @@ watch(() => route.params.slug, (slug) => {
 
           <section v-if="!isEncapsulationLesson && snippets.length" class="notebook-examples">
             <div class="section-head"><span class="dot" /><h2>本节代码示例</h2><span class="line" /></div>
-            <article v-for="s in snippets" :key="s.id" class="notebook-example">
+            <article v-for="s in snippets" :id="'lesson-example-' + s.id" :key="s.id"
+              class="notebook-example lesson-example" :aria-label="s.title" tabindex="-1">
               <div><span class="badge badge--lilac">{{ s.language || 'java' }}</span><strong>{{ s.title }}</strong></div>
               <pre><code>{{ s.code }}</code></pre>
               <p v-if="s.explanation">{{ s.explanation }}</p>
@@ -950,6 +959,7 @@ watch(() => route.params.slug, (slug) => {
 .lesson__package { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 20px; padding: 12px; border-radius: var(--radius-md); background: #f1ebff; color: var(--c-ink-soft); font-size: .9rem; }
 .topic-lesson-section + .topic-lesson-section { margin-top: 32px; }
 .topic-lesson-section :deep(.access-check) { max-width: 760px; margin-inline: auto; }
+.lesson-example { scroll-margin-top: calc(var(--nav-h) + 16px); }
 .topic-lesson-action { max-width: 760px; margin: 14px auto 0; padding: 12px 14px; background: #f3effb; border: 1px solid #dbd0ef; border-radius: var(--radius-md); }
 .topic-lesson-action__links { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; }
 .topic-lesson-action p, .topic-lesson-action [role="status"] { margin: 10px 0 0; }

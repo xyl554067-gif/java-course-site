@@ -13,6 +13,15 @@ type LabSnippet = CodeSnippet & { stdin?: string | null }
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const notesTarget = computed(() => {
+  const fromExample = route.query.fromExample
+  return {
+    name: 'lesson',
+    params: { slug: route.params.slug },
+    query: { tab: 'notes' },
+    hash: typeof fromExample === 'string' && /^\d+$/.test(fromExample) ? '#lesson-example-' + fromExample : undefined,
+  }
+})
 const lesson = ref<Lesson | null>(null)
 const snippets = ref<LabSnippet[]>([])
 const videos = ref<LearningVideo[]>([])
@@ -201,7 +210,7 @@ async function exportProject() {
   <div class="container lab-page">
     <div class="lab-top">
       <div>
-        <RouterLink :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'notes' } }">← 返回笔记</RouterLink>
+        <RouterLink :to="notesTarget">← 返回笔记</RouterLink>
         <h1>{{ lesson?.title || '代码实验室' }}</h1>
         <p>编辑、运行示例。修改会保存在此浏览器里。</p>
       </div>
