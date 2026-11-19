@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ArrayBoundaryCheck from '@/components/ArrayBoundaryCheck.vue'
 import AccessControlCheck from '@/components/AccessControlCheck.vue'
-import { packageStarterZip } from '@/content/practice-catalog'
+import { packageStarterZip, practiceLevelLabel } from '@/content/practice-catalog'
 import LessonComicCheck from '@/components/LessonComicCheck.vue'
 import LessonIllustration from '@/components/LessonIllustration.vue'
 import lessonComics from '@/content/lesson-comics.json'
@@ -44,8 +44,14 @@ const arrayReviewPrompt: LessonComicPrompt = {
 }
 const activeTab = computed(() => String(route.query.tab || 'notes'))
 const lessonSlug = computed(() => String(route.params.slug || ''))
+const isEncapsulationLesson = computed(() => lessonSlug.value === 'encapsulation-account')
 const resourceNote = computed(() => resourceNotes.find((note) => note.lessonSlug === lessonSlug.value))
-const hasAccessCheck = computed(() => ['oop-core', 'encapsulation-access'].includes(lessonSlug.value))
+const hasAccessCheck = computed(() => isEncapsulationLesson.value || ['oop-core', 'encapsulation-access'].includes(lessonSlug.value))
+const encapsulationReadings = [
+  { slug: 'encapsulation-access', title: '访问权限详解与完整判断练习' },
+  { slug: 'encapsulation-packages', title: '双包源码与本地编译步骤' },
+  { slug: 'encapsulation-refactor', title: '封装重构的验收规则' },
+]
 const lessonComic = computed(() => {
   const slug = lessonSlug.value
   return Object.prototype.hasOwnProperty.call(lessonComics, slug)
@@ -390,6 +396,7 @@ function renderMarkdown(src: string) {
 
   const lines = text.split('\n')
   const out: string[] = []
+  const sections = [{ id: '', offset: 0 }]
   let inList: 'ul' | 'ol' | null = null
 
   const closeList = () => {
@@ -441,6 +448,7 @@ function renderMarkdown(src: string) {
       const lv = h[1].length
       const id = lv <= 3 ? `lesson-section-${headings.length + 1}` : ''
       if (id) headings.push({ id, title: h[2], level: lv })
+      if (lv === 2) sections.push({ id, offset: out.length })
       const anchor = id ? ` id="${id}"` : ''
       out.push(`<h${lv}${anchor} class="md-h md-h${lv}">${inline(h[2])}</h${lv}>`)
     } else if (/^[-*]\s+/.test(l)) {
@@ -475,7 +483,11 @@ function renderMarkdown(src: string) {
   }
   closeList()
 
-  return { html: out.join('\n'), headings, blocks }
+  const sectionHtml = sections.map((section, index) => ({
+    id: section.id,
+    html: out.slice(section.offset, sections[index + 1]?.offset).join('\n'),
+  })).filter(section => section.html)
+  return { html: out.join('\n'), headings, blocks, sections: sectionHtml }
 }
 
 function inline(s: string): string {
@@ -593,6 +605,8 @@ const codeRuntime = ref<any>(null)
 const runningSnippet = ref<number | null>(null)
 /** 每个示例的运行结果：{ status, stdout, stderr, output, message, durationMs, success } */
 const snippetRuns = ref<Record<number, any>>({})
+const accountDemo = computed(() => isEncapsulationLesson.value ? snippets.value[0] : null)
+const accountDemoResult = computed(() => accountDemo.value ? snippetRuns.value[accountDemo.value.id] : null)
 /** 该课时的习题 */
 const exercises = ref<any[]>([])
 const qaItems = ref<QaItem[]>([])
@@ -703,7 +717,7 @@ watch(() => route.params.slug, (slug) => {
 
     <template v-else-if="lesson">
       <!-- 顶部标题 -->
-      <header class="lesson__head card anim-pop">
+      <header class="lesson__head card anim-pop" :class="{ 'lesson__head--focused': isEncapsulationLesson }">
         <div class="lesson__head-top">
           <RouterLink :to="{ name: 'course', params: { slug: lesson.courseSlug || 'java-mastery' } }" class="lesson__crumb">← 课程目录</RouterLink>
           <button class="btn btn--sm btn--sun" @click="askAboutThis">🐳 问鲸鲸</button>
@@ -713,10 +727,10 @@ watch(() => route.params.slug, (slug) => {
             <h1 class="lesson__title title-round">{{ lesson.title }}</h1>
             <p class="lesson__summary">{{ lesson.summary }}</p>
           </div>
-          <img v-if="!lessonComic || activeTab === 'exercises'" class="lesson__whale" :src="whaleIllustration" alt="蓝发鲸鱼小女仆鲸鲸" width="384" height="384" />
+          <img v-if="!isEncapsulationLesson && (!lessonComic || activeTab === 'exercises')" class="lesson__whale" :src="whaleIllustration" alt="蓝发鲸鱼小女仆鲸鲸" width="384" height="384" />
         </div>
         <div class="lesson__meta">
-          <span v-if="lesson.difficulty" class="badge badge--coral">{{ lesson.difficulty }}</span>
+          <span v-if="lesson.difficulty" class="badge badge--coral">{{ isEncapsulationLesson ? practiceLevelLabel(lesson.difficulty) : lesson.difficulty }}</span>
           <span v-if="lesson.durationMin" class="badge badge--mint">{{ lesson.durationMin }} 分钟</span>
           <span class="badge badge--sun">👁 {{ lesson.viewCount ?? 0 }} 次浏览</span>
           <span v-if="lessonStudyCount > 0" class="badge badge--mint">📘 我学了 {{ lessonStudyCount }} 次</span>
@@ -750,7 +764,7 @@ watch(() => route.params.slug, (slug) => {
       </header>
 
       <nav class="lesson-tabs card" aria-label="课程区域">
-        <RouterLink :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'notes' } }" :class="{ active: activeTab === 'notes' }">笔记</RouterLink>
+        <RouterLink :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'notes' } }" :class="{ active: activeTab === 'notes' }">{{ isEncapsulationLesson ? '知识点讲解' : '笔记' }}</RouterLink>
         <RouterLink v-if="snippets.length || hasLessonVideos" :to="{ name: 'lesson-lab', params: { slug: route.params.slug } }" :class="{ active: route.name === 'lesson-lab' }">{{ hasLessonVideos ? '边看边练' : '代码实验室' }}</RouterLink>
         <RouterLink v-if="lessonExercises.length||lessonQa.length" :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'exercises' } }" :class="{ active: activeTab === 'exercises' }">习题</RouterLink>
       </nav>
@@ -762,10 +776,48 @@ watch(() => route.params.slug, (slug) => {
             <a :href="packageStarterZip" class="btn btn--sm btn--primary" download>下载双包实验工程</a>
             <span>解压后，在 IDEA 或装有 Java 扩展的 VS Code 中打开工程。</span>
           </div>
-          <div class="md-body" v-html="renderedLesson.html" @click="copyLessonCode" />
-          <AccessControlCheck v-if="hasAccessCheck" :key="lessonSlug" :lab-slug="lessonSlug === 'oop-core' ? lessonSlug : 'encapsulation-account'" />
+          <template v-if="isEncapsulationLesson">
+            <div class="section-head"><span class="dot" /><h2>知识点讲解</h2><span class="line" /></div>
+            <section v-for="part in renderedLesson.sections" :key="part.id" class="topic-lesson-section">
+              <div class="md-body" v-html="part.html" @click="copyLessonCode" />
 
-          <section v-if="snippets.length" class="notebook-examples">
+              <div v-if="part.id === 'lesson-section-1' && accountDemo" class="topic-lesson-action">
+                <div class="topic-lesson-action__links">
+                  <button type="button" class="btn btn--sm btn--primary" :disabled="!codeRuntime?.ready || runningSnippet !== null" @click="runSnippet(accountDemo)">
+                    {{ runningSnippet === accountDemo.id ? '运行中…' : '运行账户示例' }}
+                  </button>
+                  <button type="button" class="btn btn--sm btn--ghost" @click="openInLab(accountDemo)">打开可编辑的实验室</button>
+                </div>
+                <p v-if="codeRuntime && !codeRuntime.ready">在线运行暂不可用，可按上面的预期输出讲解。</p>
+                <div v-if="accountDemoResult" role="status">
+                  <strong>{{ accountDemoResult.success ? '实际输出' : '示例未能运行' }}</strong>
+                  <pre>{{ accountDemoResult.success ? accountDemoResult.stdout : accountDemoResult.message }}</pre>
+                </div>
+              </div>
+
+              <AccessControlCheck v-if="part.id === 'lesson-section-2'" lab-slug="encapsulation-account" demo />
+
+              <div v-if="part.id === 'lesson-section-3'" class="topic-lesson-action">
+                <div class="topic-lesson-action__links">
+                  <a :href="packageStarterZip" class="btn btn--sm btn--ghost" download>下载双包实验工程</a>
+                  <RouterLink :to="{ name: 'lesson', params: { slug: 'encapsulation-packages' } }">查看完整编译步骤 →</RouterLink>
+                </div>
+              </div>
+
+              <div v-if="part.id === 'lesson-section-4'" class="topic-lesson-action">
+                <div class="topic-lesson-action__links">
+                  <RouterLink class="btn btn--sm btn--primary" :to="{ name: 'exercise', params: { slug: 'encapsulation-deposit' } }">打开重构判题</RouterLink>
+                  <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'qa', query: { topic: 'module-' + lesson.moduleId } }">专题题库</RouterLink>
+                </div>
+              </div>
+            </section>
+          </template>
+          <template v-else>
+            <div class="md-body" v-html="renderedLesson.html" @click="copyLessonCode" />
+            <AccessControlCheck v-if="hasAccessCheck" :key="lessonSlug" :lab-slug="lessonSlug === 'oop-core' ? lessonSlug : 'encapsulation-account'" />
+          </template>
+
+          <section v-if="!isEncapsulationLesson && snippets.length" class="notebook-examples">
             <div class="section-head"><span class="dot" /><h2>本节代码示例</h2><span class="line" /></div>
             <article v-for="s in snippets" :key="s.id" class="notebook-example">
               <div><span class="badge badge--lilac">{{ s.language || 'java' }}</span><strong>{{ s.title }}</strong></div>
@@ -813,6 +865,15 @@ watch(() => route.params.slug, (slug) => {
             </p>
           </div>
 
+          <details v-if="isEncapsulationLesson" class="topic-lesson-readings">
+            <summary>课后资料</summary>
+            <ul>
+              <li v-for="reading in encapsulationReadings" :key="reading.slug">
+                <RouterLink :to="{ name: 'lesson', params: { slug: reading.slug } }">{{ reading.title }}</RouterLink>
+              </li>
+            </ul>
+          </details>
+
           <section v-if="resourceNote" class="lesson-resource">
             <div class="section-head"><span class="dot" /><h2>延伸学习</h2><span class="line" /></div>
             <RouterLink :to="{ name: 'resources', params: { note: resourceNote.id } }">
@@ -822,7 +883,7 @@ watch(() => route.params.slug, (slug) => {
           </section>
 
           <!-- 上下课时 -->
-          <nav class="lesson__nav">
+          <nav v-if="prev || next" class="lesson__nav">
             <RouterLink v-if="prev" :to="`/lesson/${prev.slug}`" class="lesson__nav-btn card">
               <span class="dir">← 上一节</span>
               <strong>{{ prev.title }}</strong>
@@ -874,6 +935,15 @@ watch(() => route.params.slug, (slug) => {
 
 <style scoped>
 .lesson__package { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 20px; padding: 12px; border-radius: var(--radius-md); background: #f1ebff; color: var(--c-ink-soft); font-size: .9rem; }
+.topic-lesson-section + .topic-lesson-section { margin-top: 32px; }
+.topic-lesson-section :deep(.access-check) { max-width: 760px; margin-inline: auto; }
+.topic-lesson-action { max-width: 760px; margin: 14px auto 0; padding: 12px 14px; background: #f3effb; border: 1px solid #dbd0ef; border-radius: var(--radius-md); }
+.topic-lesson-action__links { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; }
+.topic-lesson-action p, .topic-lesson-action [role="status"] { margin: 10px 0 0; }
+.topic-lesson-action pre { margin: 6px 0 0; padding: 9px; background: var(--c-paper); border-radius: 8px; white-space: pre-wrap; }
+.topic-lesson-readings { margin-top: 24px; }
+.topic-lesson-readings summary { cursor: pointer; font-weight: 750; }
+.topic-lesson-readings li + li { margin-top: 6px; }
 .lesson-resource { margin-block: var(--space-lg); }
 .lesson-resource a { text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
 .lesson-resource p { margin-top: 6px; color: var(--c-ink-soft); }
@@ -891,6 +961,7 @@ watch(() => route.params.slug, (slug) => {
 .lesson__error p { margin: 0 0 18px; color: var(--c-coral-deep); font-weight: 700; }
 
 .lesson__head { padding: 26px 30px; margin-bottom: 20px; }
+.lesson__head--focused { padding: clamp(16px, 2.5vw, 24px); }
 .lesson__head-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .lesson__crumb { font-size: 14px; color: var(--c-ink-faint); text-decoration: none; }
 .lesson__crumb:hover { color: var(--c-coral); }

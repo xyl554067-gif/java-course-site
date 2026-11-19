@@ -19,6 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 class EncapsulationCourseSeed implements ApplicationRunner {
     private static final String COURSE_SLUG = "java-encapsulation";
     private static final String COURSE_TITLE = "封装、访问控制与包管理";
+    private static final String SHORT_LESSON_VERSION = "encapsulation-single-lesson-v1";
     private static final List<Lesson> LESSONS = List.of(
             new Lesson("account", "从余额开始理解封装", "用 private 和受控方法守住余额规则，验证失败的存款不会修改余额。",
                     "封装 数据封装 Account Java private getter deposit", 15),
@@ -44,10 +45,13 @@ class EncapsulationCourseSeed implements ApplicationRunner {
                 ON CONFLICT (slug) DO NOTHING
                 """, COURSE_SLUG, COURSE_TITLE, "用一个 Java 账户练习三道访问边界",
                 "从保护余额到整理包结构。每节解决一个具体问题，最后用边界测试验收账户重构。", LESSONS.size());
-        if (inserted == 0) {
-            return;
+        if (inserted > 0) {
+            seedOriginalMaterials();
         }
+        upgradeMainLesson();
+    }
 
+    private void seedOriginalMaterials() throws IOException {
         long courseId = jdbc.queryForObject("SELECT id FROM course WHERE slug = ?", Long.class, COURSE_SLUG);
         jdbc.update("""
                 INSERT INTO course_module (course_id, title, summary, icon, lesson_count)
@@ -81,6 +85,58 @@ class EncapsulationCourseSeed implements ApplicationRunner {
                 "该文件里的两个类位于同一个未命名包。把 branchCode() 调用改为直接访问 account.balance，再对比编译结果。",
                 "BANK\n100");
         insertRefactorExercise(lessonId("refactor"));
+    }
+
+    private void upgradeMainLesson() throws IOException {
+        int claimed = jdbc.update("""
+                INSERT INTO app_schema_migration (version) VALUES (?)
+                ON CONFLICT (version) DO NOTHING
+                """, SHORT_LESSON_VERSION);
+        if (claimed == 0) {
+            return;
+        }
+
+        long mainLessonId = lessonId("account");
+        String summary = "用同一个 Java 账户讲清封装、四种访问权限与包结构，最后用纠错和边界测试验收。";
+        String content = read("lesson.md");
+        jdbc.update("""
+                UPDATE lesson
+                SET title = ?, summary = ?, content = ?, content_html = NULL, duration_min = 15
+                WHERE id = ?
+                """, COURSE_TITLE + "：账户案例", summary, content, mainLessonId);
+        jdbc.update("""
+                UPDATE course SET subtitle = '15 分钟讲透一个 Java 账户', description = ?,
+                                  version = 'v1.1', total_lessons = 1
+                WHERE slug = ?
+                """, summary, COURSE_SLUG);
+        jdbc.update("""
+                UPDATE course_module SET lesson_count = 1 WHERE id = (SELECT module_id FROM lesson WHERE id = ?)
+                """, mainLessonId);
+        jdbc.update("""
+                UPDATE search_index SET title = ?, body_text = ?, tokens = ?
+                WHERE target_type = 'LESSON' AND target_id = ?
+                """, COURSE_TITLE + "：账户案例", content,
+                "封装 访问控制 包管理 private protected public package import 重构 纠错", mainLessonId);
+        jdbc.update("""
+                UPDATE search_index SET body_text = ? WHERE target_type = 'COURSE'
+                AND target_id = (SELECT id FROM course WHERE slug = ?)
+                """, summary, COURSE_SLUG);
+        linkKnowledge(mainLessonId, "数据封装与账户不变式", "封装", "私有字段保存余额，公开操作先验证金额与范围，再更新余额。");
+        linkKnowledge(mainLessonId, "四种访问权限", "访问控制", "判断前检查成员修饰符、调用方所在包、继承关系，以及跨包 protected 调用的引用类型。");
+        linkKnowledge(mainLessonId, "包声明、导入与类路径", "包管理", "package 确定类型归属，import 让简名可用，运行时用类路径和全限定类名定位入口。");
+        linkKnowledge(mainLessonId, "边界测试验证封装重构", "实践", "对比合法、非法和溢出输入，检查返回值与失败前后的状态。");
+    }
+
+    private void linkKnowledge(long lessonId, String name, String category, String description) {
+        jdbc.update("""
+                INSERT INTO knowledge_point (name, category, description)
+                VALUES (?, ?, ?) ON CONFLICT (name) DO NOTHING
+                """, name, category, description);
+        jdbc.update("""
+                INSERT INTO lesson_knowledge (lesson_id, kp_id)
+                SELECT ?, id FROM knowledge_point WHERE name = ?
+                ON CONFLICT (lesson_id, kp_id) DO NOTHING
+                """, lessonId, name);
     }
 
     private long lessonId(String key) {

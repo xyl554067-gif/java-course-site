@@ -19,7 +19,7 @@ const error = ref('')
 const openModules = ref<Record<number, boolean>>({})
 const topicSlug = 'java-encapsulation'
 const topicCourse = ref<Course>()
-const lessons = computed(() => modules.value.flatMap(module => module.lessons ?? []))
+const topicLesson = computed(() => modules.value.flatMap(module => module.lessons ?? [])[0])
 let loadVersion = 0
 
 const ICONS: Record<string, string> = {
@@ -77,7 +77,7 @@ onMounted(() => {
     </div>
 
     <EncapsulationCourse v-else-if="course?.slug === topicSlug"
-      :course="course" :lessons="lessons" :video-lesson-ids="videoLessonIds" />
+      :course="course" :lesson="topicLesson" />
 
     <template v-else-if="course">
       <header class="cview__hero card anim-pop">

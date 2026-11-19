@@ -14,6 +14,8 @@ import java.util.Map;
  */
 @Service
 public class CourseService {
+    private static final String ENCAPSULATION_COURSE = "java-encapsulation";
+    private static final String ENCAPSULATION_LESSON = "encapsulation-account";
 
     private final CourseRepository repo;
     private final LearningVideoRepository videos;
@@ -40,6 +42,9 @@ public class CourseService {
         for (Map<String, Object> mod : modules) {
             long moduleId = (Long) mod.get("id");
             List<Map<String, Object>> lessons = repo.listLessonsByModule(moduleId);
+            if (ENCAPSULATION_COURSE.equals(slug)) {
+                lessons = lessons.stream().filter(lesson -> ENCAPSULATION_LESSON.equals(lesson.get("slug"))).toList();
+            }
             Map<String, Object> node = new HashMap<>(mod);
             node.put("lessons", lessons);
             tree.add(node);
@@ -69,6 +74,10 @@ public class CourseService {
         lesson.put("snippets", repo.listSnippets(id));
         lesson.put("videos", videos.forLesson(id));
         lesson.put("knowledge", repo.listKnowledgeOfLesson(id));
+        if (ENCAPSULATION_COURSE.equals(lesson.get("courseSlug"))) {
+            // The original entries remain addressable for question links and saved progress.
+            return lesson;
+        }
         // 上下课时导航
         List<Map<String, Object>> siblings = repo.listLessonsByModule((Long) lesson.get("moduleId"));
         int idx = -1;
