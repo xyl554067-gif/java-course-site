@@ -19,7 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 class EncapsulationCourseSeed implements ApplicationRunner {
     private static final String COURSE_SLUG = "java-encapsulation";
     private static final String COURSE_TITLE = "封装、访问控制与包管理";
-    private static final String SHORT_LESSON_VERSION = "encapsulation-beginner-lesson-v2";
+    private static final String SHORT_LESSON_VERSION = "encapsulation-focused-lesson-v3";
     private static final List<Lesson> LESSONS = List.of(
             new Lesson("account", "从余额开始理解封装", "用 private 和受控方法守住余额规则，验证失败的存款不会修改余额。",
                     "封装 数据封装 Account Java private getter deposit", 15),
@@ -97,7 +97,7 @@ class EncapsulationCourseSeed implements ApplicationRunner {
         }
 
         long mainLessonId = lessonId("account");
-        String summary = "从班费账户认识类与对象，逐步理解封装、包和访问权限，再用一次跨包纠错验证所学。";
+        String summary = "用封装保护班费余额，把账户和登记程序放进不同的包，再判断访问权限并修复跨包编译错误。";
         String content = read("lesson.md");
         jdbc.update("""
                 UPDATE lesson
@@ -105,8 +105,8 @@ class EncapsulationCourseSeed implements ApplicationRunner {
                 WHERE id = ?
                 """, COURSE_TITLE + "：账户案例", summary, content, mainLessonId);
         jdbc.update("""
-                UPDATE course SET subtitle = '用班费账户入门 Java 封装', description = ?,
-                                  version = 'v1.2', total_lessons = 1
+                UPDATE course SET subtitle = '从保护余额到判断跨包访问权限', description = ?,
+                                  version = 'v1.3', total_lessons = 1
                 WHERE slug = ?
                 """, summary, COURSE_SLUG);
         jdbc.update("""

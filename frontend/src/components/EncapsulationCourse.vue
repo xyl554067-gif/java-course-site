@@ -8,8 +8,7 @@ const progress = useProgressStore()
 const titleParts = computed(() => props.course.title.split(/(?<=、)|(?=与)/))
 
 const stages = [
-  { title: '认识类与对象', explanation: '从一份班费余额开始，理解类如何表示具体账户。' },
-  { title: '给余额加上规则', explanation: '把余额和存款校验放回账户类，运行代码看效果。' },
+  { title: '用封装保护余额', explanation: '禁止直接修改余额，通过受控方法校验存款。' },
   { title: '用包组织代码', explanation: '把账户和登记入口放到两个包，认识 package 与 import。' },
   { title: '判断访问权限', explanation: '用一张表理解四种修饰方式，判断两段代码能否编译。' },
   { title: '修复错误并验收', explanation: '修复跨包调用，核对成功、失败与边界输入。' },
@@ -26,7 +25,6 @@ const stages = [
         <RouterLink :to="{ name: 'lesson', params: { slug: lesson.slug } }" class="btn btn--primary">
           {{ progress.isCompleted(lesson.id) ? '复习这节课' : '进入知识点讲解' }} →
         </RouterLink>
-        <span>单课 · 面向初学者</span>
       </div>
     </div>
 
@@ -56,7 +54,6 @@ const stages = [
 .topic-hero h1 span { display: inline-block; }
 .topic-hero__desc { max-width: 29rem; margin: 0; color: var(--c-ink-soft); line-height: 1.75; }
 .topic-hero__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 22px; }
-.topic-hero__actions span { color: var(--c-ink-soft); font-size: .92rem; }
 
 .topic-outline { min-width: 0; padding: clamp(14px, 2vw, 22px); border: 1px solid #cdc0e4; border-radius: var(--radius-md); background: var(--c-paper); }
 .topic-outline h2 { margin: 0 0 12px; font-size: 1.2rem; }

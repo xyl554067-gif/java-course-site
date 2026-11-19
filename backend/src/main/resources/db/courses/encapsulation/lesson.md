@@ -1,32 +1,6 @@
-每次收班费，登记程序都要做两件事，记下账户还有多少钱，以及判断新收到的金额能不能记入账户。假如任何地方都能直接修改余额，一次输错就可能把余额变成负数。
+班费账户已有 `100` 元。假设同包的登记程序能直接写 `account.balance = -20;`，原有余额就会被负数覆盖。**怎样让账户拒绝这次修改，同时保留查询余额和录入合法存款的功能？**
 
-我们从能记住余额的简单对象开始，逐步回答三个问题，余额由谁维护、不同位置的代码能访问什么、写在不同文件里的类如何找到彼此。最后用一次编译报错和几组输入检查设计结果。
-
-## 先认识类、对象和成员 {#lesson-section-5}
-
-**类是定义，对象是按这份定义创建的具体实例。** `Account` 是账户类，`new Account()` 会创建一个账户对象。类中用字段保存状态，用方法定义可执行的操作。两个账户对象各有一份 `balance`，一个账户收款时，另一个账户的余额不会跟着变化。
-
-下面是最初的草稿。把它保存为 `FirstAccountDemo.java`，就可以看到两个对象的余额彼此独立。
-
-```java
-class Account {
-    int balance;
-}
-
-public class FirstAccountDemo {
-    public static void main(String[] args) {
-        Account classFund = new Account();
-        Account activityFund = new Account();
-        classFund.balance = 100;
-        System.out.println(classFund.balance);
-        System.out.println(activityFund.balance);
-    }
-}
-```
-
-两个账户的 `int` 实例字段创建时都默认为 `0`。赋值后依次输出 `100` 和 `0`。创建对象时会调用构造器；这个草稿没有自己声明构造器，所以 Java 提供默认无参构造器。
-
-> 同一个草稿也允许写 `classFund.balance = -20;`。对象虽然能记住余额，余额的规则还没有被它自己保护。下一步把规则放回账户类。
+先用封装把校验放回账户，再把登记程序移到另一个包，检验哪些操作仍然可用。最后修复一次真实的跨包编译错误，并用边界输入验收。
 
 ## 用封装把余额和规则放到一起 {#lesson-section-1}
 
