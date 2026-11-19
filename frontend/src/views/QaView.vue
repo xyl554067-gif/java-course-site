@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { courseApi, type QaItem, type QaLessonOption } from '@/api'
 import { errMsg } from '@/api/http'
 import { resourceExerciseSlug, resourceNoteById, resourceNotes } from '@/content/course-resources'
+import { matchesPracticeQuery, practiceLevel, practiceLevelLabel, practiceLevels, practiceTopics } from '@/content/practice-catalog'
+import PracticeTopics from '@/components/PracticeTopics.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,6 +13,11 @@ const items = ref<QaItem[]>([])
 const lessons = ref<QaLessonOption[]>([])
 const loading = ref(true)
 const filter = ref('ALL')
+const difficulty = ref('')
+const keyword = ref('')
+const page = ref(1)
+const pageSize = 8
+const resultsHeading = ref<HTMLElement | null>(null)
 const revealed = ref<Record<number, boolean>>({})
 const showEditor = ref(false)
 const editingId = ref<number | null>(null)
@@ -23,13 +30,12 @@ const importFileName = ref('')
 const importInput = ref<HTMLInputElement | null>(null)
 
 const FILTERS = [
-  { key: 'ALL', label: '全部' },
+  { key: 'ALL', label: '全部题型' },
   { key: 'CHOICE', label: '选择题' },
   { key: 'JUDGE', label: '判断题' },
   { key: 'SHORT_ANSWER', label: '简答题' },
 ]
 const DIFF_BADGE: Record<string, string> = { EASY: 'badge--mint', MEDIUM: 'badge--sun', HARD: 'badge--coral' }
-const DIFF_LABEL: Record<string, string> = { EASY: '简单', MEDIUM: '中等', HARD: '较难' }
 
 const form = ref({
   lessonId: '',
@@ -43,18 +49,40 @@ const form = ref({
 
 const resourceFilter = computed(() => {
   const resource = route.query.resource
-  return typeof resource === 'string' && (resource === 'all' || resourceNoteById(resource)) ? resource : ''
+  return typeof resource === 'string' && (['all', 'mine'].includes(resource) || resourceNoteById(resource)) ? resource : ''
 })
-const list = computed(() => items.value.filter((item) => {
+const topicId = computed(() => typeof route.query.topic === 'string' ? route.query.topic : '')
+const topics = computed(() => practiceTopics(items.value, lessons.value))
+const topic = computed(() => topics.value.find(group => group.id === topicId.value))
+const filtersActive = computed(() => Boolean(keyword.value.trim() || difficulty.value || resourceFilter.value || filter.value !== 'ALL'))
+const list = computed(() => (topicId.value ? topic.value?.items ?? [] : items.value).filter((item) => {
   const matchesType = filter.value === 'ALL' || normalizeType(item.qaType) === filter.value
   const source = resourceFilter.value
-  const matchesSource = !source || item.resourceNoteId === source || (source === 'all' && Boolean(item.resourceNoteId))
-  return matchesType && matchesSource
+  const matchesSource = !source || item.resourceNoteId === source
+    || (source === 'all' && Boolean(item.resourceNoteId)) || (source === 'mine' && item.mine)
+  return matchesType && matchesSource && (!difficulty.value || practiceLevel(item.difficulty) === difficulty.value)
+    && matchesPracticeQuery(keyword.value, item.question, item.lessonTitle)
 }))
+const totalPages = computed(() => Math.max(1, Math.ceil(list.value.length / pageSize)))
+const currentPage = computed(() => Math.min(page.value, totalPages.value))
+const pageItems = computed(() => list.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
+watch([topicId, keyword, filter, difficulty, resourceFilter], () => { page.value = 1 })
 
-function changeResourceFilter(event: Event) {
-  const resource = (event.target as HTMLSelectElement).value
-  void router.replace({ query: { ...route.query, resource: resource || undefined } })
+function setFilter(name: 'topic' | 'resource', value: string) {
+  void router.replace({ query: { ...route.query, [name]: value || undefined } })
+}
+
+function clearFilters(overview = false) {
+  filter.value = 'ALL'
+  keyword.value = ''
+  difficulty.value = ''
+  void router.replace({ query: { ...route.query, resource: undefined, topic: overview ? undefined : route.query.topic } })
+}
+
+async function turnPage(direction: number) {
+  page.value = currentPage.value + direction
+  await nextTick()
+  resultsHeading.value?.focus()
 }
 const choiceOptions = computed(() => {
   if (!form.value.optionsLines.trim()) return []
@@ -283,29 +311,38 @@ onMounted(load)
   <div class="container qa">
     <header class="qa__head">
       <div>
-        <h1 class="title-round qa__title">知识测验</h1>
-        <p class="qa__sub">选择、判断与简答题帮助你检查理解；代码挑战请到独立的代码练习区完成。</p>
+        <h1 class="title-round qa__title">知识题库</h1>
+        <p class="qa__sub">按知识点做选择、判断和简答题。</p>
       </div>
       <div class="qa__actions">
-        <RouterLink class="btn btn--ghost" to="/exercises">代码挑战 →</RouterLink>
+        <RouterLink class="btn btn--ghost" to="/exercises">代码练习 →</RouterLink>
         <button class="btn btn--ghost" :disabled="importing" @click="importInput?.click()">{{ importing ? '导入中…' : '导入 CSV / JSON' }}</button>
         <button class="btn btn--primary" @click="openNew">＋ 新建题目</button>
         <input ref="importInput" type="file" accept=".csv,.json,text/csv,application/json" hidden @change="importFile" />
       </div>
     </header>
 
-    <div class="qa__tools">
-      <div class="qa__filters">
-        <button v-for="f in FILTERS" :key="f.key" class="btn btn--sm" :class="filter === f.key ? 'btn--primary' : 'btn--ghost'" @click="filter = f.key">{{ f.label }}</button>
-        <label class="qa__resource-filter">
-          <span>资料库专题</span>
-          <select :value="resourceFilter" @change="changeResourceFilter">
-            <option value="">全部来源</option>
-            <option value="all">全部资料库题目</option>
-            <option v-for="note in resourceNotes" :key="note.id" :value="note.id">{{ note.title }}</option>
-          </select>
-        </label>
-      </div>
+    <PracticeTopics v-if="!loading && topics.length" :topics="topics" :selected="topicId"
+      @select="$event ? setFilter('topic', $event) : clearFilters(true)" />
+    <div class="qa__tools" aria-label="筛选题目">
+      <label class="qa__field qa__field--search">关键词
+        <input v-model="keyword" type="search" placeholder="搜题目或课时" />
+      </label>
+      <label class="qa__field">题型
+        <select v-model="filter"><option v-for="f in FILTERS" :key="f.key" :value="f.key">{{ f.label }}</option></select>
+      </label>
+      <label class="qa__field">难度
+        <select v-model="difficulty"><option value="">全部难度</option><option v-for="level in practiceLevels" :key="level.id" :value="level.id">{{ level.label }}</option></select>
+      </label>
+      <label class="qa__field">来源
+        <select :value="resourceFilter" @change="setFilter('resource', ($event.target as HTMLSelectElement).value)">
+          <option value="">全部来源</option>
+          <option value="mine">我的题目</option>
+          <option value="all">全部资料库题目</option>
+          <option v-for="note in resourceNotes" :key="note.id" :value="note.id">{{ note.title }}</option>
+        </select>
+      </label>
+      <button v-if="filtersActive" type="button" class="btn btn--sm btn--ghost" @click="clearFilters()">清除筛选</button>
       <button class="template-link" @click="downloadTemplate">下载导入模板</button>
     </div>
 
@@ -345,11 +382,16 @@ onMounted(load)
     </section>
 
     <div v-if="loading" class="qa__loading"><div class="spinner" /></div>
-    <div v-else-if="list.length" class="qa__list">
-      <article v-for="(q, i) in list" :key="q.id" class="qitem card">
+    <section v-else-if="topicId || filtersActive" class="qa__list" aria-labelledby="qa-results">
+      <header class="qa__results-head">
+        <h2 id="qa-results" ref="resultsHeading" class="title-round" tabindex="-1">{{ topic?.title || '筛选结果' }}</h2>
+        <span role="status">{{ list.length }} 道题</span>
+      </header>
+      <p v-if="!list.length" class="card qa__empty">没有匹配的题目，试试更换分区或筛选条件。</p>
+      <article v-for="(q, i) in pageItems" :key="q.id" class="qitem card">
         <header class="qitem__head">
-          <span class="qitem__no">{{ i + 1 }}</span>
-          <span class="badge" :class="DIFF_BADGE[q.difficulty] || 'badge--sun'">{{ DIFF_LABEL[q.difficulty] || q.difficulty }}</span>
+          <span class="qitem__no">{{ (currentPage - 1) * pageSize + i + 1 }}</span>
+          <span class="badge" :class="DIFF_BADGE[practiceLevel(q.difficulty)] || 'badge--sun'">{{ practiceLevelLabel(q.difficulty) }}</span>
           <span class="badge badge--lilac">{{ typeLabel(q.qaType) }}</span>
           <span v-if="q.lessonTitle" class="badge badge--mint">{{ q.lessonTitle }}</span>
           <span v-else class="badge badge--sun">通用题</span>
@@ -359,7 +401,7 @@ onMounted(load)
         </header>
         <p class="qitem__text">{{ q.question }}</p>
         <ul v-if="parseOptions(q.options).length" class="qitem__options"><li v-for="(option, index) in parseOptions(q.options)" :key="index">{{ option }}</li></ul>
-        <button class="btn btn--sm btn--mint qitem__btn" @click="revealed[q.id] = !revealed[q.id]">{{ revealed[q.id] ? '收起答案' : '看答案与解析' }}</button>
+        <button class="btn btn--sm btn--mint qitem__btn" :aria-expanded="Boolean(revealed[q.id])" @click="revealed[q.id] = !revealed[q.id]">{{ revealed[q.id] ? '收起答案' : '看答案与解析' }}</button>
         <Transition name="expand"><div v-if="revealed[q.id]" class="qitem__answer">
           <p v-if="q.answer">{{ q.answer }}</p>
           <p v-if="q.answerKey" class="qitem__key">参考答案：{{ normalizeType(q.qaType) === 'JUDGE' ? judgeKey(q.answerKey) : q.answerKey }}</p>
@@ -370,14 +412,15 @@ onMounted(load)
           <RouterLink class="text-button" :to="{ name: 'exercise', params: { slug: resourceExerciseSlug(q.resourceNoteId) } }">配套代码练习</RouterLink>
         </div>
       </article>
-    </div>
-    <section v-else-if="resourceFilter && !error" class="card qa__empty">
-      <h2>没有符合当前筛选的资料库题目</h2>
-      <RouterLink class="btn btn--ghost" to="/resources">返回资料库</RouterLink>
+      <nav v-if="totalPages > 1" class="qa__pages" aria-label="题库分页">
+        <button type="button" class="btn btn--sm btn--ghost" :disabled="currentPage === 1" @click="turnPage(-1)">上一页</button>
+        <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
+        <button type="button" class="btn btn--sm btn--ghost" :disabled="currentPage === totalPages" @click="turnPage(1)">下一页</button>
+      </nav>
     </section>
-    <section v-else class="card qa__empty">
+    <section v-else-if="!items.length && !error" class="card qa__empty">
       <div class="qa__empty-icon">✓</div>
-      <h2>{{ filter === 'ALL' ? '题库刚刚起步' : '这个分类还没有题目' }}</h2>
+      <h2>题库暂时没有题目</h2>
       <p>可以手动创建题目，或导入 CSV / JSON。代码运行题请放到代码挑战，不会混进知识测验。</p>
       <div><button class="btn btn--primary" @click="openNew">新建一道题</button><button class="btn btn--ghost" @click="importInput?.click()">导入题目</button><RouterLink class="btn btn--ghost" to="/exercises">去做代码挑战</RouterLink></div>
     </section>
@@ -388,19 +431,21 @@ onMounted(load)
 .qa{padding-top:var(--space-lg);padding-bottom:var(--space-xl)}
 .qa__head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:18px}
 .qa__title{margin:0;font-size:34px}.qa__sub{max-width:760px;margin:8px 0 0;color:var(--c-ink-faint);line-height:1.7}
-.qa__actions,.qa__filters,.qa__tools,.qa-editor__actions,.qa__empty>div{display:flex;align-items:center;gap:9px}
-.qa__tools{justify-content:space-between;margin-bottom:22px}.qa__filters{flex-wrap:wrap}.template-link,.text-button{border:0;background:none;color:var(--c-ink-soft);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.template-link{font:inherit;font-size:13px}
-.qa__resource-filter{display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:14px;font-weight:700}
-.qa__resource-filter select{max-width:100%;padding:6px 9px;border:1px solid var(--c-line);border-radius:8px;background:var(--c-paper);color:var(--c-ink);font:inherit}
+.qa__actions,.qa-editor__actions,.qa__empty>div{display:flex;align-items:center;gap:9px}
+.qa__tools{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-bottom:24px;padding:14px;background:var(--c-cream);border:1px solid #d0c5e6;border-radius:var(--radius-md)}
+.qa__field{display:grid;gap:5px;min-width:0;font-size:13px;font-weight:700}.qa__field--search{flex:1 1 180px}
+.qa__field :is(input,select){width:100%;max-width:100%;min-width:0;padding:8px 9px;border:1px solid #8e85a6;border-radius:8px;background:var(--c-paper);color:var(--c-ink);font:inherit;font-weight:400}
+.template-link,.text-button{border:0;background:none;color:var(--c-ink-soft);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.template-link{font:inherit;font-size:13px;margin-block:8px}
+.qa__results-head,.qa__pages{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.qa__results-head{justify-content:space-between;scroll-margin-top:calc(var(--nav-h) + 12px)}.qa__results-head h2{margin:0;scroll-margin-top:calc(var(--nav-h) + 12px)}.qa__pages{justify-content:center}
 .qitem__links{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}
 .qa__notice,.qa__error{max-width:860px;margin:12px auto;padding:12px 16px;border-radius:12px}.qa__notice{background:var(--c-cream-deep);color:var(--c-ink)}.qa__error{background:#fff0ee;color:#8f3129}
 .qa-import-preview{max-width:900px;margin:12px auto 22px;padding:20px}.qa-import-preview__head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.qa-import-preview__head h2{margin:0 0 4px}.qa-import-preview__head p{margin:0;color:var(--c-ink-faint)}.qa-import-preview__rows{display:flex;flex-direction:column;gap:8px;margin-top:14px}.qa-import-preview__rows article{display:flex;justify-content:space-between;gap:16px;padding:10px 12px;border-radius:10px;background:var(--c-cream)}.qa-import-preview__rows article b{overflow:hidden;text-overflow:ellipsis}.qa-import-preview__rows article span{flex:none;color:var(--c-ink-faint);font-size:12px}.qa-import-preview__actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
 .qa__loading{display:grid;place-items:center;padding:60px 0}.qa__list{display:flex;flex-direction:column;gap:15px;max-width:900px;margin:0 auto}
 .qitem{padding:20px 24px}.qitem__head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}.qitem__no{display:grid;place-items:center;width:30px;height:30px;font-family:var(--font-round);font-weight:700;background:var(--c-sun);border:var(--bw-thin) solid var(--c-line);border-radius:50%}.qitem__owner{font-size:12px;color:var(--c-mint)}.qitem__manage{display:flex;gap:12px;margin-left:auto}.text-button{font-size:13px}.text-button.is-danger{color:var(--c-coral-deep)}
-.qitem__text{margin:0 0 12px;font-size:15.5px;line-height:1.85;font-weight:700}.qitem__options{margin:0 0 14px;padding-left:22px;color:var(--c-ink-soft);line-height:1.8}.qitem__btn{margin-bottom:4px}
+.qitem__text{margin:0 0 12px;font-size:15.5px;line-height:1.85;font-weight:700;white-space:pre-wrap;overflow-wrap:anywhere}.qitem__options{margin:0 0 14px;padding-left:22px;color:var(--c-ink-soft);line-height:1.8}.qitem__btn{margin-bottom:4px}
 .qitem__answer{margin-top:12px;padding:14px 18px;background:var(--c-cream-deep);border-left:6px solid var(--c-mint);border-radius:0 var(--radius-sm) var(--radius-sm) 0;animation:pop-in .28s both}.qitem__answer p{margin:0;font-size:14px;line-height:1.9}.qitem__key{margin-top:7px!important;font-weight:700;color:var(--c-coral-deep)}.qitem__legacy{margin-top:8px!important;color:var(--c-ink-faint)}
 .qa-editor{max-width:900px;margin:0 auto 22px;padding:22px}.qa-editor__head{display:flex;align-items:center;justify-content:space-between}.qa-editor__head h2{margin:0 0 16px}.icon-close{width:34px;height:34px;margin-top:-12px;border:1px solid var(--c-line);border-radius:50%;background:var(--c-paper);color:var(--c-ink);font-size:22px;cursor:pointer}.qa-editor__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.qa-editor__grid label{display:flex;flex-direction:column;gap:6px;font-weight:700;color:var(--c-ink)}.qa-editor__grid .wide{grid-column:1/-1}.qa-editor select,.qa-editor textarea{width:100%;padding:10px 12px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-paper);color:var(--c-ink);font:inherit;font-weight:400}.qa-editor__actions{justify-content:flex-end;margin-top:16px}.qa-editor__tip{margin:12px 0 0;color:var(--c-ink-faint);font-size:13px}
 .qa__empty{max-width:760px;margin:50px auto;padding:36px;text-align:center}.qa__empty-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 14px;border:2px solid var(--c-mint);border-radius:50%;font-size:26px;color:var(--c-mint)}.qa__empty h2{margin:0 0 8px}.qa__empty p{max-width:560px;margin:0 auto 20px;color:var(--c-ink-soft);line-height:1.7}.qa__empty>div{justify-content:center;flex-wrap:wrap}
 .expand-enter-active,.expand-leave-active{transition:opacity .2s,max-height .24s;overflow:hidden}.expand-enter-from,.expand-leave-to{opacity:0;max-height:0}.expand-enter-to,.expand-leave-from{max-height:500px}
-@media(max-width:760px){.qa__head{align-items:flex-start;flex-direction:column}.qa__actions{flex-wrap:wrap}.qa__tools{align-items:flex-start;flex-direction:column}.qa-editor__grid{grid-template-columns:1fr}.qa-editor__grid .wide{grid-column:auto}.qitem{padding:18px}.qitem__manage{width:100%;margin-left:39px}.qa-import-preview__rows article{align-items:flex-start;flex-direction:column;gap:4px}}
+@media(max-width:760px){.qa__head{align-items:flex-start;flex-direction:column}.qa__actions{flex-wrap:wrap}.qa__field{flex:1 1 105px}.qa__field--search{flex-basis:100%}.qa-editor__grid{grid-template-columns:1fr}.qa-editor__grid .wide{grid-column:auto}.qitem{padding:18px}.qitem__manage{width:100%;margin-left:39px}.qa-import-preview__rows article{align-items:flex-start;flex-direction:column;gap:4px}}
 </style>

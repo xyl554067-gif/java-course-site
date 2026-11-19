@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ArrayBoundaryCheck from '@/components/ArrayBoundaryCheck.vue'
 import AccessControlCheck from '@/components/AccessControlCheck.vue'
+import { packageStarterZip } from '@/content/practice-catalog'
 import LessonComicCheck from '@/components/LessonComicCheck.vue'
 import LessonIllustration from '@/components/LessonIllustration.vue'
 import lessonComics from '@/content/lesson-comics.json'
@@ -744,6 +745,10 @@ watch(() => route.params.slug, (slug) => {
       <div v-show="activeTab !== 'exercises'" class="lesson__grid">
         <!-- 正文 -->
         <article class="lesson__body card">
+          <div v-if="lessonSlug === 'encapsulation-packages'" class="lesson__package">
+            <a :href="packageStarterZip" class="btn btn--sm btn--primary" download>下载双包实验工程</a>
+            <span>解压后，在 IDEA 或装有 Java 扩展的 VS Code 中打开工程。</span>
+          </div>
           <div class="md-body" v-html="renderedLesson.html" @click="copyLessonCode" />
           <AccessControlCheck v-if="hasAccessCheck" :key="lessonSlug" :lab-slug="lessonSlug === 'oop-core' ? lessonSlug : 'encapsulation-account'" />
 
@@ -853,6 +858,7 @@ watch(() => route.params.slug, (slug) => {
 </template>
 
 <style scoped>
+.lesson__package { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 20px; padding: 12px; border-radius: var(--radius-md); background: #f1ebff; color: var(--c-ink-soft); font-size: .9rem; }
 .lesson-resource { margin-block: var(--space-lg); }
 .lesson-resource a { text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
 .lesson-resource p { margin-top: 6px; color: var(--c-ink-soft); }

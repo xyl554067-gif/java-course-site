@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.util.List;
 
-/** Installs the shared knowledge questions and code exercises linked to study notes. */
+/** Installs shared practice from the resource library and the course modules. */
 @Component
 public class ResourcePracticeSeed {
     private static final String INCOMPLETE_METHOD = "throw new UnsupportedOperationException(\"请完成方法\");";
@@ -41,6 +41,12 @@ public class ResourcePracticeSeed {
                 seed(practice);
             }
         }
+        try (var input = new ClassPathResource("db/seed-practice-expansion.json").getInputStream()) {
+            List<PracticeSet> sets = mapper.readValue(input, new TypeReference<>() {});
+            for (PracticeSet set : sets) {
+                seed(set);
+            }
+        }
     }
 
     private boolean claim(String version) {
@@ -61,32 +67,54 @@ public class ResourcePracticeSeed {
             return;
         }
         long lessonId = lessonIds.get(0);
-        Question question = practice.question();
+        insertQuestion(lessonId, practice.noteId(), practice.question());
+        insertExercise(lessonId, "resource-" + practice.noteId(), practice.exercise());
+    }
+
+    private void seed(PracticeSet set) throws IOException {
+        List<Long> lessonIds = jdbc.queryForList("SELECT id FROM lesson WHERE slug = ?", Long.class, set.lessonSlug());
+        if (lessonIds.isEmpty() || !claim("practice-expansion-v1-" + set.id())) {
+            return;
+        }
+        long lessonId = lessonIds.get(0);
+        for (Question question : set.questions()) {
+            insertQuestion(lessonId, set.resourceNoteId(), question);
+        }
+        if (set.exercise() != null) {
+            insertExercise(lessonId, "practice-" + set.id(), set.exercise());
+        }
+    }
+
+    private void insertQuestion(long lessonId, String noteId, Question question) throws IOException {
         String options = question.options() == null ? null : mapper.writeValueAsString(question.options());
         jdbc.update("""
                 INSERT INTO qa_item (lesson_id, resource_note_id, question, answer_text, options_json,
                                      answer_key, qa_type, difficulty)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, lessonId, practice.noteId(), question.prompt(), question.explanation(), options,
+                """, lessonId, noteId, question.prompt(), question.explanation(), options,
                 question.answerKey(), question.type(), question.difficulty());
+    }
 
-        Exercise exercise = practice.exercise();
+    private void insertExercise(long lessonId, String slug, Exercise exercise) throws IOException {
         String starter = String.join("\n", exercise.starterCode());
         String unfinishedLine = exercise.starterCode().stream()
                 .filter(line -> line.strip().equals(INCOMPLETE_METHOD))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Missing exercise placeholder for " + practice.noteId()));
+                .orElseThrow(() -> new IllegalStateException("Missing exercise placeholder for " + slug));
         String solution = starter.replace(unfinishedLine, String.join("\n", exercise.solutionBody()));
         jdbc.update("""
                 INSERT INTO code_exercise (lesson_id, slug, title, description, difficulty, language, starter_code,
                                            solution_code, test_cases, hint, sort_order)
                 VALUES (?, ?, ?, ?, ?, 'java', ?, ?, ?, ?, ?)
-                """, lessonId, "resource-" + practice.noteId(), exercise.title(), exercise.description(),
+                ON CONFLICT (slug) DO NOTHING
+                """, lessonId, slug, exercise.title(), exercise.description(),
                 exercise.difficulty(), starter, solution, mapper.writeValueAsString(exercise.cases()),
                 exercise.hint(), exercise.sortOrder());
     }
 
     private record Practice(String noteId, String lessonSlug, Question question, Exercise exercise) {}
+    private record PracticeSet(String id, String lessonSlug, String resourceNoteId, List<Question> questions,
+                               Exercise exercise) {}
 
     private record Question(String prompt, String type, String difficulty, List<String> options,
                             String answerKey, String explanation) {}

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE - 1)
+@Order(Ordered.LOWEST_PRECEDENCE - 2)
 public class LearningVideoSchemaUpgrade implements ApplicationRunner {
     private static final String PILOT_BVID = "BV1gE411o7eC";
     private static final String CURATED_VIDEOS_VERSION = "2026-11-12-java-mastery-learning-videos";

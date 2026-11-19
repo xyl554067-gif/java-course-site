@@ -104,7 +104,9 @@ export interface QaLessonOption {
   id: number
   title: string
   slug: string
+  moduleId?: number
   moduleTitle: string
+  courseSlug?: string
   courseTitle: string
 }
 

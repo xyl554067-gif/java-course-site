@@ -1,0 +1,1004 @@
+[
+  {
+    "id": "range-sum",
+    "lessonSlug": "arrays",
+    "resourceNoteId": "array-boundaries",
+    "questions": [
+      {
+        "prompt": "把 prefix[i] 定义为数组前 i 项的和。闭区间 [left, right] 的下标从 0 开始，应该怎样求和？",
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "options": [
+          "A. prefix[right] - prefix[left]",
+          "B. prefix[right + 1] - prefix[left + 1]",
+          "C. prefix[right + 1] - prefix[left]",
+          "D. prefix[right] - prefix[left + 1]"
+        ],
+        "answerKey": "C",
+        "explanation": "right 对应元素需要计入，因此前缀取到 right + 1，再扣除 left 前面的项。"
+      },
+      {
+        "prompt": "长度为 n 的数组可访问 a[n]，它会返回该类型的默认值。",
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "合法下标为 0 到 n - 1，a[n] 会抛出 ArrayIndexOutOfBoundsException。"
+      },
+      {
+        "prompt": "多个 int 元素相加为什么可能要用 long，即使每个元素都在 int 范围内？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "总和可能超出 int 的范围。应从第一个加法开始使用 long 累加，避免先在 int 中溢出再转换。"
+      }
+    ],
+    "exercise": {
+      "title": "多次查询区间和",
+      "description": "输入 n、q，然后是 n 个整数，再输入 q 组下标 left、right（0 ≤ left ≤ right < n）。每组输出该闭区间的元素和。完成 prefixSums，要求预处理 O(n)，每组查询 O(1)。总和可能超出 int。",
+      "difficulty": "MEDIUM",
+      "hint": "让 prefix[0] 为 0，prefix[i + 1] 累加到下标 i，用 long 保存。",
+      "sortOrder": 30,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static long[] prefixSums(int[] values) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        int n = in.nextInt();",
+        "        int q = in.nextInt();",
+        "        int[] values = new int[n];",
+        "        for (int i = 0; i < n; i++) {",
+        "            values[i] = in.nextInt();",
+        "        }",
+        "        long[] prefix = prefixSums(values);",
+        "        for (int i = 0; i < q; i++) {",
+        "            int left = in.nextInt();",
+        "            int right = in.nextInt();",
+        "            System.out.println(prefix[right + 1] - prefix[left]);",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        long[] prefix = new long[values.length + 1];",
+        "        for (int i = 0; i < values.length; i++) {",
+        "            prefix[i + 1] = prefix[i] + values[i];",
+        "        }",
+        "        return prefix;"
+      ],
+      "cases": [
+        {
+          "name": "单项与完整区间",
+          "stdin": "5 3\n2 -3 7 4 -1\n0 0\n1 3\n0 4",
+          "expected": "2\n8\n9"
+        },
+        {
+          "name": "超过 int 上限",
+          "stdin": "2 1\n2147483647 2147483647\n0 1",
+          "expected": "4294967294"
+        },
+        {
+          "name": "全为负数",
+          "stdin": "3 2\n-8 -2 -1\n0 2\n2 2",
+          "expected": "-11\n-1"
+        },
+        {
+          "name": "没有查询",
+          "stdin": "1 0\n42",
+          "expected": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "normalize-whitespace",
+    "lessonSlug": "string",
+    "questions": [
+      {
+        "prompt": "String a = new String(\"Java\"); String b = new String(\"Java\"); 怎样判断两者字符内容相同？",
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "options": [
+          "A. a == b",
+          "B. a.equals(b)",
+          "C. a.length() != b.length()",
+          "D. a.toString() == b.toString()"
+        ],
+        "answerKey": "B",
+        "explanation": "equals 比较 String 的字符内容，== 在这里比较两个引用。"
+      },
+      {
+        "prompt": "执行 text.trim() 后，即使没有接收返回值，text 原来指向的字符串内容也会变化。",
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "String 不可变。trim 的返回值表示处理结果，可以赋给变量作为后续输入。"
+      },
+      {
+        "prompt": "把含连续空格或制表符的输入统一成单个空格，在拆词前为什么要处理首尾？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "先裁去首尾分隔符，再把内部连续分隔符作为一个边界处理。全空白输入应单独返回空串。"
+      }
+    ],
+    "exercise": {
+      "title": "整理一行文本的空白",
+      "description": "读取一整行。输入仅含 ASCII 字母、数字、空格和制表符。去掉两端空白，把中间连续的空格或制表符替换为一个空格，保留字符大小写。输入为空或只有空白时输出空行。",
+      "difficulty": "EASY",
+      "hint": "可以先 trim，再用正则匹配一段连续空白；也可以逐字符处理。",
+      "sortOrder": 31,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static String normalize(String line) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        System.out.println(normalize(in.hasNextLine() ? in.nextLine() : \"\"));",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        return line.trim().replaceAll(\"[ \\t]+\", \" \");"
+      ],
+      "cases": [
+        {
+          "name": "两端和中间有空格",
+          "stdin": "  Hello    Java  ",
+          "expected": "Hello Java"
+        },
+        {
+          "name": "制表符和空格混合",
+          "stdin": "\tA1 \t B2\tC3 ",
+          "expected": "A1 B2 C3"
+        },
+        {
+          "name": "只有空白",
+          "stdin": " \t ",
+          "expected": ""
+        },
+        {
+          "name": "无空白",
+          "stdin": "Java17",
+          "expected": "Java17"
+        }
+      ]
+    }
+  },
+  {
+    "id": "reserve-tickets",
+    "lessonSlug": "encapsulation-account",
+    "resourceNoteId": "encapsulation-rules",
+    "questions": [
+      {
+        "prompt": "票仓的 remaining 字段必须永远非负。对外开放哪组方法更便于维护这个约束？",
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "options": [
+          "A. 公开 remaining 字段",
+          "B. 只提供一个不校验的 setRemaining",
+          "C. 同时公开字段和 setRemaining",
+          "D. 提供 getRemaining 和带校验的 reserve"
+        ],
+        "answerKey": "D",
+        "explanation": "查询方法提供当前值，reserve 在检查数量后才扣减余票，把校验集中进票仓。"
+      },
+      {
+        "prompt": "把字段声明为 private 后，类内的 public 方法仍可能把它改成非法状态。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "TRUE",
+        "explanation": "private 约束访问位置。公开方法仍需做参数校验并维持类的不变式。"
+      },
+      {
+        "prompt": "余额或余量扣减失败时，为什么通常先校验，再更新字段？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "先完成所有检查，就能在拒绝时直接返回，保证这次操作失败后旧状态仍然完整。"
+      }
+    ],
+    "exercise": {
+      "title": "用封装保护票仓余量",
+      "description": "输入初始余票和预订次数，之后每个整数代表一笔预订。有效预订必须大于 0 且不超过当前余票。每笔输出 true 或 false、一个空格和操作后的余票。只修改 TicketStore.reserve，直接修改字段的操作应留在 TicketStore 内。",
+      "difficulty": "EASY",
+      "hint": "金额无效或余票不足时直接返回 false，验证通过后才扣减。",
+      "sortOrder": 32,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "class TicketStore {",
+        "    private int remaining;",
+        "",
+        "    TicketStore(int remaining) {",
+        "        this.remaining = remaining;",
+        "    }",
+        "",
+        "    int getRemaining() {",
+        "        return remaining;",
+        "    }",
+        "",
+        "    boolean reserve(int count) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "}",
+        "",
+        "public class Main {",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        TicketStore store = new TicketStore(in.nextInt());",
+        "        int operations = in.nextInt();",
+        "        for (int i = 0; i < operations; i++) {",
+        "            boolean accepted = store.reserve(in.nextInt());",
+        "            System.out.println(accepted + \" \" + store.getRemaining());",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        if (count <= 0 || count > remaining) {",
+        "            return false;",
+        "        }",
+        "        remaining -= count;",
+        "        return true;"
+      ],
+      "cases": [
+        {
+          "name": "连续成功与库存不足",
+          "stdin": "5 3\n2 5 3",
+          "expected": "true 3\nfalse 3\ntrue 0"
+        },
+        {
+          "name": "零与负数",
+          "stdin": "3 3\n0 -2 1",
+          "expected": "false 3\nfalse 3\ntrue 2"
+        },
+        {
+          "name": "刚好预订全部",
+          "stdin": "1 2\n1 1",
+          "expected": "true 0\nfalse 0"
+        },
+        {
+          "name": "没有操作",
+          "stdin": "0 0",
+          "expected": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "read-access",
+    "lessonSlug": "encapsulation-access",
+    "resourceNoteId": "encapsulation-rules",
+    "questions": [
+      {
+        "prompt": "demo.app.Savings 继承 demo.bank.Account。Account 声明 protected 实例方法 check()，下面哪条写在 Savings 的实例方法内能通过访问检查？",
+        "type": "CHOICE",
+        "difficulty": "HARD",
+        "options": [
+          "A. this.check()",
+          "B. ((Account) this).check()",
+          "C. new Account().check()",
+          "D. peer.check()，其中 peer 的声明类型是 Savings 的兄弟子类"
+        ],
+        "answerKey": "A",
+        "explanation": "跨包子类访问父类的 protected 实例成员时，this 的类型满足要求。父类类型的引用和与 Savings 无继承关系的兄弟子类类型不满足要求。"
+      },
+      {
+        "prompt": "在声明类可见的前提下，同包顶层类不需要继承也能访问该类的 protected 成员。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "TRUE",
+        "explanation": "protected 允许同包访问。异包时才要进一步检查子类和限定引用等条件。"
+      },
+      {
+        "prompt": "一个外部顶层类和 Account 在同一个包，因此能直接读 Account 的 private balance。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "同包提供的是包访问权限。普通同包的另一个顶层类必须使用合适的公开接口读取私有余额。"
+      },
+      {
+        "prompt": "为什么 Account parent = this; 中的 parent 可能不能访问跨包继承来的 protected 实例方法，而 this 可以？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "options": null,
+        "answerKey": null,
+        "explanation": "访问检查在编译时完成。parent 的声明类型是 Account，this 的类型是当前子类，实际运行时指向同一对象也不改变检查结果。"
+      }
+    ]
+  },
+  {
+    "id": "package-imports",
+    "lessonSlug": "encapsulation-packages",
+    "questions": [
+      {
+        "prompt": "源文件声明 package demo.app;，主类名为 BankApp。用 java -cp out 运行时应给出哪个类名？",
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "options": [
+          "A. BankApp.java",
+          "B. demo.app.BankApp",
+          "C. out.demo.app.BankApp",
+          "D. src.demo.app.BankApp"
+        ],
+        "answerKey": "B",
+        "explanation": "类的全限定名由包名和简单类名组成。out 是编译输出根目录。"
+      },
+      {
+        "prompt": "import demo.bank.*; 会把 demo.bank.tools 中的类也导入。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "按需导入涵盖指定包中可访问的类型，不会递归导入子包。"
+      },
+      {
+        "prompt": "编译器能找到 Account，但提示 branchCode() 在包外不可访问。继续增加 import 能解决吗？为什么？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "import 让类型或静态成员可以通过简名引用。应该调用类已经开放的接口，或在确有设计需要时调整有权限访问的代码位置。"
+      }
+    ]
+  },
+  {
+    "id": "account-transfer",
+    "lessonSlug": "encapsulation-refactor",
+    "resourceNoteId": "encapsulation-rules",
+    "questions": [
+      {
+        "prompt": "从 A 向 B 转账时，哪种处理可以避免失败后只扣了 A 的余额？",
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "options": [
+          "A. 先扣 A，再检查 B",
+          "B. 先增加 B，再检查 A",
+          "C. 检查金额、A 的余额与 B 的上限，再更新双方",
+          "D. 转账失败时把两个余额都设置为 0"
+        ],
+        "answerKey": "C",
+        "explanation": "在修改任一账户前完成全部校验，再进行两处更新。"
+      },
+      {
+        "prompt": "余额和金额都用 int，只要金额为正，先算 balance + amount 再检查结果一定安全。",
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "加法可能已经溢出，导致检查面对的是错误的值。加法前比较剩余空间，或使用足够宽的类型计算。"
+      },
+      {
+        "prompt": "写转账测试时，除了两边余额的最终值，还应检查什么？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "检查返回的成功标记、失败后两边余额保持原样，以及边界上的刚好余额、整数上限和连续操作。"
+      }
+    ],
+    "exercise": {
+      "title": "重构两个账户的转账",
+      "description": "输入两个非负 int 余额 A、B 和操作数 n，随后是 n 对方向和金额。方向 AB 表示 A 转给 B，BA 表示 B 转给 A。金额为有符号 long。仅当金额为正、付款余额足够且收款方结果不超过 Integer.MAX_VALUE 时成功。每行依次输出是否成功、A 余额、B 余额，以空格分隔。",
+      "difficulty": "HARD",
+      "hint": "在 transferTo 里先检查付款余额和收款上限，通过后再修改两边。",
+      "sortOrder": 33,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "class Account {",
+        "    private int balance;",
+        "",
+        "    Account(int balance) {",
+        "        this.balance = balance;",
+        "    }",
+        "",
+        "    int getBalance() {",
+        "        return balance;",
+        "    }",
+        "",
+        "    boolean transferTo(Account target, long amount) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "}",
+        "",
+        "public class Main {",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        Account a = new Account(in.nextInt());",
+        "        Account b = new Account(in.nextInt());",
+        "        int operations = in.nextInt();",
+        "        for (int i = 0; i < operations; i++) {",
+        "            String direction = in.next();",
+        "            long amount = in.nextLong();",
+        "            boolean accepted = direction.equals(\"AB\") ? a.transferTo(b, amount) : b.transferTo(a, amount);",
+        "            System.out.println(accepted + \" \" + a.getBalance() + \" \" + b.getBalance());",
+        "        }",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        if (amount <= 0 || amount > balance || amount > Integer.MAX_VALUE - target.balance) {",
+        "            return false;",
+        "        }",
+        "        balance -= (int) amount;",
+        "        target.balance += (int) amount;",
+        "        return true;"
+      ],
+      "cases": [
+        {
+          "name": "正反向转账",
+          "stdin": "100 20 2\nAB 30\nBA 5",
+          "expected": "true 70 50\ntrue 75 45"
+        },
+        {
+          "name": "余额不足与非正数",
+          "stdin": "4 3 3\nAB 5\nBA 0\nBA -1",
+          "expected": "false 4 3\nfalse 4 3\nfalse 4 3"
+        },
+        {
+          "name": "上限与失败后状态",
+          "stdin": "10 2147483646 3\nAB 2\nAB 1\nAB 1",
+          "expected": "false 10 2147483646\ntrue 9 2147483647\nfalse 9 2147483647"
+        },
+        {
+          "name": "金额超出 int",
+          "stdin": "10 0 1\nAB 2147483648",
+          "expected": "false 10 0"
+        },
+        {
+          "name": "付款余额刚好",
+          "stdin": "7 0 1\nAB 7",
+          "expected": "true 0 7"
+        }
+      ]
+    }
+  },
+  {
+    "id": "ordered-frequency",
+    "lessonSlug": "collection-overview",
+    "questions": [
+      {
+        "prompt": "统计代码出现次数，并按第一次出现的顺序输出每个代码。哪种 Map 最直接？",
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "options": [
+          "A. 默认 HashMap",
+          "B. TreeMap",
+          "C. 只保存最后一个键",
+          "D. 默认 LinkedHashMap"
+        ],
+        "answerKey": "D",
+        "explanation": "默认的 LinkedHashMap 使用插入顺序，更新已有键的值不会改变原先位置。"
+      },
+      {
+        "prompt": "默认 LinkedHashMap 插入 A、B，再给已有的 A 更新值，迭代顺序变成 B、A。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "默认模式按首次插入顺序迭代。这里仍为 A、B。"
+      },
+      {
+        "prompt": "为什么可变对象作为 HashMap 的键时，不宜修改参与 equals/hashCode 的字段？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "修改后查找可能使用不同的哈希值或相等条件，导致原条目难以通过该键找到。"
+      }
+    ],
+    "exercise": {
+      "title": "按首次出现顺序统计频次",
+      "description": "输入 n 和 n 个 int。统计每个不同数字的频次，按首次出现顺序输出，每行格式为 数字:次数。n 为 0 时无输出。",
+      "difficulty": "MEDIUM",
+      "hint": "用 LinkedHashMap 记录首次插入顺序，用 merge 或 getOrDefault 更新次数。",
+      "sortOrder": 34,
+      "starterCode": [
+        "import java.util.LinkedHashMap;",
+        "import java.util.Map;",
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static Map<Integer, Integer> frequencies(int[] values) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        int[] values = new int[in.nextInt()];",
+        "        for (int i = 0; i < values.length; i++) {",
+        "            values[i] = in.nextInt();",
+        "        }",
+        "        frequencies(values).forEach((value, count) -> System.out.println(value + \":\" + count));",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        Map<Integer, Integer> counts = new LinkedHashMap<>();",
+        "        for (int value : values) {",
+        "            counts.merge(value, 1, Integer::sum);",
+        "        }",
+        "        return counts;"
+      ],
+      "cases": [
+        {
+          "name": "频次与输入顺序",
+          "stdin": "6\n3 1 3 2 1 3",
+          "expected": "3:3\n1:2\n2:1"
+        },
+        {
+          "name": "零与负数",
+          "stdin": "4\n0 -2 -2 0",
+          "expected": "0:2\n-2:2"
+        },
+        {
+          "name": "同一个值",
+          "stdin": "3\n8 8 8",
+          "expected": "8:3"
+        },
+        {
+          "name": "空集合",
+          "stdin": "0",
+          "expected": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "top-distinct",
+    "lessonSlug": "stream-api",
+    "resourceNoteId": "stream-results",
+    "questions": [
+      {
+        "prompt": "从 int[] 得到不重复的前 k 个最大值，下列处理顺序哪项正确？",
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "options": [
+          "A. limit → distinct → 排序",
+          "B. distinct → 降序排序 → limit",
+          "C. filter → limit → 升序排序",
+          "D. 降序排序 → limit → distinct"
+        ],
+        "answerKey": "B",
+        "explanation": "先去重，再按值降序排列并截取前 k 个。先 limit 会漏掉后面可能出现的更大值。"
+      },
+      {
+        "prompt": "对 Stream 建好 filter 与 map 管道却不调用终止操作，通常不会遍历输入以执行这些操作。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "TRUE",
+        "explanation": "这些是惰性中间操作。启动终止操作时，流才按需要求值。"
+      },
+      {
+        "prompt": "为什么在可能并行的流中，不适合用 forEach 向外部普通 ArrayList 并发追加？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "普通 ArrayList 的写入没有线程安全保证，顺序也可能不符合预期。应让流使用合适的收集操作。"
+      }
+    ],
+    "exercise": {
+      "title": "取最大的 K 个不同分数",
+      "description": "输入 n、k，然后输入 n 个 int 分数。去掉重复分数，按从大到小输出最多 k 项，使用单个空格分隔。k 为 0 或没有分数时输出空行。",
+      "difficulty": "MEDIUM",
+      "hint": "先去重和降序，再 limit。用比较器排序时避免用整数相减。",
+      "sortOrder": 35,
+      "starterCode": [
+        "import java.util.Arrays;",
+        "import java.util.Comparator;",
+        "import java.util.Scanner;",
+        "import java.util.stream.Collectors;",
+        "",
+        "public class Main {",
+        "    static String topScores(int[] scores, int k) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        int n = in.nextInt();",
+        "        int k = in.nextInt();",
+        "        int[] scores = new int[n];",
+        "        for (int i = 0; i < n; i++) {",
+        "            scores[i] = in.nextInt();",
+        "        }",
+        "        System.out.println(topScores(scores, k));",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        return Arrays.stream(scores).distinct().boxed()",
+        "                .sorted(Comparator.reverseOrder())",
+        "                .limit(k).map(String::valueOf)",
+        "                .collect(Collectors.joining(\" \"));"
+      ],
+      "cases": [
+        {
+          "name": "重复与排序",
+          "stdin": "6 3\n7 4 7 12 -1 11",
+          "expected": "12 11 7"
+        },
+        {
+          "name": "极值和 K 过大",
+          "stdin": "3 8\n-2147483648 2147483647 0",
+          "expected": "2147483647 0 -2147483648"
+        },
+        {
+          "name": "K 为零",
+          "stdin": "2 0\n8 9",
+          "expected": ""
+        },
+        {
+          "name": "没有分数",
+          "stdin": "0 3",
+          "expected": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "recover-task-errors",
+    "lessonSlug": "thread-pool",
+    "resourceNoteId": "future-results",
+    "questions": [
+      {
+        "prompt": "任务本身抛出异常后，调用对应 Future.get() 通常收到什么？",
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "options": [
+          "A. 返回 null",
+          "B. 返回任务的默认类型值",
+          "C. 抛出 ExecutionException",
+          "D. 重新执行任务"
+        ],
+        "answerKey": "C",
+        "explanation": "get 会通过 ExecutionException 报告任务异常，原异常可通过 getCause() 读取。"
+      },
+      {
+        "prompt": "在按提交顺序保存的 Future 列表上顺序调用 get，可以按提交顺序输出结果，即使任务实际完成顺序不同。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "TRUE",
+        "explanation": "列表决定输出顺序。遇到还未完成的 Future，get 会等到对应任务结束。"
+      },
+      {
+        "prompt": "创建自己的线程池后，为什么适合在 finally 中调用 shutdown？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "options": null,
+        "answerKey": null,
+        "explanation": "正常完成或中途抛异常时都能停止接收新任务。已有任务依然可以执行完，线程池随后得以结束。"
+      }
+    ],
+    "exercise": {
+      "title": "汇总线程池任务与失败结果",
+      "description": "输入 n 和 n 个整数。每个整数对应一个 Callable，非负时返回平方（用 long），负数时抛出 IllegalArgumentException。按提交顺序输出每项结果，失败输出 ERR，并继续处理后续任务。最后关闭线程池。",
+      "difficulty": "HARD",
+      "hint": "先提交所有任务，再逐个 get；每个 get 单独处理 ExecutionException。线程池放到 finally 中关闭。",
+      "sortOrder": 36,
+      "starterCode": [
+        "import java.util.ArrayList;",
+        "import java.util.List;",
+        "import java.util.Scanner;",
+        "import java.util.concurrent.ExecutionException;",
+        "import java.util.concurrent.ExecutorService;",
+        "import java.util.concurrent.Executors;",
+        "import java.util.concurrent.Future;",
+        "",
+        "public class Main {",
+        "    static List<String> collect(int[] jobs) throws InterruptedException {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) throws InterruptedException {",
+        "        Scanner in = new Scanner(System.in);",
+        "        int[] jobs = new int[in.nextInt()];",
+        "        for (int i = 0; i < jobs.length; i++) {",
+        "            jobs[i] = in.nextInt();",
+        "        }",
+        "        collect(jobs).forEach(System.out::println);",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        ExecutorService pool = Executors.newFixedThreadPool(2);",
+        "        try {",
+        "            List<Future<Long>> futures = new ArrayList<>();",
+        "            for (int value : jobs) {",
+        "                futures.add(pool.submit(() -> {",
+        "                    if (value < 0) throw new IllegalArgumentException(\"negative\");",
+        "                    return (long) value * value;",
+        "                }));",
+        "            }",
+        "            List<String> results = new ArrayList<>();",
+        "            for (Future<Long> future : futures) {",
+        "                try {",
+        "                    results.add(String.valueOf(future.get()));",
+        "                } catch (ExecutionException e) {",
+        "                    results.add(\"ERR\");",
+        "                }",
+        "            }",
+        "            return results;",
+        "        } finally {",
+        "            pool.shutdown();",
+        "        }"
+      ],
+      "cases": [
+        {
+          "name": "失败不影响后续任务",
+          "stdin": "4\n3 -1 0 4",
+          "expected": "9\nERR\n0\n16"
+        },
+        {
+          "name": "平方结果超过 int",
+          "stdin": "1\n50000",
+          "expected": "2500000000"
+        },
+        {
+          "name": "全部失败",
+          "stdin": "2\n-2 -3",
+          "expected": "ERR\nERR"
+        },
+        {
+          "name": "没有任务",
+          "stdin": "0",
+          "expected": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "histogram-bytes",
+    "lessonSlug": "jvm-tuning-tools",
+    "resourceNoteId": "jvm-heap-observation",
+    "questions": [
+      {
+        "prompt": "拿到一张类直方图后，如果想看哪些类的实例占用较多空间，先看哪列？",
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "options": [
+          "A. JVM 进程号",
+          "B. 字节数",
+          "C. 类名首字母",
+          "D. 线程的 ID"
+        ],
+        "answerKey": "B",
+        "explanation": "字节数列更贴近类实例占用的量。单次样本仍需结合采样条件与趋势分析。"
+      },
+      {
+        "prompt": "一次堆占用较高的采样就足以证明应用存在内存泄漏。",
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "单次结果可能受业务负载或采样时机影响。需要比较相似条件下的多次观察，并进一步定位对象保留路径。"
+      },
+      {
+        "prompt": "对比两份类直方图前，哪些条件应尽量保持一致？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "尽量保持业务负载、采样方式、运行阶段和 GC 时机一致，再比较数量、字节数及趋势。"
+      }
+    ],
+    "exercise": {
+      "title": "汇总简化类直方图",
+      "description": "输入 n 与包名前缀（如 demo.app），再输入 n 行简化数据：类全名、实例数、字节数。筛选类名以该前缀加一个点开头的行，输出匹配行的实例数总和与字节数总和，中间一个空格。包括子包；总和保证在 long 范围内。",
+      "difficulty": "MEDIUM",
+      "hint": "用前缀加点区分 demo.app 和 demo.application，用 long 分别累加两列。",
+      "sortOrder": 37,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "",
+        "public class Main {",
+        "    static String summarize(Scanner in, int n, String prefix) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        int n = in.nextInt();",
+        "        String prefix = in.next();",
+        "        System.out.println(summarize(in, n, prefix));",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        long instances = 0;",
+        "        long bytes = 0;",
+        "        for (int i = 0; i < n; i++) {",
+        "            String name = in.next();",
+        "            long count = in.nextLong();",
+        "            long size = in.nextLong();",
+        "            if (name.startsWith(prefix + \".\")) {",
+        "                instances += count;",
+        "                bytes += size;",
+        "            }",
+        "        }",
+        "        return instances + \" \" + bytes;"
+      ],
+      "cases": [
+        {
+          "name": "包前缀和子包",
+          "stdin": "4 demo.app\ndemo.app.Foo 2 32\ndemo.app.sub.Bar 3 48\ndemo.application.No 5 100\njava.lang.String 8 320",
+          "expected": "5 80"
+        },
+        {
+          "name": "字节数超过 int",
+          "stdin": "2 dev\ndev.LongValue 2147483647 4000000000\ndev.Item 2 3000000000",
+          "expected": "2147483649 7000000000"
+        },
+        {
+          "name": "没有匹配",
+          "stdin": "1 demo.app\nother.Item 1 16",
+          "expected": "0 0"
+        },
+        {
+          "name": "空直方图",
+          "stdin": "0 demo.app",
+          "expected": "0 0"
+        }
+      ]
+    }
+  },
+  {
+    "id": "lookup-response",
+    "lessonSlug": "restful-api",
+    "resourceNoteId": "rest-query-parameters",
+    "questions": [
+      {
+        "prompt": "接口 /courses/{id} 收到语法有效但不存在的编号，哪个响应状态最合适？",
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "options": [
+          "A. 200",
+          "B. 400",
+          "C. 404",
+          "D. 500"
+        ],
+        "answerKey": "C",
+        "explanation": "请求的目标资源不存在，返回 404。格式错误时应按接口契约返回 400。"
+      },
+      {
+        "prompt": "业务约定只接受正整数编号时，把 -5 当成合法编号再查询数据库，比先校验参数更符合接口契约。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "先按契约校验请求参数，-5 应作为参数错误处理。"
+      },
+      {
+        "prompt": "为什么接口响应应区分参数无效和资源不存在？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "调用方能据此决定是改请求数据，还是提示资源确实找不到，也便于服务端定位问题。"
+      }
+    ],
+    "exercise": {
+      "title": "区分查询成功、参数错误与资源不存在",
+      "description": "已有课程编号为 1、3、5。输入一整行编号字符串，允许首尾空白。有效编号须仅有 ASCII 数字且在 1 到 Integer.MAX_VALUE 之间，允许前导零。无效输出 400；有效但不存在输出 404；存在输出 200。本题只实现状态判断函数。",
+      "difficulty": "MEDIUM",
+      "hint": "先验证字符形态，再用 Integer.parseInt 判断是否超出上限，最后查询编号是否存在。",
+      "sortOrder": 38,
+      "starterCode": [
+        "import java.util.Scanner;",
+        "import java.util.Set;",
+        "",
+        "public class Main {",
+        "    static int status(String raw, Set<Integer> knownIds) {",
+        "        throw new UnsupportedOperationException(\"请完成方法\");",
+        "    }",
+        "",
+        "    public static void main(String[] args) {",
+        "        Scanner in = new Scanner(System.in);",
+        "        String input = in.hasNextLine() ? in.nextLine() : \"\";",
+        "        System.out.println(status(input, Set.of(1, 3, 5)));",
+        "    }",
+        "}"
+      ],
+      "solutionBody": [
+        "        String value = raw.strip();",
+        "        if (!value.matches(\"[0-9]+\")) return 400;",
+        "        try {",
+        "            int id = Integer.parseInt(value);",
+        "            if (id == 0) return 400;",
+        "            return knownIds.contains(id) ? 200 : 404;",
+        "        } catch (NumberFormatException e) {",
+        "            return 400;",
+        "        }"
+      ],
+      "cases": [
+        {
+          "name": "找到资源",
+          "stdin": "  003  ",
+          "expected": "200"
+        },
+        {
+          "name": "有效编号但不存在",
+          "stdin": "2",
+          "expected": "404"
+        },
+        {
+          "name": "编号超出上限",
+          "stdin": "2147483648",
+          "expected": "400"
+        },
+        {
+          "name": "零不是正整数",
+          "stdin": "0",
+          "expected": "400"
+        },
+        {
+          "name": "混有非数字",
+          "stdin": "5abc",
+          "expected": "400"
+        },
+        {
+          "name": "只有空白",
+          "stdin": "   ",
+          "expected": "400"
+        }
+      ]
+    }
+  },
+  {
+    "id": "bind-and-commit",
+    "lessonSlug": "kingbase-persistence",
+    "resourceNoteId": "jdbc-bind-values",
+    "questions": [
+      {
+        "prompt": "对于 SQL 中的第一个问号，PreparedStatement.setString 应使用哪个参数位置？",
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "options": [
+          "A. 0",
+          "B. 1",
+          "C. 2",
+          "D. 表名的长度"
+        ],
+        "answerKey": "B",
+        "explanation": "JDBC 参数序号从 1 开始，按占位符出现的顺序绑定。"
+      },
+      {
+        "prompt": "将查询参数绑定给 PreparedStatement 的问号，可以把这个参数当作 ORDER BY 列名来切换排序列。",
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": "FALSE",
+        "explanation": "问号用于数据值。动态列名应从程序预先定义的有限候选里选取。"
+      },
+      {
+        "prompt": "一次转账涉及两条数据库余额更新，为什么应在同一事务中提交？",
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "options": null,
+        "answerKey": null,
+        "explanation": "当任一更新失败时可以一起回滚，两条修改一起提交可以避免只扣款或只入款的部分完成状态。"
+      }
+    ]
+  }
+]

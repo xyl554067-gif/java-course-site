@@ -38,15 +38,17 @@ public class QuestionBankService {
     }
 
     public List<Map<String, Object>> lessons() {
-        return jdbc.query("SELECT l.id,l.title,l.slug,m.title AS module_title,c.title AS course_title "
+        return jdbc.query("SELECT l.id,l.title,l.slug,m.id AS module_id,m.title AS module_title,c.slug AS course_slug,c.title AS course_title "
                         + "FROM lesson l JOIN course_module m ON m.id=l.module_id JOIN course c ON c.id=m.course_id "
-                        + "ORDER BY c.sort_order,m.sort_order,l.sort_order",
+                        + "ORDER BY c.sort_order,c.id,m.sort_order,m.id,l.sort_order,l.id",
                 (rs, row) -> {
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("id", rs.getLong("id"));
                     item.put("title", rs.getString("title"));
                     item.put("slug", rs.getString("slug"));
+                    item.put("moduleId", rs.getLong("module_id"));
                     item.put("moduleTitle", rs.getString("module_title"));
+                    item.put("courseSlug", rs.getString("course_slug"));
                     item.put("courseTitle", rs.getString("course_title"));
                     return item;
                 });

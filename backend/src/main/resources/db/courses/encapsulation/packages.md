@@ -13,7 +13,7 @@ src/
 
 ## 复现跨包访问错误
 
-在本地 IDE 中按上面的路径建立两个文件，或把代码保存到同样的目录结构中。先保持 `branchCode()` 那行，观察 javac 的错误；然后改用 `getBalance()`，重新编译和运行。
+下载本页的双包实验工程并解压，或按上面的路径自行建立两个文件。先保持 `branchCode()` 那行，观察 javac 的错误；然后改用 `getBalance()`，重新编译和运行。
 
 **src/demo/bank/Account.java**
 

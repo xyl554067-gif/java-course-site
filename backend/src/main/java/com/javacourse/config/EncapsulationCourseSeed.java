@@ -15,7 +15,7 @@ import java.util.List;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE)
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 class EncapsulationCourseSeed implements ApplicationRunner {
     private static final String COURSE_SLUG = "java-encapsulation";
     private static final String COURSE_TITLE = "封装、访问控制与包管理";

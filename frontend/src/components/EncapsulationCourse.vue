@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { Course, Lesson } from '@/api'
 import { useProgressStore } from '@/stores/progress'
+import { packageStarterZip } from '@/content/practice-catalog'
 
 const props = defineProps<{ course: Course; lessons: Lesson[]; videoLessonIds: number[] }>()
 const progress = useProgressStore()
@@ -76,6 +77,7 @@ const nextLesson = computed(() => props.lessons.find(lesson => !progress.isCompl
           <RouterLink v-else-if="lesson.slug === 'encapsulation-access'" :to="{ name: 'lesson', params: { slug: lesson.slug }, hash: '#access-check' }">开始判断</RouterLink>
           <RouterLink v-else-if="lesson.slug === 'encapsulation-packages'" :to="{ name: 'lesson-lab', params: { slug: lesson.slug } }">打开实验室</RouterLink>
           <RouterLink v-else-if="lesson.slug === 'encapsulation-refactor'" :to="{ name: 'lesson', params: { slug: lesson.slug }, query: { tab: 'exercises' } }">开始重构</RouterLink>
+          <a v-if="lesson.slug === 'encapsulation-packages'" :href="packageStarterZip" download>下载双包实验工程</a>
         </footer>
       </li>
     </ol>

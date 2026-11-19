@@ -10,35 +10,68 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CodeEditor from '@/components/CodeEditor.vue'
-import { codeApi, type CodeExercise, type CodeRuntime, type JudgeResult, type CodeRunResult, type CodeSubmission } from '@/api'
+import PracticeTopics from '@/components/PracticeTopics.vue'
+import { codeApi, courseApi, type CodeExercise, type CodeRuntime, type JudgeResult, type CodeRunResult, type CodeSubmission, type QaLessonOption } from '@/api'
 import { errMsg } from '@/api/http'
 import { resourceNoteForExercise } from '@/content/course-resources'
+import { matchesPracticeQuery, practiceLevel, practiceLevelLabel, practiceLevels, practiceTopics } from '@/content/practice-catalog'
 
 const route = useRoute()
 const router = useRouter()
 
 const exercises = ref<CodeExercise[]>([])
+const lessons = ref<QaLessonOption[]>([])
 const runtime = ref<CodeRuntime | null>(null)
+const runtimeFailed = ref(false)
 const current = ref<CodeExercise | null>(null)
 const code = ref('')
 const stdin = ref('')
 const runResult = ref<CodeRunResult | null>(null)
 const judgeResult = ref<JudgeResult | null>(null)
 const submissions = ref<CodeSubmission[]>([])
-const loading = ref(false)
+const loading = ref(true)
 const running = ref(false)
 const submitting = ref(false)
 const error = ref('')
 const showHint = ref(false)
-const resourceOnly = ref(false)
+const loadError = ref('')
+const keyword = ref('')
+const difficulty = ref('')
 const editorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
+let selectionVersion = 0
 
 const ready = computed(() => runtime.value?.ready === true)
 const resourceNote = computed(() => resourceNoteForExercise(current.value?.slug))
-const shownExercises = computed(() => resourceOnly.value
-  ? exercises.value.filter((exercise) => resourceNoteForExercise(exercise.slug))
-  : exercises.value,
-)
+const slug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : '')
+const topicId = computed(() => typeof route.query.topic === 'string' ? route.query.topic : '')
+const resourceOnly = computed(() => route.query.resource === 'all')
+const topics = computed(() => practiceTopics(exercises.value, lessons.value))
+const topic = computed(() => topics.value.find(group => group.id === topicId.value))
+const filtersActive = computed(() => Boolean(keyword.value.trim() || difficulty.value || resourceOnly.value))
+const shownExercises = computed(() => (topicId.value ? topic.value?.items ?? [] : exercises.value).filter(exercise =>
+  (!resourceOnly.value || resourceNoteForExercise(exercise.slug))
+  && (!difficulty.value || difficulty.value === practiceLevel(exercise.difficulty))
+  && matchesPracticeQuery(keyword.value, exercise.title, exercise.lessonTitle, exercise.description),
+))
+
+function setFilter(name: 'topic' | 'resource', value: string) {
+  void router.replace({ query: { ...route.query, [name]: value || undefined } })
+}
+
+function clearFilters(overview = false) {
+  keyword.value = ''
+  difficulty.value = ''
+  void router.replace({ query: { ...route.query, resource: undefined, topic: overview ? undefined : route.query.topic } })
+}
+
+async function loadRuntime() {
+  runtimeFailed.value = false
+  try {
+    runtime.value = await codeApi.runtime()
+  } catch {
+    runtimeFailed.value = true
+  }
+}
 
 const statusMeta = computed(() => {
   const s = judgeResult.value?.status
@@ -73,22 +106,14 @@ const caseNames = computed(() => {
 
 async function load() {
   loading.value = true
-  error.value = ''
+  loadError.value = ''
   try {
-    const [rt, list] = await Promise.all([
-      codeApi.runtime().catch(() => null),
-      codeApi.exercises(),
-    ])
-    runtime.value = rt
+    const [list, lessonList] = await Promise.all([codeApi.exercises(), courseApi.qaLessons()])
     exercises.value = list
-    if (list.length) {
-      const slug = (route.params.slug as string) || list[0].slug
-      selectBySlug(slug)
-    } else {
-      error.value = '暂无习题数据'
-    }
+    lessons.value = lessonList
+    if (slug.value) selectBySlug(slug.value)
   } catch (e) {
-    error.value = errMsg(e)
+    loadError.value = errMsg(e)
   } finally {
     loading.value = false
   }
@@ -97,6 +122,7 @@ async function load() {
 function selectBySlug(slug: string) {
   const exercise = exercises.value.find((item) => item.slug === slug)
   if (!exercise) {
+    selectionVersion++
     current.value = null
     error.value = '未找到这道代码练习，请从列表选择其他练习。'
   } else if (exercise.id !== current.value?.id) {
@@ -105,50 +131,72 @@ function selectBySlug(slug: string) {
 }
 
 function selectExercise(ex: CodeExercise) {
+  const version = ++selectionVersion
   error.value = ''
   current.value = ex
   code.value = ex.starterCode || ''
   stdin.value = ''
   runResult.value = null
   judgeResult.value = null
+  submissions.value = []
   showHint.value = false
-  if (route.params.slug !== ex.slug) {
-    void router.replace({ name: 'exercise', params: { slug: ex.slug } })
+  running.value = false
+  submitting.value = false
+  if (!runtime.value && !runtimeFailed.value) void loadRuntime()
+  void loadSubmissions(ex.id, version)
+  try {
+    const raw = sessionStorage.getItem('javacourse.lab.snippet')
+    if (raw) {
+      sessionStorage.removeItem('javacourse.lab.snippet')
+      const payload = JSON.parse(raw)
+      if (typeof payload?.code === 'string') code.value = payload.code
+    }
+  } catch {
+    // Ignore invalid code handoffs.
   }
-  void loadSubmissions(ex.id)
 }
 
-async function loadSubmissions(exerciseId: number) {
+async function loadSubmissions(exerciseId: number, version: number) {
   try {
-    submissions.value = await codeApi.submissions(exerciseId)
+    const result = await codeApi.submissions(exerciseId)
+    if (version === selectionVersion) submissions.value = result
   } catch {
-    submissions.value = []
+    if (version === selectionVersion) submissions.value = []
   }
 }
 
 async function doRun() {
   if (!ready.value || running.value) return
+  const version = selectionVersion
   running.value = true
+  error.value = ''
   judgeResult.value = null
   try {
-    runResult.value = await codeApi.run(code.value, stdin.value)
+    const result = await codeApi.run(code.value, stdin.value)
+    if (version === selectionVersion) runResult.value = result
   } catch (e) {
-    error.value = errMsg(e)
+    if (version === selectionVersion) error.value = errMsg(e)
   } finally {
-    running.value = false
+    if (version === selectionVersion) running.value = false
   }
 }
 
 async function doSubmit() {
   if (!ready.value || submitting.value || !current.value) return
+  const version = selectionVersion
+  const exerciseId = current.value.id
   submitting.value = true
+  error.value = ''
   try {
-    judgeResult.value = await codeApi.submit(current.value.id, code.value)
-    await loadSubmissions(current.value.id)
+    const result = await codeApi.submit(exerciseId, code.value)
+    if (version === selectionVersion) {
+      judgeResult.value = result
+      await loadSubmissions(exerciseId, version)
+    }
   } catch (e) {
-    error.value = errMsg(e)
+    if (version === selectionVersion) error.value = errMsg(e)
   } finally {
-    submitting.value = false
+    if (version === selectionVersion) submitting.value = false
   }
 }
 
@@ -165,239 +213,226 @@ function resetCode() {
   }
 }
 
-watch(() => route.params.slug, (slug) => {
-  if (typeof slug === 'string' && exercises.value.length) selectBySlug(slug)
+watch(slug, (selectedSlug) => {
+  if (selectedSlug && !loading.value) selectBySlug(selectedSlug)
 })
 
-onMounted(async () => {
-  await load()
-  // 从课时页「✎ 在编辑器中打开」带过来的示例代码
-  try {
-    const raw = sessionStorage.getItem('javacourse.lab.snippet')
-    if (raw) {
-      sessionStorage.removeItem('javacourse.lab.snippet')
-      const payload = JSON.parse(raw)
-      if (payload?.code) {
-        code.value = payload.code
-        runResult.value = null
-        judgeResult.value = null
-      }
-    }
-  } catch {
-    /* 忽略 */
-  }
-})
+onMounted(load)
 </script>
 
 <template>
   <div class="container ex">
-    <!-- 环境自检横幅 -->
-    <div v-if="runtime && !ready" class="ex__alert ex__alert--warn">
-      <strong>⚠ 代码执行环境未就绪</strong>
-      <p>{{ runtime.note }}</p>
-      <p class="ex__alert-hint">
-        配置方式：安装 JDK 17+ 后设置环境变量 <code>CODE_JAVA_HOME</code> 指向 JDK 根目录，
-        或在 <code>application.yml</code> 里设置 <code>app.code.java-home</code>，然后重启后端。
-      </p>
+    <div v-if="loading" class="card ex__loading" role="status">加载中…</div>
+    <div v-else-if="loadError" class="card ex__loading" role="alert">
+      <p>{{ loadError }}</p>
+      <button class="btn btn--primary" type="button" @click="load">重试加载</button>
     </div>
-    <div v-else-if="runtime" class="ex__alert ex__alert--ok">
-      <strong>✓ 代码执行环境就绪</strong>
-      <p>
-        {{ runtime.javacVersion }} ｜ 单次运行上限 {{ runtime.timeoutMs }}ms ｜
-        堆上限 {{ runtime.memoryLimitMb }}MB ｜ 输出上限 {{ runtime.maxOutputChars }} 字符
-      </p>
-    </div>
-
-    <div class="ex__layout">
-      <!-- 左侧：习题列表 -->
-      <aside class="card ex__side">
-        <div class="section-head">
-          <span class="dot" /><h2>课后习题</h2><span class="line" />
+    <template v-else-if="!slug">
+      <header class="ex__catalog-heading">
+        <div>
+          <h1 class="title-round">代码练习</h1>
+          <p>选一道题，在线编写、运行并提交判题。</p>
         </div>
-        <p class="ex__side-tip">共 {{ shownExercises.length }} 道，写完点「提交」自动判题</p>
-        <button type="button" class="btn btn--sm ex__resource-filter"
-                :class="resourceOnly ? 'btn--primary' : 'btn--ghost'" :aria-pressed="resourceOnly"
-                @click="resourceOnly = !resourceOnly">只看资料库练习</button>
-        <p v-if="resourceOnly && !shownExercises.length && !loading" class="ex__side-tip">暂无资料库练习。</p>
-        <button
-          v-for="e in shownExercises"
-          :key="e.id"
-          class="ex__item"
-          :class="{ 'is-active': current?.id === e.id }"
-          @click="selectExercise(e)"
-        >
-          <strong>{{ e.title }}</strong>
-          <span class="ex__item-meta">
-            <span class="badge badge--lilac">{{ e.difficulty }}</span>
-            <span class="ex__item-lesson">{{ e.lessonTitle }}</span>
-          </span>
-        </button>
-      </aside>
+        <RouterLink :to="{ name: 'qa' }" class="btn btn--ghost">知识题库 →</RouterLink>
+      </header>
+      <PracticeTopics v-if="topics.length" :topics="topics" :selected="topicId"
+        @select="$event ? setFilter('topic', $event) : clearFilters(true)" />
+      <div class="ex__filters" aria-label="筛选代码练习">
+        <label class="ex__field ex__field--search">关键词<input v-model="keyword" type="search" placeholder="搜题名、课时或题意" /></label>
+        <label class="ex__field">难度
+          <select v-model="difficulty"><option value="">全部难度</option><option v-for="level in practiceLevels" :key="level.id" :value="level.id">{{ level.label }}</option></select>
+        </label>
+        <label class="ex__field">来源
+          <select :value="resourceOnly ? 'all' : ''" @change="setFilter('resource', ($event.target as HTMLSelectElement).value)">
+            <option value="">全部来源</option><option value="all">资料库练习</option>
+          </select>
+        </label>
+        <button v-if="filtersActive" class="btn btn--sm btn--ghost" type="button" @click="clearFilters()">清除筛选</button>
+      </div>
+      <section v-if="topicId || filtersActive" aria-labelledby="ex-results">
+        <div class="ex__results-head">
+          <h2 id="ex-results" class="title-round">{{ topic?.title || '筛选结果' }}</h2>
+          <span role="status">{{ shownExercises.length }} 道题</span>
+        </div>
+        <p v-if="!shownExercises.length" class="card ex__loading">没有匹配的练习，试试更换分区或筛选条件。</p>
+        <ul v-else class="ex__catalog-list">
+          <li v-for="exercise in shownExercises" :key="exercise.id">
+            <RouterLink class="ex__catalog-item card" :to="{ name: 'exercise', params: { slug: exercise.slug }, query: route.query }">
+              <div>
+                <strong>{{ exercise.title }}</strong>
+                <span class="ex__catalog-lesson">{{ exercise.lessonTitle || '通用练习' }}</span>
+              </div>
+              <span class="badge badge--lilac">{{ practiceLevelLabel(exercise.difficulty) }}</span>
+              <span aria-hidden="true">→</span>
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
+      <p v-else-if="!exercises.length" class="card ex__loading">暂时没有代码练习。</p>
+    </template>
+    <template v-else>
+      <RouterLink class="ex__back" :to="{ name: 'exercises', query: route.query }">← 返回练习目录</RouterLink>
+      <div v-if="error && !current" class="card ex__loading" role="alert">{{ error }}</div>
+      <section v-else-if="current" class="ex__main">
+        <div v-if="runtimeFailed || (runtime && !ready)" class="ex__alert ex__alert--warn" role="status">
+          <p>{{ runtime?.note || '暂时无法获取代码运行环境。' }}</p>
+          <button type="button" class="btn btn--sm btn--ghost" @click="loadRuntime">重试检测</button>
+        </div>
+        <!-- 题面 -->
+        <div class="card ex__head">
+          <div class="ex__head-top">
+            <span class="badge badge--coral">{{ practiceLevelLabel(current.difficulty) }}</span>
+            <RouterLink v-if="current.lessonSlug" class="badge badge--mint" :to="{ name: 'lesson', params: { slug: current.lessonSlug } }">{{ current.lessonTitle }}</RouterLink>
+            <span v-if="resourceNote" class="badge badge--lilac">资料库</span>
+            <button class="btn btn--sm btn--ghost" @click="resetCode">重置代码</button>
+          </div>
+          <h1 class="title-round ex__title">{{ current.title }}</h1>
+          <pre class="ex__desc">{{ current.description }}</pre>
+          <div v-if="resourceNote" class="ex__resource-links">
+            <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'resources', params: { note: resourceNote.id } }">来源讲解</RouterLink>
+            <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'qa', query: { resource: resourceNote.id } }">专题题库</RouterLink>
+          </div>
+          <p v-if="caseNames.length" class="ex__cases-hint">
+            本题共 {{ caseNames.length }} 个测试用例：{{ caseNames.join('、') }}
+          </p>
+          <button v-if="current.hint" class="ex__hint-toggle" @click="showHint = !showHint">
+            {{ showHint ? '收起提示' : '💡 需要提示？' }}
+          </button>
+          <pre v-if="showHint && current.hint" class="ex__hint">{{ current.hint }}</pre>
+        </div>
 
-      <!-- 右侧：题目 + 编辑器 + 结果 -->
-      <section class="ex__main">
-        <div v-if="loading" class="card ex__loading">加载中…</div>
-
-        <div v-else-if="error && !current" class="card ex__loading">{{ error }}</div>
-
-        <template v-else-if="current">
-          <!-- 题面 -->
-          <div class="card ex__head">
-            <div class="ex__head-top">
-              <span class="badge badge--coral">{{ current.difficulty }}</span>
-              <span v-if="current.lessonTitle" class="badge badge--mint">{{ current.lessonTitle }}</span>
-              <span v-if="resourceNote" class="badge badge--lilac">资料库</span>
-              <button class="btn btn--sm btn--ghost" @click="resetCode">重置代码</button>
-            </div>
-            <h1 class="title-round ex__title">{{ current.title }}</h1>
-            <pre class="ex__desc">{{ current.description }}</pre>
-            <div v-if="resourceNote" class="ex__resource-links">
-              <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'resources', params: { note: resourceNote.id } }">来源讲解</RouterLink>
-              <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'qa', query: { resource: resourceNote.id } }">专题题库</RouterLink>
-            </div>
-            <p v-if="caseNames.length" class="ex__cases-hint">
-              本题共 {{ caseNames.length }} 个测试用例：{{ caseNames.join('、') }}
-            </p>
-            <button v-if="current.hint" class="ex__hint-toggle" @click="showHint = !showHint">
-              {{ showHint ? '收起提示' : '💡 需要提示？' }}
+        <!-- 编辑器 + 结果 -->
+        <div class="card ex__work">
+          <div class="ex__toolbar">
+            <button class="btn btn--primary" :disabled="!ready || running" @click="doRun">
+              {{ running ? '运行中…' : '▶ 运行' }}
             </button>
-            <pre v-if="showHint && current.hint" class="ex__hint">{{ current.hint }}</pre>
+            <button class="btn btn--sun" :disabled="!ready || submitting" @click="doSubmit">
+              {{ submitting ? '判题中…' : '✓ 提交判题' }}
+            </button>
+            <span class="ex__kbd">快捷键：Ctrl + Enter 运行</span>
+            <span v-if="error" class="ex__err">{{ error }}</span>
           </div>
 
-          <!-- 编辑器 + 结果 -->
-          <div class="card ex__work">
-            <div class="ex__toolbar">
-              <button class="btn btn--primary" :disabled="!ready || running" @click="doRun">
-                {{ running ? '运行中…' : '▶ 运行' }}
-              </button>
-              <button class="btn btn--sun" :disabled="!ready || submitting" @click="doSubmit">
-                {{ submitting ? '判题中…' : '✓ 提交判题' }}
-              </button>
-              <span class="ex__kbd">快捷键：Ctrl + Enter 运行</span>
-              <span v-if="error" class="ex__err">{{ error }}</span>
+          <div class="ex__editor">
+            <CodeEditor
+              ref="editorRef"
+              v-model="code"
+              :readonly="!ready"
+              :min-rows="16"
+              :max-rows="30"
+              @run="doRun"
+            />
+          </div>
+
+          <!-- 标准输入 -->
+          <div class="ex__stdin">
+            <label class="ex__stdin-label">
+              标准输入（stdin）
+              <span class="ex__stdin-hint">题目要求读入数据时填在这里，会作为程序输入</span>
+            </label>
+            <textarea
+              v-model="stdin"
+              class="ex__stdin-box"
+              rows="2"
+              placeholder="例如：&#10;5&#10;1 2 3 4 5"
+            />
+          </div>
+
+          <!-- 运行结果 -->
+          <div v-if="runResult" class="ex__result">
+            <div class="ex__result-head">
+              <span class="ex__status" :class="runResult.success ? 'is-pass' : 'is-err'">
+                {{ runResult.success ? '✓ 编译并运行成功' : '✗ ' + runResult.message }}
+              </span>
+              <span class="ex__duration">{{ runResult.durationMs }} ms</span>
             </div>
-
-            <div class="ex__editor">
-              <CodeEditor
-                ref="editorRef"
-                v-model="code"
-                :readonly="!ready"
-                :min-rows="16"
-                :max-rows="30"
-                @run="doRun"
-              />
+            <div v-if="runResult.output" class="ex__block">
+              <div class="ex__block-label">编译器输出</div>
+              <pre class="ex__pre ex__pre--err">{{ runResult.output }}</pre>
             </div>
-
-            <!-- 标准输入 -->
-            <div class="ex__stdin">
-              <label class="ex__stdin-label">
-                标准输入（stdin）
-                <span class="ex__stdin-hint">题目要求读入数据时填在这里，会作为程序输入</span>
-              </label>
-              <textarea
-                v-model="stdin"
-                class="ex__stdin-box"
-                rows="2"
-                placeholder="例如：&#10;5&#10;1 2 3 4 5"
-              />
+            <div v-if="runResult.stdout" class="ex__block">
+              <div class="ex__block-label">标准输出</div>
+              <pre class="ex__pre ex__pre--out">{{ runResult.stdout }}</pre>
             </div>
-
-            <!-- 运行结果 -->
-            <div v-if="runResult" class="ex__result">
-              <div class="ex__result-head">
-                <span class="ex__status" :class="runResult.success ? 'is-pass' : 'is-err'">
-                  {{ runResult.success ? '✓ 编译并运行成功' : '✗ ' + runResult.message }}
-                </span>
-                <span class="ex__duration">{{ runResult.durationMs }} ms</span>
-              </div>
-              <div v-if="runResult.output" class="ex__block">
-                <div class="ex__block-label">编译器输出</div>
-                <pre class="ex__pre ex__pre--err">{{ runResult.output }}</pre>
-              </div>
-              <div v-if="runResult.stdout" class="ex__block">
-                <div class="ex__block-label">标准输出</div>
-                <pre class="ex__pre ex__pre--out">{{ runResult.stdout }}</pre>
-              </div>
-              <div v-if="runResult.stderr" class="ex__block">
-                <div class="ex__block-label">标准错误 / 异常栈</div>
-                <pre class="ex__pre ex__pre--err">{{ runResult.stderr }}</pre>
-              </div>
+            <div v-if="runResult.stderr" class="ex__block">
+              <div class="ex__block-label">标准错误 / 异常栈</div>
+              <pre class="ex__pre ex__pre--err">{{ runResult.stderr }}</pre>
             </div>
+          </div>
 
-            <!-- 判题结果 -->
-            <div v-if="judgeResult" class="ex__result">
-              <div class="ex__result-head">
-                <span class="ex__status" :class="statusMeta?.cls">{{ statusMeta?.icon }} {{ statusMeta?.label }}</span>
-                <span class="ex__score">
-                  {{ judgeResult.passedCount }} / {{ judgeResult.totalCount }} 用例通过
-                </span>
-                <span class="ex__duration">{{ judgeResult.durationMs }} ms</span>
-              </div>
-              <p class="ex__judge-msg">{{ judgeResult.message }}</p>
+          <!-- 判题结果 -->
+          <div v-if="judgeResult" class="ex__result">
+            <div class="ex__result-head">
+              <span class="ex__status" :class="statusMeta?.cls">{{ statusMeta?.icon }} {{ statusMeta?.label }}</span>
+              <span class="ex__score">
+                {{ judgeResult.passedCount }} / {{ judgeResult.totalCount }} 用例通过
+              </span>
+              <span class="ex__duration">{{ judgeResult.durationMs }} ms</span>
+            </div>
+            <p class="ex__judge-msg">{{ judgeResult.message }}</p>
 
-              <div v-if="judgeResult.cases?.length" class="ex__cases">
-                <div
-                  v-for="(c, i) in judgeResult.cases"
-                  :key="i"
-                  class="ex__case"
-                  :class="c.passed ? 'is-pass' : 'is-fail'"
-                >
-                  <div class="ex__case-head">
-                    <span>{{ c.passed ? '✓' : '✗' }} {{ c.name }}</span>
-                    <span v-if="!c.passed && c.note" class="ex__case-note">{{ c.note }}</span>
+            <div v-if="judgeResult.cases?.length" class="ex__cases">
+              <div
+                v-for="(c, i) in judgeResult.cases"
+                :key="i"
+                class="ex__case"
+                :class="c.passed ? 'is-pass' : 'is-fail'"
+              >
+                <div class="ex__case-head">
+                  <span>{{ c.passed ? '✓' : '✗' }} {{ c.name }}</span>
+                  <span v-if="!c.passed && c.note" class="ex__case-note">{{ c.note }}</span>
+                </div>
+                <div v-if="!c.passed" class="ex__case-diff">
+                  <div class="ex__case-side">
+                    <span class="ex__case-tag">期望输出</span>
+                    <pre class="ex__pre ex__pre--out">{{ c.expected || '（空）' }}</pre>
                   </div>
-                  <div v-if="!c.passed" class="ex__case-diff">
-                    <div class="ex__case-side">
-                      <span class="ex__case-tag">期望输出</span>
-                      <pre class="ex__pre ex__pre--out">{{ c.expected || '（空）' }}</pre>
-                    </div>
-                    <div class="ex__case-side">
-                      <span class="ex__case-tag">你的输出</span>
-                      <pre class="ex__pre ex__pre--out">{{ c.actual || '（空）' }}</pre>
-                    </div>
+                  <div class="ex__case-side">
+                    <span class="ex__case-tag">你的输出</span>
+                    <pre class="ex__pre ex__pre--out">{{ c.actual || '（空）' }}</pre>
                   </div>
                 </div>
               </div>
-
-              <div v-if="judgeResult.errorOutput" class="ex__block">
-                <div class="ex__block-label">编译错误 / 异常信息</div>
-                <pre class="ex__pre ex__pre--err">{{ judgeResult.errorOutput }}</pre>
-              </div>
             </div>
 
-            <!-- 历史提交 -->
-            <div v-if="submissions.length" class="ex__history">
-              <div class="ex__block-label">我的提交记录</div>
-              <table class="ex__table">
-                <thead>
-                  <tr><th>时间</th><th>结果</th><th>通过</th><th>耗时</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="s in submissions" :key="s.id">
-                    <td>{{ s.createdAt }}</td>
-                    <td>
-                      <span class="ex__status-sm" :class="s.status === 'PASSED' ? 'is-pass' : 'is-fail'">
-                        {{ s.status }}
-                      </span>
-                    </td>
-                    <td>{{ s.passedCount }}/{{ s.totalCount }}</td>
-                    <td>{{ s.durationMs }} ms</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div v-if="judgeResult.errorOutput" class="ex__block">
+              <div class="ex__block-label">编译错误 / 异常信息</div>
+              <pre class="ex__pre ex__pre--err">{{ judgeResult.errorOutput }}</pre>
             </div>
           </div>
-        </template>
+
+          <!-- 历史提交 -->
+          <div v-if="submissions.length" class="ex__history">
+            <div class="ex__block-label">我的提交记录</div>
+            <table class="ex__table">
+              <thead>
+                <tr><th>时间</th><th>结果</th><th>通过</th><th>耗时</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in submissions" :key="s.id">
+                  <td>{{ s.createdAt }}</td>
+                  <td>
+                    <span class="ex__status-sm" :class="s.status === 'PASSED' ? 'is-pass' : 'is-fail'">
+                      {{ s.status }}
+                    </span>
+                  </td>
+                  <td>{{ s.passedCount }}/{{ s.totalCount }}</td>
+                  <td>{{ s.durationMs }} ms</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
-    </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.ex__resource-filter { margin-bottom: 10px; }
 .ex__resource-links { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
 .ex {
-  padding: var(--space-lg) 0;
+  padding-block: var(--space-lg) var(--space-xl);
 }
 
 /* ---------- 环境横幅 ---------- */
@@ -411,59 +446,28 @@ onMounted(async () => {
   line-height: 1.7;
 }
 .ex__alert p { margin: 4px 0 0; color: var(--c-ink-soft); }
-.ex__alert--ok { background: #e6fbe9; }
 .ex__alert--warn { background: var(--c-cream-deep); }
-.ex__alert-hint { font-size: 13px; }
-.ex__alert code {
-  background: var(--c-paper);
-  border: 1px solid var(--c-line);
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-size: 12px;
-}
+.ex__alert .btn { margin-top: 8px; }
+.ex__catalog-heading, .ex__results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.ex__catalog-heading h1 { margin: 0 0 6px; font-size: 34px; }
+.ex__catalog-heading p { margin: 0; color: var(--c-ink-soft); }
+.ex__filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 24px; padding: 14px; background: var(--c-cream); border: 1px solid #d0c5e6; border-radius: var(--radius-md); }
+.ex__field { display: grid; gap: 5px; min-width: 0; font-size: 13px; font-weight: 700; }
+.ex__field--search { flex: 1 1 180px; }
+.ex__field :is(input,select) { width: 100%; min-width: 0; max-width: 100%; padding: 8px 9px; border: 1px solid #8e85a6; border-radius: 8px; background: var(--c-paper); color: var(--c-ink); font: inherit; font-weight: 400; }
+.ex__results-head h2 { margin: 0; }
+.ex__catalog-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0; list-style: none; }
+.ex__catalog-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; height: 100%; padding: 14px; color: var(--c-ink); text-decoration: none; }
+.ex__catalog-item:hover { background: #f4efff; }
+.ex__catalog-lesson { display: block; margin-top: 3px; color: var(--c-ink-soft); font-size: .81rem; }
+.ex__back { display: inline-block; margin-bottom: 15px; color: var(--c-ink-soft); }
+.ex__main { max-width: 1020px; margin-inline: auto; }
 
-/* ---------- 布局 ---------- */
-.ex__layout {
-  display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: var(--space-md);
-  align-items: start;
+@media (max-width: 700px) {
+  .ex__catalog-list { grid-template-columns: minmax(0, 1fr); }
+  .ex__field { flex: 1 1 105px; }
+  .ex__field--search { flex-basis: 100%; }
 }
-
-/* ---------- 侧栏 ---------- */
-.ex__side { padding: var(--space-md); position: sticky; top: 90px; }
-@media (max-width: 900px) {
-  .ex__layout { grid-template-columns: minmax(0, 1fr); }
-  .ex__side { position: static; max-height: min(50vh, 24rem); overflow-y: auto; }
-}
-.ex__side-tip { font-size: 12px; color: var(--c-ink-faint); margin: 6px 0 12px; }
-.ex__item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  background: var(--c-cream);
-  border: var(--bw-thin) solid var(--c-line);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--c-ink);
-  transition: transform .12s ease, background .12s ease;
-}
-.ex__item:hover { background: var(--c-sun); transform: translateX(2px); }
-.ex__item.is-active {
-  background: var(--c-mint);
-  color: #fff;
-  box-shadow: 3px 3px 0 var(--c-line);
-}
-.ex__item-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-}
-.ex__item-lesson { font-size: 11px; opacity: .8; }
 
 /* ---------- 题面 ---------- */
 .ex__head { padding: var(--space-md); margin-bottom: var(--space-md); }
