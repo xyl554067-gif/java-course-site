@@ -168,14 +168,18 @@ async function loadSubmissions(exerciseId: number, version: number) {
 async function doRun() {
   if (!ready.value || running.value) return
   const version = selectionVersion
+  const source = code.value
+  const input = stdin.value
+  const matchesEditor = () => version === selectionVersion && source === code.value && input === stdin.value
   running.value = true
   error.value = ''
+  runResult.value = null
   judgeResult.value = null
   try {
-    const result = await codeApi.run(code.value, stdin.value)
-    if (version === selectionVersion) runResult.value = result
+    const result = await codeApi.run(source, input)
+    if (matchesEditor()) runResult.value = result
   } catch (e) {
-    if (version === selectionVersion) error.value = errMsg(e)
+    if (matchesEditor()) error.value = errMsg(e)
   } finally {
     if (version === selectionVersion) running.value = false
   }
@@ -185,16 +189,18 @@ async function doSubmit() {
   if (!ready.value || submitting.value || !current.value) return
   const version = selectionVersion
   const exerciseId = current.value.id
+  const source = code.value
   submitting.value = true
   error.value = ''
+  judgeResult.value = null
   try {
-    const result = await codeApi.submit(exerciseId, code.value)
+    const result = await codeApi.submit(exerciseId, source)
     if (version === selectionVersion) {
-      judgeResult.value = result
+      if (source === code.value) judgeResult.value = result
       await loadSubmissions(exerciseId, version)
     }
   } catch (e) {
-    if (version === selectionVersion) error.value = errMsg(e)
+    if (version === selectionVersion && source === code.value) error.value = errMsg(e)
   } finally {
     if (version === selectionVersion) submitting.value = false
   }
@@ -216,6 +222,12 @@ function resetCode() {
 watch(slug, (selectedSlug) => {
   if (selectedSlug && !loading.value) selectBySlug(selectedSlug)
 })
+
+watch([code, stdin], () => {
+  runResult.value = null
+  error.value = ''
+})
+watch(code, () => { judgeResult.value = null })
 
 onMounted(load)
 </script>
