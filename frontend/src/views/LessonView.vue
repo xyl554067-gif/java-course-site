@@ -14,7 +14,7 @@ import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import hljs from 'highlight.js/lib/common'
 import 'highlight.js/styles/github.css'
-import { courseApi, codeApi, type QaItem } from '@/api'
+import { courseApi, codeApi, type CodeRunResult, type CodeRuntime, type CodeSnippet, type QaItem } from '@/api'
 import { errMsg, getToken, API_BASE_URL } from '@/api/http'
 import { useAgentStore } from '@/stores/agent'
 import { useProgressStore, type ReadingPosition, type SelfCheckResult } from '@/stores/progress'
@@ -66,7 +66,8 @@ const comicPrompt = computed(() => {
     : undefined
 })
 function jumpToHeading(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-const snippets = ref<any[]>([])
+type LessonSnippet = CodeSnippet & { stdin?: string | null }
+const snippets = ref<LessonSnippet[]>([])
 const hasLessonVideos = ref(false)
 const knowledge = ref<any[]>([])
 const prev = ref<any>(null)
@@ -601,14 +602,18 @@ function askAboutThis() {
 // ------------------------------------------------------------------
 // 代码实验室：把课程里的示例代码真正跑起来
 // ------------------------------------------------------------------
-/** 代码执行环境是否就绪（未就绪时禁用运行按钮并说明原因） */
-const codeRuntime = ref<any>(null)
-/** 正在运行的示例 id */
+const codeRuntime = ref<CodeRuntime | null>(null)
+const checkingRuntime = ref(false)
+const runtimeError = ref('')
 const runningSnippet = ref<number | null>(null)
-/** 每个示例的运行结果：{ status, stdout, stderr, output, message, durationMs, success } */
-const snippetRuns = ref<Record<number, any>>({})
-const accountDemo = computed(() => isEncapsulationLesson.value ? snippets.value[0] : null)
+type SnippetRun = Pick<CodeRunResult, 'success' | 'stdout' | 'stderr' | 'output' | 'message'>
+const snippetRuns = ref<Record<number, SnippetRun>>({})
+const accountDemo = computed(() => isEncapsulationLesson.value && lesson.value?.slug === lessonSlug.value ? snippets.value[0] : null)
 const accountDemoResult = computed(() => accountDemo.value ? snippetRuns.value[accountDemo.value.id] : null)
+const accountDemoOutput = computed(() => {
+  const result = accountDemoResult.value
+  return result?.output || result?.stdout || result?.stderr || ''
+})
 /** 该课时的习题 */
 const exercises = ref<any[]>([])
 const qaItems = ref<QaItem[]>([])
@@ -641,15 +646,25 @@ function qaOptions(raw: string) { try { const v=JSON.parse(raw||'[]'); return Ar
 function qaAnswerKey(raw: string) { return raw === 'TRUE' ? '正确' : raw === 'FALSE' ? '错误' : raw }
 
 async function loadCodeEnv() {
+  if (checkingRuntime.value) return
+  checkingRuntime.value = true
+  runtimeError.value = ''
   try {
     codeRuntime.value = await codeApi.runtime()
-  } catch {
-    codeRuntime.value = { ready: false, note: '无法获取代码执行环境状态（后端可能未启动）' }
+  } catch (e) {
+    codeRuntime.value = null
+    runtimeError.value = errMsg(e)
+  } finally {
+    checkingRuntime.value = false
   }
 }
 
+watch(accountDemo, (demo) => {
+  if (demo && !codeRuntime.value?.ready) void loadCodeEnv()
+})
+
 /** 运行某个示例代码 */
-async function runSnippet(s: any) {
+async function runSnippet(s: LessonSnippet) {
   if (!codeRuntime.value?.ready || runningSnippet.value !== null) return
   runningSnippet.value = s.id
   try {
@@ -659,13 +674,11 @@ async function runSnippet(s: any) {
     snippetRuns.value = {
       ...snippetRuns.value,
       [s.id]: {
-        status: 'COMPILE_ERROR',
         success: false,
         stdout: '',
         stderr: '',
         output: '',
         message: errMsg(e),
-        durationMs: 0,
       },
     }
   } finally {
@@ -674,7 +687,7 @@ async function runSnippet(s: any) {
 }
 
 /** 打开独立代码实验室，不进入习题列表 */
-function openInLab(s: any) {
+function openInLab(s: LessonSnippet) {
   void router.push({ name: 'lesson-lab', params: { slug: route.params.slug }, query: { snippet: String(s.id) } })
 }
 
@@ -686,7 +699,6 @@ onMounted(() => {
   window.addEventListener('pagehide', onPageHide)
   void load(route.params.slug as string)
   void progress.loadMarks()
-  void loadCodeEnv()
   void codeApi.exercises().then((list) => {
     exercises.value = list
   }).catch(() => {
@@ -790,10 +802,14 @@ watch(() => route.params.slug, (slug) => {
                   </button>
                   <button type="button" class="btn btn--sm btn--ghost" @click="openInLab(accountDemo)">打开可编辑的实验室</button>
                 </div>
-                <p v-if="codeRuntime && !codeRuntime.ready">在线运行暂不可用，可按上面的预期输出讲解。</p>
+                <p v-if="checkingRuntime" role="status">正在检查 Java 运行环境…</p>
+                <div v-else-if="!codeRuntime?.ready" class="inline-runtime-error">
+                  <p role="status">{{ runtimeError || codeRuntime?.note || 'Java 运行环境暂未就绪。' }}</p>
+                  <button type="button" class="btn btn--sm btn--ghost" @click="loadCodeEnv">重试检查运行环境</button>
+                </div>
                 <div v-if="accountDemoResult" role="status">
-                  <strong>{{ accountDemoResult.success ? '实际输出' : '示例未能运行' }}</strong>
-                  <pre>{{ accountDemoResult.success ? accountDemoResult.stdout : accountDemoResult.message }}</pre>
+                  <strong>{{ accountDemoResult.success ? '实际输出' : accountDemoResult.message }}</strong>
+                  <pre v-if="accountDemoOutput">{{ accountDemoOutput }}</pre>
                 </div>
               </div>
 
@@ -937,7 +953,8 @@ watch(() => route.params.slug, (slug) => {
 .topic-lesson-action { max-width: 760px; margin: 14px auto 0; padding: 12px 14px; background: #f3effb; border: 1px solid #dbd0ef; border-radius: var(--radius-md); }
 .topic-lesson-action__links { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; }
 .topic-lesson-action p, .topic-lesson-action [role="status"] { margin: 10px 0 0; }
-.topic-lesson-action pre { margin: 6px 0 0; padding: 9px; background: var(--c-paper); border-radius: 8px; white-space: pre-wrap; }
+.topic-lesson-action pre { margin: 6px 0 0; padding: 9px; background: var(--c-paper); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.inline-runtime-error button { margin-top: 8px; }
 .topic-lesson-readings { margin-top: 24px; }
 .topic-lesson-readings summary { cursor: pointer; font-weight: 750; }
 .topic-lesson-readings li + li { margin-top: 6px; }
