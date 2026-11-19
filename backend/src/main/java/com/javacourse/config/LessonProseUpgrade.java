@@ -83,8 +83,11 @@ class LessonProseUpgrade implements ApplicationRunner {
 
     private void seedEncapsulationExample() {
         // Serialize seeding for this lesson across app instances. The SQL skips any existing example.
-        var lessons = jdbc.queryForList("SELECT l.id " + BUILT_IN_LESSONS
-                + "WHERE c.slug = ? AND l.slug = ? FOR UPDATE OF l", Long.class, COURSE, "oop-core");
+        var lessons = jdbc.queryForList("""
+                SELECT id FROM lesson WHERE slug = ? AND module_id IN (
+                    SELECT m.id FROM course_module m JOIN course c ON c.id = m.course_id WHERE c.slug = ?
+                ) FOR UPDATE
+                """, Long.class, "oop-core", COURSE);
         if (lessons.isEmpty()) return;
         var seed = new ResourceDatabasePopulator(new ClassPathResource("db/seed-encapsulation-lab.sql"));
         seed.setSqlScriptEncoding(UTF_8.name());

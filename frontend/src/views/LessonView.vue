@@ -44,6 +44,7 @@ const arrayReviewPrompt: LessonComicPrompt = {
 const activeTab = computed(() => String(route.query.tab || 'notes'))
 const lessonSlug = computed(() => String(route.params.slug || ''))
 const resourceNote = computed(() => resourceNotes.find((note) => note.lessonSlug === lessonSlug.value))
+const hasAccessCheck = computed(() => ['oop-core', 'encapsulation-access'].includes(lessonSlug.value))
 const lessonComic = computed(() => {
   const slug = lessonSlug.value
   return Object.prototype.hasOwnProperty.call(lessonComics, slug)
@@ -556,12 +557,14 @@ async function load(slug: string) {
     prev.value = r.prev || null
     next.value = r.next || null
     selfCheckStage.value = stored?.progress?.selfCheckStage ?? 0
-    document.title = `${lesson.value?.title || '课时'} · Java 精通之路`
+    document.title = `${lesson.value?.title || '课时'} · ${lesson.value?.courseTitle || 'Java 精通之路'}`
     loading.value = false
     await nextTick()
     if (version !== loadVersion) return
     window.scrollTo({ top: 0, behavior: 'instant' })
-    if (reviewing.value) {
+    if (route.hash === '#access-check' && hasAccessCheck.value && activeTab.value === 'notes') {
+      scrollToAccessCheck()
+    } else if (reviewing.value) {
       quizArea.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
     } else if (route.query.resume === '1' && stored?.progress?.readingSection) {
       document.getElementById(stored.progress.readingSection)?.scrollIntoView({ block: 'start', behavior: 'instant' })
@@ -577,7 +580,7 @@ async function load(slug: string) {
 
 function askAboutThis() {
   agent.open()
-  void agent.ask(`请帮我讲解「${lesson.value?.title}」这一节的重点，并给出常见坑。`)
+  void agent.ask(`请帮我讲解「${lesson.value?.title}」这一节的重点，并给出常见坑。`, { lessonSlug: lessonSlug.value })
 }
 
 // ------------------------------------------------------------------
@@ -688,7 +691,7 @@ watch(() => route.params.slug, (slug) => {
       <!-- 顶部标题 -->
       <header class="lesson__head card anim-pop">
         <div class="lesson__head-top">
-          <RouterLink :to="{ name: 'course', params: { slug: 'java-mastery' } }" class="lesson__crumb">← 课程目录</RouterLink>
+          <RouterLink :to="{ name: 'course', params: { slug: lesson.courseSlug || 'java-mastery' } }" class="lesson__crumb">← 课程目录</RouterLink>
           <button class="btn btn--sm btn--sun" @click="askAboutThis">🐳 问鲸鲸</button>
         </div>
         <div class="lesson__intro">
@@ -723,7 +726,7 @@ watch(() => route.params.slug, (slug) => {
           <button v-if="lessonComic && activeTab !== 'exercises'" class="btn btn--sm btn--ghost" @click="scrollToQuiz">
             🐳 漫画自测
           </button>
-          <button v-if="lessonSlug === 'oop-core' && activeTab !== 'exercises'" type="button" class="btn btn--sm btn--ghost" @click="scrollToAccessCheck">
+          <button v-if="hasAccessCheck && activeTab !== 'exercises'" type="button" class="btn btn--sm btn--ghost" @click="scrollToAccessCheck">
             访问权限判断
           </button>
           <span v-if="selfCheckStage >= 2" class="badge badge--mint">自测通过</span>
@@ -742,7 +745,7 @@ watch(() => route.params.slug, (slug) => {
         <!-- 正文 -->
         <article class="lesson__body card">
           <div class="md-body" v-html="renderedLesson.html" @click="copyLessonCode" />
-          <AccessControlCheck v-if="lessonSlug === 'oop-core'" :key="lessonSlug" />
+          <AccessControlCheck v-if="hasAccessCheck" :key="lessonSlug" :lab-slug="lessonSlug === 'oop-core' ? lessonSlug : 'encapsulation-account'" />
 
           <section v-if="snippets.length" class="notebook-examples">
             <div class="section-head"><span class="dot" /><h2>本节代码示例</h2><span class="line" /></div>

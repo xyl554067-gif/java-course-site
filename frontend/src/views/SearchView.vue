@@ -49,6 +49,7 @@ function submitSearch(keyword: string) {
 }
 
 const TYPE_LABEL: Record<string, string> = {
+  COURSE: '课程',
   LESSON: '课时',
   MODULE: '模块',
   KNOWLEDGE: '知识点',
@@ -56,6 +57,7 @@ const TYPE_LABEL: Record<string, string> = {
   QA: '题目',
 }
 const TYPE_BADGE: Record<string, string> = {
+  COURSE: 'badge--lilac',
   LESSON: 'badge--mint',
   MODULE: 'badge--lilac',
   KNOWLEDGE: 'badge--sun',

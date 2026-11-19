@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { courseApi, type Course, type CourseModule } from '@/api'
+import EncapsulationCourse from '@/components/EncapsulationCourse.vue'
 import { useAgentStore } from '@/stores/agent'
 import { useProgressStore } from '@/stores/progress'
 import { errMsg } from '@/api/http'
@@ -16,6 +17,9 @@ const videoLessonIds = ref<number[]>([])
 const loading = ref(true)
 const error = ref('')
 const openModules = ref<Record<number, boolean>>({})
+const topicSlug = 'java-encapsulation'
+const topicCourse = ref<Course>()
+const lessons = computed(() => modules.value.flatMap(module => module.lessons ?? []))
 let loadVersion = 0
 
 const ICONS: Record<string, string> = {
@@ -50,7 +54,14 @@ async function load(slug: string) {
   }
 }
 
-watch(() => route.params.slug, (slug) => { void load(String(slug)) }, { immediate: true })
+watch(() => route.params.slug, (slug) => {
+  void load(String(slug))
+  if (slug === 'java-mastery' && !topicCourse.value) {
+    void courseApi.list().then(list => {
+      topicCourse.value = list.find(item => item.slug === topicSlug)
+    }).catch(() => {})
+  }
+}, { immediate: true })
 
 onMounted(() => {
   void progress.load().catch(() => {})
@@ -64,6 +75,9 @@ onMounted(() => {
       <p>{{ error }}</p>
       <button type="button" class="btn btn--primary" @click="load(String(route.params.slug))">重试加载课程</button>
     </div>
+
+    <EncapsulationCourse v-else-if="course?.slug === topicSlug"
+      :course="course" :lessons="lessons" :video-lesson-ids="videoLessonIds" />
 
     <template v-else-if="course">
       <header class="cview__hero card anim-pop">
@@ -80,6 +94,15 @@ onMounted(() => {
           <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'resources' }">资料库</RouterLink>
         </div>
       </header>
+
+      <aside v-if="course.slug === 'java-mastery' && topicCourse" class="course-topic">
+        <div>
+          <p>专题课程</p>
+          <h2>{{ topicCourse.title }}</h2>
+          <span>{{ topicCourse.subtitle }}</span>
+        </div>
+        <RouterLink :to="{ name: 'course', params: { slug: topicSlug } }" class="btn btn--sm btn--ghost">查看专题 →</RouterLink>
+      </aside>
 
       <div class="cview__tree">
         <article v-for="(m, mi) in modules" :key="m.id" class="cmod card">
@@ -144,6 +167,23 @@ onMounted(() => {
 .cview__sub { margin: 0 0 12px; font-size: 16px; font-weight: 700; color: var(--c-coral-deep); }
 .cview__desc { margin: 0 0 16px; font-size: 14.5px; line-height: 1.9; color: var(--c-ink-soft); }
 .cview__tags { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.course-topic {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding: 15px 18px;
+  border: 1px solid #c6b9e3;
+  border-radius: var(--radius-md);
+  background: #f4efff;
+  color: var(--c-ink);
+}
+.course-topic p { margin: 0 0 3px; color: #514181; font-size: .77rem; font-weight: 750; }
+.course-topic h2 { margin: 0 0 4px; font-size: 1.12rem; }
+.course-topic span { color: var(--c-ink-soft); font-size: .86rem; }
 
 .cview__tree { display: flex; flex-direction: column; gap: 18px; }
 .cmod { overflow: hidden; }

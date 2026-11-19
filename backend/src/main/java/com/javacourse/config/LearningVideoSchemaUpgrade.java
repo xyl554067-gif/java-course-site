@@ -2,6 +2,8 @@ package com.javacourse.config;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 public class LearningVideoSchemaUpgrade implements ApplicationRunner {
     private static final String PILOT_BVID = "BV1gE411o7eC";
     private static final String CURATED_VIDEOS_VERSION = "2026-11-12-java-mastery-learning-videos";

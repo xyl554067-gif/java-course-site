@@ -152,14 +152,17 @@ public class CourseRepository {
         List<Map<String, Object>> list = jdbc.query(
                 "SELECT l.id, l.module_id, l.title, l.slug, l.summary, l.content, l.content_html, "
                         + "l.duration_min, l.difficulty, l.sort_order, l.is_preview, l.view_count, "
-                        + "m.title AS module_title, m.course_id "
-                        + "FROM lesson l JOIN course_module m ON m.id = l.module_id WHERE l.id = ?",
+                        + "m.title AS module_title, m.course_id, c.slug AS course_slug, c.title AS course_title "
+                        + "FROM lesson l JOIN course_module m ON m.id = l.module_id "
+                        + "JOIN course c ON c.id = m.course_id WHERE l.id = ?",
                 (rs, i) -> {
                     Map<String, Object> m = new HashMap<>();
                     m.put("id", rs.getLong("id"));
                     m.put("moduleId", rs.getLong("module_id"));
                     m.put("moduleTitle", rs.getString("module_title"));
                     m.put("courseId", rs.getLong("course_id"));
+                    m.put("courseSlug", rs.getString("course_slug"));
+                    m.put("courseTitle", rs.getString("course_title"));
                     m.put("title", rs.getString("title"));
                     m.put("slug", rs.getString("slug"));
                     m.put("summary", rs.getString("summary"));

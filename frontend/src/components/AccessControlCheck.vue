@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+const props = defineProps<{ labSlug: string }>()
+
 const questions = [
   {
     title: '同包的其他类',
@@ -78,7 +80,7 @@ String branchCode() { return "BANK"; }</code></pre>
     </form>
     <p v-if="checked.some(Boolean)" class="access-check__summary" role="status">已答对 {{ correctCount }} / {{ questions.length }} 题</p>
     <div class="access-check__actions">
-      <RouterLink class="btn btn--sm btn--mint" :to="{ name: 'lesson-lab', params: { slug: 'oop-core' } }">去实验室改写账户示例 →</RouterLink>
+      <RouterLink class="btn btn--sm btn--mint" :to="{ name: 'lesson-lab', params: { slug: props.labSlug } }">去实验室改写账户示例 →</RouterLink>
       <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.2.1" target="_blank" rel="noopener noreferrer">核对 Java 访问规则 ↗</a>
     </div>
   </section>
