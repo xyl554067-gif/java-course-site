@@ -8,10 +8,11 @@ const progress = useProgressStore()
 const titleParts = computed(() => props.course.title.split(/(?<=、)|(?=与)/))
 
 const stages = [
-  { time: '0–4', title: '数据封装', explanation: '运行账户示例，观察非法存款后余额不变。' },
-  { time: '4–8', title: '访问控制', explanation: '看四种权限的对照表，判断两段代码能否编译。' },
-  { time: '8–12', title: '包管理', explanation: '对照两个包里的源码，修复一次访问报错。' },
-  { time: '12–15', title: '重构验收', explanation: '检查正常输入、非法输入和整数溢出。' },
+  { title: '认识类与对象', explanation: '从一份班费余额开始，理解类如何表示具体账户。' },
+  { title: '给余额加上规则', explanation: '把余额和存款校验放回账户类，运行代码看效果。' },
+  { title: '用包组织代码', explanation: '把账户和登记入口放到两个包，认识 package 与 import。' },
+  { title: '判断访问权限', explanation: '用一张表理解四种修饰方式，判断两段代码能否编译。' },
+  { title: '修复错误并验收', explanation: '修复跨包调用，核对成功、失败与边界输入。' },
 ]
 </script>
 
@@ -25,19 +26,16 @@ const stages = [
         <RouterLink :to="{ name: 'lesson', params: { slug: lesson.slug } }" class="btn btn--primary">
           {{ progress.isCompleted(lesson.id) ? '复习这节课' : '进入知识点讲解' }} →
         </RouterLink>
-        <span>1 节课 · {{ lesson.durationMin }} 分钟</span>
+        <span>单课 · 面向初学者</span>
       </div>
     </div>
 
-    <section class="topic-timeline" aria-labelledby="topic-timeline-title">
-      <h2 id="topic-timeline-title" class="title-round">课堂路线</h2>
+    <section class="topic-outline" aria-labelledby="topic-outline-title">
+      <h2 id="topic-outline-title" class="title-round">学习路线</h2>
       <ol>
-        <li v-for="stage in stages" :key="stage.time">
-          <span class="topic-timeline__time">{{ stage.time }} 分钟</span>
-          <div>
-            <strong>{{ stage.title }}</strong>
-            <p>{{ stage.explanation }}</p>
-          </div>
+        <li v-for="stage in stages" :key="stage.title">
+          <strong>{{ stage.title }}</strong>
+          <p>{{ stage.explanation }}</p>
         </li>
       </ol>
     </section>
@@ -60,14 +58,14 @@ const stages = [
 .topic-hero__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 22px; }
 .topic-hero__actions span { color: var(--c-ink-soft); font-size: .92rem; }
 
-.topic-timeline { min-width: 0; padding: clamp(14px, 2vw, 22px); border: 1px solid #cdc0e4; border-radius: var(--radius-md); background: var(--c-paper); }
-.topic-timeline h2 { margin: 0 0 12px; font-size: 1.2rem; }
-.topic-timeline ol { padding: 0; margin: 0; list-style: none; }
-.topic-timeline li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 8px 0; }
-.topic-timeline li + li { border-top: 1px solid #e7e0f2; }
-.topic-timeline__time { min-width: 5.2em; font-size: .8rem; font-weight: 750; font-variant-numeric: tabular-nums; color: #514181; white-space: nowrap; }
-.topic-timeline strong { font-size: .93rem; }
-.topic-timeline p { margin: 3px 0 0; color: var(--c-ink-soft); font-size: .83rem; line-height: 1.5; }
+.topic-outline { min-width: 0; padding: clamp(14px, 2vw, 22px); border: 1px solid #cdc0e4; border-radius: var(--radius-md); background: var(--c-paper); }
+.topic-outline h2 { margin: 0 0 12px; font-size: 1.2rem; }
+.topic-outline ol { padding-inline-start: 1.5em; margin: 0; }
+.topic-outline li { padding: 8px 0 8px 4px; }
+.topic-outline li::marker { color: #514181; font-weight: 750; }
+.topic-outline li + li { border-top: 1px solid #e7e0f2; }
+.topic-outline strong { font-size: .93rem; }
+.topic-outline p { margin: 3px 0 0; color: var(--c-ink-soft); font-size: .83rem; line-height: 1.5; }
 
 @media (max-width: 760px) {
   .topic-hero { grid-template-columns: minmax(0, 1fr); }

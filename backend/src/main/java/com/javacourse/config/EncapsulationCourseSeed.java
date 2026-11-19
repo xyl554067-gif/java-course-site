@@ -19,7 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 class EncapsulationCourseSeed implements ApplicationRunner {
     private static final String COURSE_SLUG = "java-encapsulation";
     private static final String COURSE_TITLE = "封装、访问控制与包管理";
-    private static final String SHORT_LESSON_VERSION = "encapsulation-single-lesson-v1";
+    private static final String SHORT_LESSON_VERSION = "encapsulation-beginner-lesson-v2";
     private static final List<Lesson> LESSONS = List.of(
             new Lesson("account", "从余额开始理解封装", "用 private 和受控方法守住余额规则，验证失败的存款不会修改余额。",
                     "封装 数据封装 Account Java private getter deposit", 15),
@@ -97,7 +97,7 @@ class EncapsulationCourseSeed implements ApplicationRunner {
         }
 
         long mainLessonId = lessonId("account");
-        String summary = "用同一个 Java 账户讲清封装、四种访问权限与包结构，最后用纠错和边界测试验收。";
+        String summary = "从班费账户认识类与对象，逐步理解封装、包和访问权限，再用一次跨包纠错验证所学。";
         String content = read("lesson.md");
         jdbc.update("""
                 UPDATE lesson
@@ -105,8 +105,8 @@ class EncapsulationCourseSeed implements ApplicationRunner {
                 WHERE id = ?
                 """, COURSE_TITLE + "：账户案例", summary, content, mainLessonId);
         jdbc.update("""
-                UPDATE course SET subtitle = '15 分钟讲透一个 Java 账户', description = ?,
-                                  version = 'v1.1', total_lessons = 1
+                UPDATE course SET subtitle = '用班费账户入门 Java 封装', description = ?,
+                                  version = 'v1.2', total_lessons = 1
                 WHERE slug = ?
                 """, summary, COURSE_SLUG);
         jdbc.update("""

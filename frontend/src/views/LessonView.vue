@@ -367,7 +367,7 @@ function escapeHtml(s: string): string {
 }
 
 /** 正文和目录共用标题锚点，围栏内的文本只参与代码渲染。 */
-function renderMarkdown(src: string) {
+function renderMarkdown(src: string, useExplicitAnchors = false) {
   const blocks: { raw: string; html: string }[] = []
   const headings: { id: string; title: string; level: number }[] = []
   // 换行统一为 \n：课程正文在库里是 CRLF，不归一会让下面的围栏正则匹配不到
@@ -446,11 +446,13 @@ function renderMarkdown(src: string) {
     if (h) {
       closeList()
       const lv = h[1].length
-      const id = lv <= 3 ? `lesson-section-${headings.length + 1}` : ''
-      if (id) headings.push({ id, title: h[2], level: lv })
+      const explicit = useExplicitAnchors && lv === 2 ? h[2].match(/^(.*?)\s+\{#(lesson-section-\d+)\}$/) : null
+      const title = explicit?.[1] ?? h[2]
+      const id = explicit?.[2] ?? (lv <= 3 ? `lesson-section-${headings.length + 1}` : '')
+      if (id) headings.push({ id, title, level: lv })
       if (lv === 2) sections.push({ id, offset: out.length })
       const anchor = id ? ` id="${id}"` : ''
-      out.push(`<h${lv}${anchor} class="md-h md-h${lv}">${inline(h[2])}</h${lv}>`)
+      out.push(`<h${lv}${anchor} class="md-h md-h${lv}">${inline(title)}</h${lv}>`)
     } else if (/^[-*]\s+/.test(l)) {
       if (inList !== 'ul') { closeList(); out.push('<ul>'); inList = 'ul' }
       // 任务列表：- [ ] 未完成 / - [x] 已完成
@@ -500,7 +502,7 @@ function inline(s: string): string {
 }
 
 const whaleIllustration = import.meta.env.BASE_URL + 'assets/agent/meme-cute.png'
-const renderedLesson = computed(() => renderMarkdown(lesson.value?.content || ''))
+const renderedLesson = computed(() => renderMarkdown(lesson.value?.content || '', isEncapsulationLesson.value))
 const toc = computed(() => renderedLesson.value.headings)
 
 async function copyLessonCode(event: MouseEvent) {
@@ -731,10 +733,10 @@ watch(() => route.params.slug, (slug) => {
         </div>
         <div class="lesson__meta">
           <span v-if="lesson.difficulty" class="badge badge--coral">{{ isEncapsulationLesson ? practiceLevelLabel(lesson.difficulty) : lesson.difficulty }}</span>
-          <span v-if="lesson.durationMin" class="badge badge--mint">{{ lesson.durationMin }} 分钟</span>
+          <span v-if="!isEncapsulationLesson && lesson.durationMin" class="badge badge--mint">{{ lesson.durationMin }} 分钟</span>
           <span class="badge badge--sun">👁 {{ lesson.viewCount ?? 0 }} 次浏览</span>
           <span v-if="lessonStudyCount > 0" class="badge badge--mint">📘 我学了 {{ lessonStudyCount }} 次</span>
-          <span v-if="lessonStudySeconds > 0" class="badge badge--lilac">⏱ 我学了 {{ lessonStudyMinutes }} 分钟</span>
+          <span v-if="!isEncapsulationLesson && lessonStudySeconds > 0" class="badge badge--lilac">⏱ 我学了 {{ lessonStudyMinutes }} 分钟</span>
           <span v-if="savedPct > 0" class="badge badge--lilac">已读 {{ savedPct }}%</span>
         </div>
 
@@ -797,17 +799,12 @@ watch(() => route.params.slug, (slug) => {
 
               <AccessControlCheck v-if="part.id === 'lesson-section-2'" lab-slug="encapsulation-account" demo />
 
-              <div v-if="part.id === 'lesson-section-3'" class="topic-lesson-action">
-                <div class="topic-lesson-action__links">
-                  <a :href="packageStarterZip" class="btn btn--sm btn--ghost" download>下载双包实验工程</a>
-                  <RouterLink :to="{ name: 'lesson', params: { slug: 'encapsulation-packages' } }">查看完整编译步骤 →</RouterLink>
-                </div>
-              </div>
-
               <div v-if="part.id === 'lesson-section-4'" class="topic-lesson-action">
                 <div class="topic-lesson-action__links">
+                  <a :href="packageStarterZip" class="btn btn--sm btn--ghost" download>下载双包实验工程</a>
                   <RouterLink class="btn btn--sm btn--primary" :to="{ name: 'exercise', params: { slug: 'encapsulation-deposit' } }">打开重构判题</RouterLink>
                   <RouterLink class="btn btn--sm btn--ghost" :to="{ name: 'qa', query: { topic: 'module-' + lesson.moduleId } }">专题题库</RouterLink>
+                  <RouterLink :to="{ name: 'lesson', params: { slug: 'encapsulation-packages' } }">查看完整编译步骤 →</RouterLink>
                 </div>
               </div>
             </section>
