@@ -18,8 +18,9 @@ public class QuestionBankController {
     private long uid(HttpServletRequest request) { return (Long) request.getAttribute("userId"); }
 
     @GetMapping("/list")
-    public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest request) {
-        return ApiResponse.ok(service.list(uid(request)));
+    public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest request,
+                                                      @RequestParam(required = false) Long lessonId) {
+        return ApiResponse.ok(service.list(uid(request), lessonId));
     }
 
     @GetMapping("/lessons")

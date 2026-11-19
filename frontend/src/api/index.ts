@@ -263,7 +263,7 @@ export const courseApi = {
   detail: (slug: string) => request<any>(http.get(`/course/${slug}`)),
   modules: () => request<CourseModule[]>(http.get('/modules')),
   lesson: (slug: string) => request<any>(http.get(`/lesson/${slug}`)),
-  qa: () => request<QaItem[]>(http.get('/qa/list')),
+  qa: (lessonId?: number) => request<QaItem[]>(http.get('/qa/list', { params: lessonId == null ? undefined : { lessonId } })),
   qaLessons: () => request<QaLessonOption[]>(http.get('/qa/lessons')),
   createQa: (item: Record<string, unknown>) => request<QaItem>(http.post('/qa/items', item)),
   updateQa: (id: number, item: Record<string, unknown>) => request<QaItem>(http.put(`/qa/items/${id}`, item)),

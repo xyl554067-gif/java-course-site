@@ -1,0 +1,1574 @@
+[
+  {
+    "id": "hello-world",
+    "lessonSlug": "hello-world",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "终端里先执行 javac Hello.java，再执行 java Hello。哪一步创建 .class 文件？",
+        "options": [
+          "A. javac Hello.java",
+          "B. java Hello",
+          "C. 两个命令都编译",
+          "D. 两个命令都不编译"
+        ],
+        "answerKey": "A",
+        "explanation": "javac 负责把 Java 源码编译成类文件，java 启动 JVM 并运行已编译的类。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "在 Java 17 下，public class Greeting 写在 Hello.java 中，javac Hello.java 可以通过而无需调整文件名。",
+        "answerKey": "FALSE",
+        "explanation": "用 javac 编译时，公开顶层类 Greeting 需要放在 Greeting.java 中。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "同学编译了 Hello.java，在包含 Hello.class 的目录却运行 java Hello.class 而报错。如何调整？",
+        "explanation": "用 java Hello 指定类名。若类有包名，要用完整类名，并让类路径指向输出根目录。"
+      }
+    ]
+  },
+  {
+    "id": "variables-and-types",
+    "lessonSlug": "variables-and-types",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "int a = 7; int b = 2; 那么 double result = a / b; 得到多少？",
+        "options": [
+          "A. 3.5",
+          "B. 3.0",
+          "C. 4.0",
+          "D. 编译不通过"
+        ],
+        "answerKey": "B",
+        "explanation": "除法的两个操作数都是 int，所以先得到整数 3，然后赋值时转换成 3.0。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "表达式 long value = 1_000_000_000 * 3; 中，乘法会因为左侧接收变量是 long 而自动采用 long 运算。",
+        "answerKey": "FALSE",
+        "explanation": "右侧先按操作数类型做 int 乘法，已溢出后才转换。可以写 1_000_000_000L * 3。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "收到一个表示字符编码单元的 char c，想打印它的数值，应怎样写？",
+        "explanation": "可用 System.out.println((int) c) 打印该 UTF-16 代码单元的整数值。一个代码点可能由两个这样的单元组成。"
+      }
+    ]
+  },
+  {
+    "id": "operators",
+    "lessonSlug": "operators",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "条件 a != null && a.length() > 0 中 a 为 null 时，右侧会发生什么？",
+        "options": [
+          "A. 返回 true",
+          "B. 调用 length() 并抛异常",
+          "C. 跳过 length() 并得到 false",
+          "D. 跳过 length() 并得到 true"
+        ],
+        "answerKey": "C",
+        "explanation": "&& 在左侧为 false 时短路，a.length() 不会执行，表达式整体为 false。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "整数除法和取余满足 -7 % 3 的结果为 2。",
+        "answerKey": "FALSE",
+        "explanation": "Java 整数除法向零截断，-7 / 3 为 -2，余数为 -1，满足 -7 = (-2) × 3 + (-1)。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "金额以元为单位时，为何用 0.1 + 0.2 == 0.3 作为验收断言不稳妥？如何表示精确金额？",
+        "explanation": "double 的二进制近似可能导致和值与目标值不相等。可用整数分，或从十进制字符串构造 BigDecimal，并按业务规则比较和舍入。"
+      }
+    ]
+  },
+  {
+    "id": "control-flow",
+    "lessonSlug": "control-flow",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "循环 for (int i = 0; i < 4; i++) 中，当 i == 2 时执行 continue，其余情况打印 i。输出顺序是什么？",
+        "options": [
+          "A. 0、1、3",
+          "B. 0、1",
+          "C. 0、1、2、3",
+          "D. 2、3"
+        ],
+        "answerKey": "A",
+        "explanation": "continue 跳过该轮剩余语句，for 循环仍执行更新表达式，之后继续下一次判断。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "遍历二维数组时，只找到一个元素就要结束两层循环。普通 break 写在最内层能做到吗？如何实现？",
+        "explanation": "普通 break 只结束最内层循环。可用带标签的 break 退出指定外层循环，或把搜索封装成返回结果的方法并使用 return。"
+      }
+    ]
+  },
+  {
+    "id": "arrays",
+    "lessonSlug": "arrays",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "int[] a = {2, 4}; int[] b = a; b[0] = 9; 此时 a[0] 是多少？",
+        "options": [
+          "A. 2",
+          "B. 9",
+          "C. 4",
+          "D. 0"
+        ],
+        "answerKey": "B",
+        "explanation": "两个变量引用同一个数组，b 修改的是共享对象。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "int[][] matrix = {{1}, {2, 3}}; 合法，并且 matrix[0].length 与 matrix[1].length 可以不同。",
+        "answerKey": "TRUE",
+        "explanation": "Java 的二维数组是数组的数组，各行可以有不同长度。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "写方法求 int[] 中的最大值，为什么不能把初始最大值固定设为 0？",
+        "explanation": "数组可能只含负数。对非空输入可从第一项初始化。空数组则应另外约定异常或空结果。"
+      }
+    ]
+  },
+  {
+    "id": "project-guess-number",
+    "lessonSlug": "project-guess-number",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "目标范围为 1 到 100，猜中了就应该停止接受本局的猜测。最直接的程序控制是什么？",
+        "options": [
+          "A. 继续循环，只打印更大",
+          "B. 把目标改成玩家的上一次输入",
+          "C. 输出成功消息后退出本局循环",
+          "D. 清空计数后继续同一局"
+        ],
+        "answerKey": "C",
+        "explanation": "成功时退出本局的循环或返回结果，并在需要时再进入新的一局。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "设计两组测试，分别验证猜数字游戏的最小值和次数耗尽。",
+        "explanation": "把目标固定为 1，输入 1 断言首轮命中。另固定一个目标，连续输入达到上限次数的合法错误答案，断言游戏只在用完机会时结束，并按规则提示结果。"
+      }
+    ]
+  },
+  {
+    "id": "string",
+    "lessonSlug": "string",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "String text = \"abc\"; text.substring(1, 3); 返回什么？",
+        "options": [
+          "A. a",
+          "B. bc",
+          "C. ab",
+          "D. abc"
+        ],
+        "answerKey": "B",
+        "explanation": "substring 的起始下标包含在结果中，结束下标不包含，所以取下标 1 和 2。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "逐段追加文字并最终输出一个字符串时，何时适合用 StringBuilder？",
+        "explanation": "在同一线程中反复追加时可使用 StringBuilder 的可变缓冲区，最后调用 toString() 生成字符串。少量直观的固定拼接仍可用 +。"
+      }
+    ]
+  },
+  {
+    "id": "methods",
+    "lessonSlug": "methods",
+    "questions": [
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "方法内执行参数 list = new ArrayList<>()，会把调用方的原变量也改成引用这份新列表。",
+        "answerKey": "FALSE",
+        "explanation": "Java 传递的是引用值的副本。重绑定局部参数不改变原变量，通过共享引用修改对象内容则可能被调用方观察到。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "两个方法同名且参数类型、顺序完全相同，只有返回类型不同。可以重载吗？为什么？",
+        "explanation": "不可以。方法重载需要不同的参数列表，单独改变返回类型无法定义两个具有相同签名的方法。"
+      }
+    ]
+  },
+  {
+    "id": "class-and-object",
+    "lessonSlug": "class-and-object",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "类中定义了 Account(int initial) 后，没有定义其他构造器。直接写 new Account() 会怎样？",
+        "options": [
+          "A. 创建账户并令 initial = 0",
+          "B. 无法匹配无参构造器",
+          "C. 自动调用 Account(1)",
+          "D. 运行时才随机选择"
+        ],
+        "answerKey": "B",
+        "explanation": "只有类完全没有显式构造器时，编译器才会提供默认构造器。此时应传入参数或自己定义可用的无参构造器。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "构造器写 this.name = name; 时，左侧的 this.name 指当前对象的字段。",
+        "answerKey": "TRUE",
+        "explanation": "this 明确限定当前实例的字段，右侧的 name 在此处指参数。"
+      }
+    ]
+  },
+  {
+    "id": "oop-core",
+    "lessonSlug": "oop-core",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "Animal a = new Dog(); 两个类有同签名的普通实例方法 speak()，Dog 合法重写了它。a.speak() 执行哪个方法？",
+        "options": [
+          "A. 一定执行 Animal 的实现",
+          "B. 两者都执行",
+          "C. 执行 Dog 的实现",
+          "D. 只能先把 a 转为 Dog 才能调用"
+        ],
+        "answerKey": "C",
+        "explanation": "编译器用声明类型 Animal 查找方法签名，调用时根据对象实际类型 Dog 选择重写实现。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "同名 static 方法与普通实例方法一样，会按对象运行时类型发生动态重写。",
+        "answerKey": "FALSE",
+        "explanation": "static 方法属于类型。子类可以隐藏父类同名静态方法，调用目标由编译期的类型或限定名决定。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "给动物列表增加 Cat 类型时，希望旧的遍历代码无需新增 instanceof 分支。应如何组织契约和行为？",
+        "explanation": "让各动物实现统一的 speak() 契约，遍历时使用 Animal 或接口类型调用。新增类型实现自己的行为，调用方只依赖统一接口。"
+      }
+    ]
+  },
+  {
+    "id": "interface-vs-abstract",
+    "lessonSlug": "interface-vs-abstract",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "多个没有共同父类的类型都需要支持 quote()，每个类型有自己的实现。哪个设计更适合？",
+        "options": [
+          "A. 定义报价接口",
+          "B. 给所有类复制相同字段",
+          "C. 强制继承同一个具体实现类",
+          "D. 通过全局变量保存报价"
+        ],
+        "answerKey": "A",
+        "explanation": "用接口声明共享操作，允许不同类型独立实现，并可保留各自的类继承关系。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "一种文件导入器要共享文件读取流程，同时让各格式决定解析方法。何时适合抽象类？",
+        "explanation": "若各实现存在稳定的公共流程或状态，可在抽象类中实现公共步骤，并把变化部分声明为抽象方法。也可以在组合更合适时拆为接口和共享协作者。"
+      }
+    ]
+  },
+  {
+    "id": "final-static-immutable",
+    "lessonSlug": "final-static-immutable",
+    "questions": [
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "final int[] values 初始化后不能指向另一数组，但 values[0] 仍然可以赋值。",
+        "answerKey": "TRUE",
+        "explanation": "final 约束变量的再次赋值，不把所引用的数组变成不可变对象。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "每次新建账户都要给全站账户计数加一。该计数按设计由所有实例共享，应声明为何种字段？",
+        "options": [
+          "A. 每个对象的 final int 字段",
+          "B. 每个构造器的局部变量",
+          "C. 类的 static 字段",
+          "D. getter 里的参数"
+        ],
+        "answerKey": "C",
+        "explanation": "类级共享状态用 static 字段表示。并发情况下还需要适当同步。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "如何使一个带 List<MutableEntry> 字段的对象真正对外不可变？",
+        "explanation": "构造时复制列表并把元素变成不可变值或做深拷贝。不要通过访问器泄露内部可变元素；可用不可变快照作为返回值。"
+      }
+    ]
+  },
+  {
+    "id": "enum-and-record",
+    "lessonSlug": "enum-and-record",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "订单状态只允许 NEW、PAID、CANCELLED。用哪类 Java 类型最容易限制合法状态集合？",
+        "options": [
+          "A. 任意 String",
+          "B. double",
+          "C. Object",
+          "D. enum"
+        ],
+        "answerKey": "D",
+        "explanation": "enum 把允许的状态明确定义为有限常量，调用方不用自行约定字符串拼写。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "record Report(List<String> rows) 的组件引用不可重新赋值，所以传入的原始可变列表也无法再追加元素。",
+        "answerKey": "FALSE",
+        "explanation": "record 对组件的引用通常是浅层不可变。若要隔离共享列表，可在构造器复制，例如 List.copyOf。"
+      }
+    ]
+  },
+  {
+    "id": "inner-class-and-lambda",
+    "lessonSlug": "inner-class-and-lambda",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "在方法中写 int n = 1; n++; Runnable r = () -> System.out.println(n);，为什么会失败？",
+        "options": [
+          "A. lambda 不能输出数字",
+          "B. 捕获的 n 已经被重新赋值",
+          "C. Runnable 必须返回 int",
+          "D. lambda 不能写在方法里"
+        ],
+        "answerKey": "B",
+        "explanation": "lambda 捕获的局部变量必须为 final 或事实上不再被赋值。自增使 n 不满足这个条件。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "static 嵌套类没有隐式绑定到某个外部类实例，若要读外部实例字段可接受一个外部对象作为参数。",
+        "answerKey": "TRUE",
+        "explanation": "static 嵌套类没有外部 this。通过传入的实例引用可以访问相应对象的实例状态，具体还需满足访问条件。"
+      }
+    ]
+  },
+  {
+    "id": "exception-handling",
+    "lessonSlug": "exception-handling",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "方法调用可能抛受检 IOException，当前方法内部不处理时，应如何满足编译规则？",
+        "options": [
+          "A. 加 final",
+          "B. 在 throws 中声明 IOException 或合适的父类型",
+          "C. 把文件名改成 IOException",
+          "D. 把返回值改成 void"
+        ],
+        "answerKey": "B",
+        "explanation": "调用者要捕获受检异常，或在自身方法签名中声明该异常，再让上层处理。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "使用 try-with-resources 声明的资源，只要成功创建，即使 try 块抛异常也会尝试关闭。",
+        "answerKey": "TRUE",
+        "explanation": "Java 在离开 try 块时调用资源的 close()，包含异常结束的路径。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "为什么不宜在读取文件后写一个空的 catch (IOException e) {}，然后继续报告成功？",
+        "explanation": "这会丢掉故障信息，使后续流程使用不完整的数据。可记录有用上下文并返回明确失败，或让异常由有能力处理的上层接收。"
+      }
+    ]
+  },
+  {
+    "id": "generics-type-erasure",
+    "lessonSlug": "generics-type-erasure",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "方法只读取任意数字子类型组成的列表，并把元素当成 Number 使用。哪种参数声明最合适？",
+        "options": [
+          "A. List<Object>",
+          "B. List<Number>",
+          "C. List<? extends Number>",
+          "D. List<? super Number>"
+        ],
+        "answerKey": "C",
+        "explanation": "List<? extends Number> 表示某种 Number 子类型的列表，可以安全读为 Number，也能接收 List<Integer> 等。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "由于类型擦除，两个只在 List<String> 与 List<Integer> 参数类型实参上不同的方法，不能这样进行重载。",
+        "answerKey": "TRUE",
+        "explanation": "擦除后两个方法都接收 List，同名方法会发生签名冲突。可区分方法名或改变参数形态。"
+      }
+    ]
+  },
+  {
+    "id": "reflection-annotation",
+    "lessonSlug": "reflection-annotation",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "希望运行时通过 reflection 读取自定义 @Label，注解应选择哪种保留策略？",
+        "options": [
+          "A. SOURCE",
+          "B. CLASS",
+          "C. RUNTIME",
+          "D. DEFAULT"
+        ],
+        "answerKey": "C",
+        "explanation": "RUNTIME 表示注解在运行时保留，Reflection API 才可以按相应位置查询它。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "为什么框架可以用反射检查注解，但日常业务调用通常更适合直接使用接口？",
+        "explanation": "框架需要发现运行时未知的类型或元数据。常规业务已有明确契约，直接接口调用更便于静态检查、重构和阅读。"
+      }
+    ]
+  },
+  {
+    "id": "project-grade-system",
+    "lessonSlug": "project-grade-system",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "学生成绩只能在 0 到 100 之间，添加成绩时在哪一层集中检查最能保护域对象状态？",
+        "options": [
+          "A. 只在导出报表时",
+          "B. 在负责更新成绩的类的方法里",
+          "C. 只在 IDE 配置中",
+          "D. 把非法成绩保存在备用字段"
+        ],
+        "answerKey": "B",
+        "explanation": "在 GradeBook 或 Student 的添加成绩方法内校验，所有调用者都会经过同一规则。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "平均成绩方法可以把空成绩单一律返回 0，而不需要与调用方约定含义。",
+        "answerKey": "FALSE",
+        "explanation": "应明确空结果语义。0 可能也是合法平均值，可用 OptionalDouble、单独的状态，或根据方法契约拒绝空输入。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "课程成绩有录入、查询、计算平均值、打印报表四项需求。如何拆分职责？",
+        "explanation": "让业务类维护成绩及校验，让计算方法依据成绩生成结果，让报表层负责格式和输出。多个展示方式可共用同一份计算逻辑。"
+      }
+    ]
+  },
+  {
+    "id": "collection-overview",
+    "lessonSlug": "collection-overview",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "读取一组事件时需要保留输入顺序和重复次数，哪一种接口最适合作为参数类型？",
+        "options": [
+          "A. List",
+          "B. Set",
+          "C. Map",
+          "D. Comparator"
+        ],
+        "answerKey": "A",
+        "explanation": "List 表示有顺序的元素序列，可保留重复元素。Set 会按规则去重，Map 表示键值映射。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "为什么一个 Map 的键通常应选用具备稳定相等语义的不可变值？",
+        "explanation": "映射在存放时依赖键的相等规则与定位信息。作为键之后若参与比较的字段改变，可能查不回已有条目。不可变键避免此类状态漂移。"
+      }
+    ]
+  },
+  {
+    "id": "arraylist-source",
+    "lessonSlug": "arraylist-source",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "一般情况下在 ArrayList 头部插入元素比在尾部追加会多做什么工作？",
+        "options": [
+          "A. 重新排序列表",
+          "B. 移动已有元素",
+          "C. 改变每个元素的值",
+          "D. 为每个元素复制一个新对象"
+        ],
+        "answerKey": "B",
+        "explanation": "插到头部时，通常需要把原有元素整体向后移动。已经有剩余容量时，尾部追加无需移动现有元素。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "调用 list.ensureCapacity(100) 后，若原列表没有元素，list.size() 一定仍为 0。",
+        "answerKey": "TRUE",
+        "explanation": "ensureCapacity 调整容量需求，不插入元素，逻辑长度不会增加。"
+      }
+    ]
+  },
+  {
+    "id": "hashmap-red-black-tree",
+    "lessonSlug": "hashmap-red-black-tree",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "两个键的 hashCode() 相同，但 equals() 返回 false。HashMap 应如何看待它们？",
+        "options": [
+          "A. 必定覆盖成一个键",
+          "B. 抛出重复键异常",
+          "C. 可作为两个不同键",
+          "D. 必须修改哈希值才能放入"
+        ],
+        "answerKey": "C",
+        "explanation": "哈希相同只说明可能落入同一桶，仍用相等规则识别键。相互不相等的键可分别保存。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "HashMap 的桶由链表转用树结构主要解决哪个问题？",
+        "explanation": "当多个不同键集中在同一桶时，线性扫描会变长。在实现满足树化条件时，树形结构可减少高碰撞情况下的查找成本。具体条件依 JDK 实现而定。"
+      }
+    ]
+  },
+  {
+    "id": "concurrenthashmap",
+    "lessonSlug": "concurrenthashmap",
+    "questions": [
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "ConcurrentHashMap 的 get(key) 和 put(key, value) 各自可并发调用，所以把两个调用分开写就能实现原子的计数加一。",
+        "answerKey": "FALSE",
+        "explanation": "两个调用中间可有其他线程插入修改。对同一键的复合更新应使用 merge、compute 等提供原子更新的方法。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "并发计数器用 ConcurrentHashMap<String, Integer> 存储数据，缺失时从 1 开始。哪条语句适合做单键加一？",
+        "options": [
+          "A. map.put(key, 1)",
+          "B. map.put(key, map.getOrDefault(key, 0) + 1)",
+          "C. map.merge(key, 1, Integer::sum)",
+          "D. map.getOrDefault(key, 0) + 1"
+        ],
+        "answerKey": "C",
+        "explanation": "merge 会把缺失值设为 1，已有值则与 1 合并。对该键的计算与更新由映射执行。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "ConcurrentHashMap 不允许 null 值，这对 get(key) 的结果有什么意义？",
+        "explanation": "get 返回 null 表示此读取没有取得对应映射，不需要再区分键映射到了 null 的情况。其他线程仍可能在这次读取之后增删该映射。"
+      }
+    ]
+  },
+  {
+    "id": "set-family",
+    "lessonSlug": "set-family",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "需要一组唯一编号，并且遍历时按数值升序输出。哪个集合最合适？",
+        "options": [
+          "A. ArrayList",
+          "B. HashSet",
+          "C. ArrayDeque",
+          "D. TreeSet"
+        ],
+        "answerKey": "D",
+        "explanation": "TreeSet 可以按自然顺序或比较器维持排序，并依相应比较结果判断重复。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "如果 TreeSet 的比较器只比较学生年龄，两名年龄相同、学号不同的学生都应保留。比较器至少要怎样调整？",
+        "explanation": "在年龄相同时继续比较能区分不同学生的字段，比如唯一学号，使比较结果不为 0；还应确保比较器与业务上的集合相等语义一致。"
+      }
+    ]
+  },
+  {
+    "id": "iterator-cmc",
+    "lessonSlug": "iterator-cmc",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "用 ArrayList 的 Iterator 遍历时，想删掉当轮刚取出的元素，哪条操作受这个迭代器支持？",
+        "options": [
+          "A. 始终调用 list.remove(0)",
+          "B. iterator.remove()",
+          "C. 给 iterator 重新赋值",
+          "D. 通过另一个迭代器删除"
+        ],
+        "answerKey": "B",
+        "explanation": "成功 next() 后可以调用迭代器自身的 remove()，它会维护迭代所需的内部状态。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "看不到 ConcurrentModificationException 就能证明代码在多个线程下正确同步。",
+        "answerKey": "FALSE",
+        "explanation": "快速失败是尽力检测，不能作为程序正确性的保证。多线程共享修改仍需要相应的同步或并发集合。"
+      }
+    ]
+  },
+  {
+    "id": "stream-api",
+    "lessonSlug": "stream-api",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "想把每个姓名变成长度，应该优先选择哪个 stream 操作？",
+        "options": [
+          "A. map",
+          "B. filter",
+          "C. limit",
+          "D. distinct"
+        ],
+        "answerKey": "A",
+        "explanation": "map 将每项变换为一个结果。若希望得到基本类型整数流，可用 mapToInt。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "调用 count() 完成之后，可以对同一个 Stream 实例再调用 collect() 读取相同结果。",
+        "answerKey": "FALSE",
+        "explanation": "流用于一次遍历，终止操作后不能重复消费。应重新从源创建一个新流，或保留已收集结果。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "同时要返回及格人数、总分和平均分，如何在合适场景避免分别遍历三次？",
+        "explanation": "可以先筛选及格分数，映射为 IntStream 后调用 summaryStatistics()。结果包含计数和总分，可进一步求平均；应额外决定无及格者的输出语义。"
+      }
+    ]
+  },
+  {
+    "id": "project-stream-refactor",
+    "lessonSlug": "project-stream-refactor",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "要验证用 Stream 替换循环后的结果，哪组数据最能覆盖行为？",
+        "options": [
+          "A. 只用一个正常输入",
+          "B. 只验证程序能启动",
+          "C. 正常、空结果和重复项等场景",
+          "D. 只比较代码行数"
+        ],
+        "answerKey": "C",
+        "explanation": "用正常输入、过滤后为空、重复键或顺序变化等场景比较新旧实现，能发现边界与排序契约差异。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "旧报表按部门分组且规定按部门名称顺序输出。重构到 groupingBy 时要怎样保住顺序？",
+        "explanation": "可让分组结果使用合适的有序 Map，例如按部门名称自然排序的 TreeMap，或在输出前显式排序键。不能仅依赖默认 Map 的遍历顺序。"
+      }
+    ]
+  },
+  {
+    "id": "jvm-memory",
+    "lessonSlug": "jvm-memory",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "同一 JVM 进程中，两条线程同时调用同一个方法。每次调用保存参数和局部变量的帧分别属于哪里？",
+        "options": [
+          "A. 两个线程共享一个帧",
+          "B. 各自线程的 JVM 栈",
+          "C. 只存入运行时常量池",
+          "D. 同一个方法区对象"
+        ],
+        "answerKey": "B",
+        "explanation": "每个线程有自己的 JVM 栈，方法调用有独立栈帧，即便调用的是相同方法。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "局部变量中保存对象引用，不代表该对象的实例数据与局部变量必须放在同一区域。",
+        "answerKey": "TRUE",
+        "explanation": "栈帧可保存引用。按 JVM 规范，对象与数组实例从共享堆分配，具体实现可以优化分配。"
+      }
+    ]
+  },
+  {
+    "id": "object-layout",
+    "lessonSlug": "object-layout",
+    "questions": [
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "同一 Java 类在任何 JVM、任何启动配置下，实例都必须占用相同字节数。",
+        "answerKey": "FALSE",
+        "explanation": "对象的具体布局由 JVM 实现决定，引用宽度、对象头和对齐策略可能随配置不同。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "用布局工具对比两个字段排列方案时，为何应记录 JDK、JVM 参数和对象对齐设置？",
+        "explanation": "布局测量依赖运行时实现和配置。记录这些条件才能复现，包括引用压缩、对象对齐以及不同 JDK 版本可能带来的差异。"
+      }
+    ]
+  },
+  {
+    "id": "class-loading",
+    "lessonSlug": "class-loading",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "class Config { static int port = 80; }。在准备阶段为这个普通静态字段分配并设置的初始值是什么？",
+        "options": [
+          "A. 0",
+          "B. 80",
+          "C. 任意值",
+          "D. 没有存储位置"
+        ],
+        "answerKey": "A",
+        "explanation": "准备阶段给没有 ConstantValue 属性的静态字段设默认值。源码中的 80 由类初始化代码赋值。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "通过 Class.forName(name, false, loader) 拿到 Class 后立即看到静态初始化块输出了吗？为什么？",
+        "explanation": "false 表示这次调用不要求初始化类。若该类此前未初始化，单靠这次加载通常不会运行其静态初始化块。"
+      }
+    ]
+  },
+  {
+    "id": "gc-algorithms",
+    "lessonSlug": "gc-algorithms",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "对象 A 和 B 互相引用，但从任何 GC Roots 都无法到达它们。在基于可达性分析的收集中，如何判断？",
+        "options": [
+          "A. 只要互相引用就永远保活",
+          "B. 二者都是回收候选",
+          "C. 只能回收 A",
+          "D. 只能回收 B"
+        ],
+        "answerKey": "B",
+        "explanation": "相互引用不会自动保活，只要从 GC Roots 无法到达，它们就可成为垃圾回收候选。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "标记整理一般会移动仍存活的对象，从而减少堆碎片。",
+        "answerKey": "TRUE",
+        "explanation": "标记后把存活对象整理到紧凑区域，可留出较连续的空闲空间，还需要处理对象位置变化。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "想评估调低停顿时间是否值得，除单次暂停长度之外，还应记录什么？",
+        "explanation": "应比较持续负载下的停顿分布、总吞吐量、GC 次数和 CPU 开销。用同一负载及相近内存配置重复测量。"
+      }
+    ]
+  },
+  {
+    "id": "jvm-tuning-tools",
+    "lessonSlug": "jvm-tuning-tools",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "程序长时间没有响应，需要先观察各线程在何处等待。哪种数据最直接？",
+        "options": [
+          "A. 线程转储",
+          "B. Java 源文件数量",
+          "C. 单个对象大小",
+          "D. HTTP 请求的状态码"
+        ],
+        "answerKey": "A",
+        "explanation": "线程转储提供各线程的调用栈与状态，可据此检查锁竞争、等待和死锁线索。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "采集生产环境 JVM 诊断数据前，为什么要先在相似环境验证命令的影响？",
+        "explanation": "某些诊断命令可能造成暂停或较高开销，也可能生成含业务数据的大文件。先了解影响与所需权限，再在合适窗口采样。"
+      }
+    ]
+  },
+  {
+    "id": "bytecode",
+    "lessonSlug": "bytecode",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "要查看 javac 编译后的 JVM 指令，通常使用哪个命令？",
+        "options": [
+          "A. java -version",
+          "B. javadoc",
+          "C. jar -tf",
+          "D. javap -c"
+        ],
+        "answerKey": "D",
+        "explanation": "javap -c 可以反汇编类文件中的字节码指令，便于对照源码观察调用和分支等操作。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "class 文件中的常量池只保存 int 常量，不包含与类型或方法有关的符号信息。",
+        "answerKey": "FALSE",
+        "explanation": "常量池包含数值、字符串、类名和字段、方法符号引用等多种信息。"
+      }
+    ]
+  },
+  {
+    "id": "project-memory-leak",
+    "lessonSlug": "project-memory-leak",
+    "questions": [
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "一个缓存不断保存新对象并一直可达，长期高内存占用未必会通过调大堆永久解决。",
+        "answerKey": "TRUE",
+        "explanation": "加大堆可以延后问题，无法改变缓存引用的对象仍然可达。应检查淘汰策略、数据生命周期与实际容量。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "定位疑似内存泄漏时，为什么要检查大对象的引用保留路径？",
+        "explanation": "保留路径说明什么引用链让对象无法被回收。结合相近负载下的多次样本，可区分暂时使用与不合理长期保留。"
+      }
+    ]
+  },
+  {
+    "id": "thread-basics",
+    "lessonSlug": "thread-basics",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "Thread t = new Thread(task); 直接执行 t.run() 时，task 在何处运行？",
+        "options": [
+          "A. 新的线程中",
+          "B. JVM 未知线程中",
+          "C. 调用 run() 的当前线程中",
+          "D. 所有线程各执行一次"
+        ],
+        "answerKey": "C",
+        "explanation": "run() 是普通方法调用，任务在当前调用线程执行。start() 才请求启动该线程执行任务。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "为什么中断通知不能当成强制杀死线程？",
+        "explanation": "中断要求线程协作。线程可以检查中断状态，也可能在支持中断的阻塞操作中收到 InterruptedException，再根据约定清理并退出或传播通知。"
+      }
+    ]
+  },
+  {
+    "id": "lock-mechanisms",
+    "lessonSlug": "lock-mechanisms",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "代码使用 lock.lock() 获取 ReentrantLock，在哪里调用 unlock() 最稳妥？",
+        "options": [
+          "A. try 开头",
+          "B. finally",
+          "C. catch 之后只处理异常",
+          "D. 放进另一条线程"
+        ],
+        "answerKey": "B",
+        "explanation": "获取锁成功后把受保护代码放在 try 中，在 finally 释放，可覆盖正常返回及异常退出。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "两个不同对象各自调用自己的 synchronized 实例方法时，总会竞争同一个对象监视器。",
+        "answerKey": "FALSE",
+        "explanation": "普通 synchronized 实例方法用调用对象的监视器。不同实例通常对应不同监视器，共享状态若需保护，要统一选择同一把锁。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "线程 A 和 B 都需要获取两把锁。怎样利用固定顺序降低互相等待导致死锁的风险？",
+        "explanation": "为两把锁设全局一致的获取顺序，两线程都先取得第一把再请求第二把，以打破循环等待；退出时正确释放已经取得的锁。"
+      }
+    ]
+  },
+  {
+    "id": "thread-pool",
+    "lessonSlug": "thread-pool",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "调用 ExecutorService.shutdown() 后，已提交但还未完成的任务如何处理？",
+        "options": [
+          "A. 一律立即取消",
+          "B. 新任务仍无限接受",
+          "C. 已提交任务继续执行",
+          "D. 自动重复提交失败任务"
+        ],
+        "answerKey": "C",
+        "explanation": "shutdown 发起有序关闭，停止接受新任务，已经提交的任务继续执行。需要等全部结束可以调用 awaitTermination。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "两个显著不同的任务类型，一类常等待 I/O，另一类持续占用 CPU。选择线程池大小时应比较什么？",
+        "explanation": "应根据可用核心、任务等待和计算时间、吞吐目标、排队延迟以及外部资源限制压测。I/O 等待较多的任务和纯计算任务通常需要不同的并发设置。"
+      }
+    ]
+  },
+  {
+    "id": "concurrent-collections",
+    "lessonSlug": "concurrent-collections",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "多个线程只需要对同一个 AtomicInteger 安全地加一。哪个写法满足要求？",
+        "options": [
+          "A. count.incrementAndGet()",
+          "B. count.set(count.get() + 1)",
+          "C. count.get() + 1",
+          "D. 先读取后用其他变量保存"
+        ],
+        "answerKey": "A",
+        "explanation": "incrementAndGet() 将加一和获得新值作为原子操作。分开的 get() 与 set() 可能丢失更新。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "AtomicInteger 可以让单个计数器更新具备原子性，但不会让两个计数器的独立更新自动成为同一个原子操作。",
+        "answerKey": "TRUE",
+        "explanation": "单个原子方法只覆盖一个计数器。多个值的联合不变式需要合适的同步，或将相关状态放在一个可原子更新的对象中。"
+      }
+    ]
+  },
+  {
+    "id": "completablefuture",
+    "lessonSlug": "completablefuture",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "已取得订单，再根据订单发起另一次异步查询，返回值希望保持单层 CompletableFuture。应该使用哪个方法？",
+        "options": [
+          "A. anyOf",
+          "B. thenAccept",
+          "C. thenApply",
+          "D. thenCompose"
+        ],
+        "answerKey": "D",
+        "explanation": "thenCompose 接受返回 CompletionStage 的函数，把两阶段串联为单层异步结果。thenApply 会把另一个异步结果作为普通值包在外层。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "同时等待两个异步结果，为什么 allOf 完成后还要从各个结果对象取值？",
+        "explanation": "allOf 用于等待所有输入完成，返回 CompletableFuture<Void>。成功完成后需要从原来的 futures 读取各自结果，并针对失败路径安排异常处理。"
+      }
+    ]
+  },
+  {
+    "id": "project-parallel-aggregate",
+    "lessonSlug": "project-parallel-aggregate",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "并行计算很多数据块的总和，哪种设计可以减少争用共享变量？",
+        "options": [
+          "A. 记录每次输入到全局列表",
+          "B. 每块本地求和后归约",
+          "C. 所有任务写同一个普通变量",
+          "D. 每行重启一条线程"
+        ],
+        "answerKey": "B",
+        "explanation": "让各任务独立计算部分和，再集中合并，可降低每个元素都更新共享状态的竞争。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "为什么不能只比较一次并行求和与串行求和耗时？",
+        "explanation": "JIT 预热、数据大小、线程调度和机器负载都影响时长。应在同等输入和可比环境多次测量，验证结果一致后比较典型值及波动。"
+      }
+    ]
+  },
+  {
+    "id": "spring-boot-init",
+    "lessonSlug": "spring-boot-init",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "Spring Boot 项目为什么常引用 starter 依赖？",
+        "options": [
+          "A. 给所有类生成测试",
+          "B. 收集一组相关功能的依赖",
+          "C. 自动部署到服务器",
+          "D. 把 Java 代码转成 SQL"
+        ],
+        "answerKey": "B",
+        "explanation": "starter 为某类功能聚合常用依赖，并与项目的依赖管理配合，减少手动拼装成本。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "为什么加入数据源相关依赖后，Spring Boot 可能配置 DataSource，但也允许应用显式提供自己的？",
+        "explanation": "自动配置根据类路径、配置属性和已有 Bean 等条件决定是否创建对象。若用户提供了覆盖条件的 Bean，相关默认配置通常会退让。"
+      }
+    ]
+  },
+  {
+    "id": "kingbase-persistence",
+    "lessonSlug": "kingbase-persistence",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "执行 JDBC SELECT 得到 ResultSet 后，通常首先用什么方法定位到第一条记录？",
+        "options": [
+          "A. getString()",
+          "B. close()",
+          "C. next()",
+          "D. executeUpdate()"
+        ],
+        "answerKey": "C",
+        "explanation": "ResultSet 初始游标位于首行之前。调用 next() 并确认返回 true 后，才能读取当前行。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "查询课程时，JdbcTemplate 能帮开发者处理哪些工作？业务代码还需要提供什么？",
+        "explanation": "JdbcTemplate 处理连接和语句的常规使用及异常转换。业务代码仍定义 SQL、参数绑定、行到对象的映射与事务范围。"
+      }
+    ]
+  },
+  {
+    "id": "restful-api",
+    "lessonSlug": "restful-api",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "按常见 HTTP 语义，一个成功创建新资源并返回其位置的操作通常用哪个响应状态？",
+        "options": [
+          "A. 200 也常见但没有明确表达创建",
+          "B. 201 Created",
+          "C. 404 Not Found",
+          "D. 409 Conflict"
+        ],
+        "answerKey": "B",
+        "explanation": "201 Created 表示请求已经产生新资源，Location 可提供资源地址。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "HTTP 幂等指重复执行的预期服务器效果与执行一次相同，重复请求的响应状态码不必完全一致。",
+        "answerKey": "TRUE",
+        "explanation": "例如第一次 DELETE 可能表示成功，第二次可能返回不存在，删除后的资源状态仍一致。"
+      }
+    ]
+  },
+  {
+    "id": "encapsulation-account",
+    "lessonSlug": "encapsulation-account",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "一个银行账户只允许查询余额和存款。下面哪组成员能清晰表达这个接口？",
+        "options": [
+          "A. public int balance",
+          "B. private int balance，public getBalance() 和 deposit(amount)",
+          "C. private int balance，public setBalance(int) 可接受任意整数",
+          "D. public static int balance"
+        ],
+        "answerKey": "B",
+        "explanation": "将余额设为私有字段，只公开查询方法和带校验的存款方法，调用者只能通过预定操作改变状态。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "执行 int snapshot = account.getBalance(); 后修改 snapshot，会直接改掉账户内的 int 余额。",
+        "answerKey": "FALSE",
+        "explanation": "int 返回的是数值。修改调用方变量不会写回账户字段。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "Account 的 balance 是非 static 的实例字段。a、b 是分别 new 出来的两个账户。给 a 存 10 元后，哪项一定成立？",
+        "options": [
+          "A. b 的余额也增加 10",
+          "B. a 与 b 变成同一个对象",
+          "C. b 的余额保持原值",
+          "D. a 与 b 的构造方法会再次运行"
+        ],
+        "answerKey": "C",
+        "explanation": "每个新建实例都拥有自己的实例字段。对 a 的存款不改变 b 的余额。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "EASY",
+        "prompt": "在账户类中，balance 和 deposit() 分别表示什么？",
+        "explanation": "balance 保存每个账户的当前状态。deposit() 表达允许的存款操作，并在更新状态前检查金额和范围。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "客户把 int[] limits 传入账户构造器。哪种写法能防止客户之后通过原数组改掉账户的限额？",
+        "options": [
+          "A. this.limits = limits",
+          "B. 把 this.limits 标为 final 后直接赋值",
+          "C. 仅将本地参数 limits 加上 final",
+          "D. this.limits = limits.clone()"
+        ],
+        "answerKey": "D",
+        "explanation": "在保存前克隆 int[]，账户持有独立的数组。final 只限制账户字段再次赋值，不能阻止原数组元素被修改。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "若 getter 直接返回私有字段中保存的可变 List，调用者可能通过返回值修改账户的内部列表。",
+        "answerKey": "TRUE",
+        "explanation": "调用者得到的是对同一个列表的引用。可以返回副本、不可修改的快照，或改为提供单独的查询方法。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "构造账户时为何也要校验初始余额？校验失败可如何处理？",
+        "explanation": "创建对象是建立不变式的第一步。可在赋值前拒绝负数并抛出 IllegalArgumentException，保证成功创建的对象始终处于合法初始状态。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "accounts 中有 Account a；执行 Account alias = a; alias.deposit(20);，之后 a.getBalance() 为什么会反映这次存款？",
+        "options": [
+          "A. a 与 alias 指向同一个对象",
+          "B. getBalance() 会自动给 a 再存一次",
+          "C. 所有 Account 的余额必须相同",
+          "D. 局部引用本身存储一份余额副本"
+        ],
+        "answerKey": "A",
+        "explanation": "赋值复制对象引用，没有复制账户。通过 alias 调用的是 a 所指向的同一个对象。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "private final List<Payment> payments 只要通过 List.copyOf 赋值，此后的 Payment 内部字段就一定无法被改变。",
+        "answerKey": "FALSE",
+        "explanation": "List.copyOf 提供不可修改的列表结构，列表元素仍可共享。若 Payment 可变，还要采用不可变的元素或对元素做适当复制。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "为什么可以把银行账户的余额从 int 分改为内部 long 分时，尽量维持已发布的查询接口？需要额外考虑什么？",
+        "explanation": "调用者依赖公开接口而非字段。保留原接口时要约定大额值超出 int 表达范围的处理，或迁移到明确返回 long 的新接口，避免向下转换丢失数据。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "HARD",
+        "prompt": "构造器会复制传入的 int[] limits，但 getLimits() 仍返回 this.limits。最佳修补是什么？",
+        "options": [
+          "A. 只把构造参数改成 final",
+          "B. 让 getLimits() 返回 this.limits.clone()",
+          "C. 把 getLimits() 改成 static",
+          "D. 给数组字段换个名字"
+        ],
+        "answerKey": "B",
+        "explanation": "输入和输出都可能产生可变别名。getter 返回数组副本，或者只提供按下标读取的查询方法。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "用 public getBalance() 和 public deposit() 替代公开余额字段，本身就能保证多个线程同时存款不会丢更新。",
+        "answerKey": "FALSE",
+        "explanation": "限制访问入口与并发安全是两件事。若余额可被多线程共享，读、校验、修改需要合适的同步或原子更新。"
+      }
+    ]
+  },
+  {
+    "id": "encapsulation-access",
+    "lessonSlug": "encapsulation-access",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "同包的两个独立顶层类 Account 和 BankReport。Account 中的 void audit() 没写访问修饰符。BankReport 能怎样调用？",
+        "options": [
+          "A. 只能通过继承调用",
+          "B. 任何包都能调用",
+          "C. 可以通过 Account 实例调用",
+          "D. 只有 audit() 自己能调用"
+        ],
+        "answerKey": "C",
+        "explanation": "省略修饰符得到包访问权限。包相同且类型可见时，BankReport 可用拥有的 Account 实例调用 audit()。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "普通 Java 顶层类可以直接写成 private class Account。",
+        "answerKey": "FALSE",
+        "explanation": "普通顶层类只能声明 public 或省略访问修饰符。private 可用于成员类等位置，不能修饰这里的顶层类。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "EASY",
+        "prompt": "调用一位于其他包的公开方法前，除检查方法的 public 修饰符，还应先检查什么？",
+        "explanation": "要确认声明或引用该成员的类型在当前代码中可访问。还需正确引用类型并提供匹配参数；方法公开并不能自动让所属类型对外可见。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "Account 中有 private int balance，Account 内的方法 inside(Account other) 可以读 other.balance 吗？",
+        "options": [
+          "A. 不可以，只能读 this.balance",
+          "B. 不可以，除非 other 是 null",
+          "C. 可以，但必须将 balance 改为 static",
+          "D. 可以，读字段的代码就在 Account 内"
+        ],
+        "answerKey": "D",
+        "explanation": "private 访问看代码所在的类型范围。同一个 Account 的方法可以读取另一个 Account 实例的私有字段。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "Account 内声明的成员类 Audit 可以在其方法中读取传入 Account 对象的 private balance。",
+        "answerKey": "TRUE",
+        "explanation": "同一个顶层声明范围内包含该成员类。它可读取 Account 实例的私有字段。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "BankReport 无继承关系，与 bank.Account 不同包。Account 公开，日志方法只应在 bank 包内访问，外部子类也不能调用。该方法用什么权限？",
+        "options": [
+          "A. protected",
+          "B. 省略修饰符",
+          "C. private",
+          "D. public"
+        ],
+        "answerKey": "B",
+        "explanation": "省略访问修饰符的包访问权限满足同包可用、不同包不可用。protected 还可能允许异包子类按规则访问。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "外包代码写了 import bank.InternalReport，但 InternalReport 自身是包访问权限的顶层类。解释错误并提出低耦合的修复。",
+        "explanation": "包外不能访问这个顶层类，import 只解决名称使用。如果它是实现细节，改为从 bank 的公开接口取得报告结果，避免直接依赖内部类型。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "两个独立顶层类写在同一个 .java 文件里，所以其中一个可直接读另一个的 private 字段。",
+        "answerKey": "FALSE",
+        "explanation": "源码文件相同并不构成私有访问条件。两个类若是独立顶层声明，仍不能直接读取对方的 private 字段。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "HARD",
+        "prompt": "父类定义 protected void audit()。子类要保持同名同参的实例方法并合法重写。以下声明哪个可用？",
+        "options": [
+          "A. private void audit()",
+          "B. void audit()",
+          "C. public void audit()",
+          "D. private static void audit()"
+        ],
+        "answerKey": "C",
+        "explanation": "重写不得收窄访问权限。父类为 protected 时，可用 protected 或 public，这几个选项中 public 可用。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "在不同包的 Savings 构造器里可以通过 super() 调用 Account 的 protected 无参构造器，就能在同一位置任意写 new Account()。",
+        "answerKey": "FALSE",
+        "explanation": "跨包访问 protected 构造器的方式有额外限制。子类的 super() 调用合法，不代表普通 new Account() 也合法。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "父类用 private void audit()，子类写了同签名方法并标 @Override。它为什么编译失败，如何改才符合真正重写的意图？",
+        "explanation": "父类的 private 方法不被子类继承，子类同签名方法不是重写。若父类设计允许扩展，可把父类方法改为 protected 或 public，并让子类保持兼容的访问级别和签名。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "在两包实验里，bank 包的 package-private 类实现公开接口 Receipt，app 包只负责显示收据。app 应把接收变量声明成什么类型？解释这样做的好处。",
+        "explanation": "声明成可访问的 Receipt 接口。bank 可以通过公开入口返回接口实例，并保留内部实现类的包访问权限，app 只依赖需要的公开方法。"
+      }
+    ]
+  },
+  {
+    "id": "encapsulation-packages",
+    "lessonSlug": "encapsulation-packages",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "普通 Java 源文件同时有包声明、import 和顶层类。这三部分的顺序是什么？",
+        "options": [
+          "A. 类 → import → package",
+          "B. package → import → 类",
+          "C. import → package → 类",
+          "D. package → 类 → import"
+        ],
+        "answerKey": "B",
+        "explanation": "在普通编译单元中，包声明在前，之后是 import，再写顶层类型。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "同一个包中的两个可见类型，通常可以直接通过简单类名互相引用，无需额外 import。",
+        "answerKey": "TRUE",
+        "explanation": "同包可见类型可通过简单名使用，前提是当前作用域没有同名冲突等情况。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "java -cp out demo.app.BankApp 的 -cp out 表示什么？",
+        "options": [
+          "A. 把源文件输出到 out",
+          "B. 运行当前目录下的 out.java",
+          "C. 把 out 设为查找已编译类的根目录",
+          "D. 把包名改为 out"
+        ],
+        "answerKey": "C",
+        "explanation": "JVM 以 out 作为类路径根目录，从 out/demo/app/BankApp.class 查找入口的类文件。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "EASY",
+        "prompt": "按课程目录结构，package demo.bank; public class Account 应放在哪个相对路径？",
+        "explanation": "以 src 为源码根时，放在 src/demo/bank/Account.java。目录按包名拆分，文件名与 public 顶层类名一致。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "写 import java.util.List; 会创建一个 List 对象。",
+        "answerKey": "FALSE",
+        "explanation": "import 让类型的简单名可用，创建对象仍需要构造器调用、工厂方法等运行时代码。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "某方法需要同时使用 java.util.Date 和 java.sql.Date。以下哪种写法能清楚指定两个类型？",
+        "options": [
+          "A. 用 java.util.Date 和 java.sql.Date 两个全限定名",
+          "B. 两条单类型 import 后只写 Date",
+          "C. 在 import 后给其中一个 Date 加 as 别名",
+          "D. 只把两个包写成同名通配 import，随后只写 Date"
+        ],
+        "answerKey": "A",
+        "explanation": "两个类型可用全限定名明确区分；也可以只 import 其中一个并用全限定名写另一个。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "代码使用 Integer.MAX_VALUE 时无需 import java.lang.Integer。为什么？它的全限定类名是什么？",
+        "explanation": "可访问的 java.lang 类型会被隐式按需导入。Integer 的全限定类名是 java.lang.Integer。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "import static java.lang.Math.max; 之后，可以在没有同名冲突的地方直接写 max(3, 5)。",
+        "answerKey": "TRUE",
+        "explanation": "静态导入允许在当前编译单元用简单名引用可访问的静态成员，这里无需加 Math 前缀。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "HARD",
+        "prompt": "包 demo.bank 下有公开类 Account，包 demo.tools 下也有公开类 Account。源码只写两条通配 import，随后声明 Account account。会发生什么？",
+        "options": [
+          "A. 自动选择第一条 import",
+          "B. 按包名排序选择",
+          "C. 总是选择较短的包名",
+          "D. 编译报类型名歧义"
+        ],
+        "answerKey": "D",
+        "explanation": "两个可访问的 Account 类型都能通过按需导入找到，简单名产生歧义。可用全限定名，或只明确导入所需类型。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "两个文件的 package 声明都是 demo.bank，并位于同一个字节码输出根。把其中一个移动到 demo.bank.tools 时，应检查哪些事项才能运行？",
+        "explanation": "调整源码路径和 package 声明，更新引用它的 import 或全限定名，重新检查跨包成员的访问权限；有 main 的话还要更新运行命令中的全限定类名并重新编译。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "命名包 demo.app 可以用普通 import 导入未命名包中定义的公共顶层类型。",
+        "answerKey": "FALSE",
+        "explanation": "未命名包的类型没有可供该 import 使用的规范名称。要让命名包中的代码引用它，应把该类型放进适当命名包并设置可见性。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "项目由 app、bank.api 和 bank.internal 三个包组成。app 只调用 bank.api 时，如何设计类型可见性，让内部实现的包访问权限真正生效？",
+        "explanation": "把公开接口放入 bank.api。具体内部类型可保持 bank.internal 的包访问权限；跨包创建应通过明确的公开入口或在内部包完成构造。app 持有接口类型，避免直接引用内部类。"
+      }
+    ]
+  },
+  {
+    "id": "encapsulation-refactor",
+    "lessonSlug": "encapsulation-refactor",
+    "questions": [
+      {
+        "type": "CHOICE",
+        "difficulty": "EASY",
+        "prompt": "withdraw(amount) 约定仅接受正数且不能超过余额。余额 40，顺序调用 withdraw(40) 和 withdraw(1)。哪组结果正确？",
+        "options": [
+          "A. true、false，最终余额 0",
+          "B. false、true，最终余额 39",
+          "C. true、true，最终余额 -1",
+          "D. false、false，最终余额 40"
+        ],
+        "answerKey": "A",
+        "explanation": "第一次允许刚好扣完，余额变成 0。第二次余额不足，拒绝后仍为 0。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "EASY",
+        "prompt": "把 public int balance 改成 private 后，原先外部直接写 account.balance = 100; 的代码需要修改。",
+        "answerKey": "TRUE",
+        "explanation": "外部独立类型不能继续访问这个私有字段。应改为按业务规则调用存款等公开操作。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "EASY",
+        "prompt": "重构前使用 account.balance 读取状态，重构后只想显示同样的余额，应如何调整调用？",
+        "explanation": "把读取改成 account.getBalance()。显示结果仍应遵循原有业务的单位和格式，调用方无需知道字段的内部存储方式。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "合法存款最多可达到 Integer.MAX_VALUE。若余额为 Integer.MAX_VALUE - 2，先存 2 再尝试存 1，应该怎样？",
+        "options": [
+          "A. 两次都成功",
+          "B. 第一次成功，第二次失败，最终余额为 Integer.MAX_VALUE",
+          "C. 两次都失败",
+          "D. 第一次失败，第二次成功"
+        ],
+        "answerKey": "B",
+        "explanation": "第一次存 2 恰好达到上限，应成功。第二次会超上限，应失败并保留原值。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "MEDIUM",
+        "prompt": "把原来的 public balance 换成一个接受任意 int 的公开 setter，就能保证余额永远合法。",
+        "answerKey": "FALSE",
+        "explanation": "不受约束的 setter 仍允许无效状态。应通过接受业务参数的操作方法来验证并改变余额，或者在确有需要的 setter 中明确约束。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "怎样设计一个测试，能查出“拒绝存款仍然改写余额”的问题？",
+        "explanation": "先建立已知余额，提交非法金额，检查方法返回 false，再读取余额并断言与调用前相同。负数、零和会溢出的金额都可独立验证。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "MEDIUM",
+        "prompt": "账户初始为 20，存款规则是金额为正且不能溢出。依次尝试存入 5、-3、8，应输出哪组余额轨迹？",
+        "options": [
+          "A. 25、22、30",
+          "B. 25、0、8",
+          "C. 5、5、8",
+          "D. 25、25、33"
+        ],
+        "answerKey": "D",
+        "explanation": "第二次是非法存款，不改变余额。两次合法操作依次把余额改为 25、33。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "MEDIUM",
+        "prompt": "已有自动判题只比对程序的标准输出。如何独立验证 balance 确实是 private？",
+        "explanation": "写一个与 Account 不同的顶层类，尝试直接读写 account.balance 并编译，确认编译器拒绝访问。再通过公开方法读余额，核对正常操作仍可用。"
+      },
+      {
+        "type": "CHOICE",
+        "difficulty": "HARD",
+        "prompt": "账户把交易记录保存为可变列表。重构后不希望读者增删其结构，同时需要在读取时固定当时的列表内容。记录类型不可变且没有 null。哪个返回值匹配？",
+        "options": [
+          "A. 直接返回 records",
+          "B. 返回 Collections.unmodifiableList(records)",
+          "C. 返回 List.copyOf(records)",
+          "D. 返回 records.iterator()"
+        ],
+        "answerKey": "C",
+        "explanation": "List.copyOf 返回列表结构的不可修改快照。unmodifiableList 包装原对象时，原列表之后的改动可能会出现在视图里。"
+      },
+      {
+        "type": "JUDGE",
+        "difficulty": "HARD",
+        "prompt": "正确的余额规则可以先用 long newBalance = (long) balance + amount; 计算，校验范围后再转换成 int。",
+        "answerKey": "TRUE",
+        "explanation": "先把一个操作数扩宽到 long，整次加法就按 long 进行。验证不超过 int 范围后再写回，仍须单独检查金额是否为正。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "公开入口必须保留 deposit(int)，但内部重构想把校验拆进一个辅助方法。请说明辅助方法的访问级别，以及至少两条回归断言。",
+        "explanation": "只在 Account 内用的辅助方法可设为 private。回归测试应断言普通存款的结果和新余额一致；非法或溢出金额返回 false，旧余额不变；可以再断言刚好达到上限时成功。"
+      },
+      {
+        "type": "SHORT_ANSWER",
+        "difficulty": "HARD",
+        "prompt": "单线程转账已在扣款前检查两边余额。若 A 与 B 在多线程下可能互相转账，要保证双方余额一致，还要处理什么？",
+        "explanation": "要让相关余额的校验和两边更新在并发下作为一个整体。可使用统一锁或确定一致的锁获取顺序，避免两个方向各持一把锁而死锁。"
+      }
+    ]
+  }
+]

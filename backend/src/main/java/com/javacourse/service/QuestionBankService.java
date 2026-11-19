@@ -31,10 +31,16 @@ public class QuestionBankService {
         this.mapper = mapper;
     }
 
-    public List<Map<String, Object>> list(long ownerId) {
-        return jdbc.query(QUESTION_SELECT + "WHERE q.owner_id IS NULL OR q.owner_id=? "
-                        + "ORDER BY CASE WHEN q.owner_id IS NULL THEN 0 ELSE 1 END,q.id DESC",
-                (rs, row) -> mapRow(rs), ownerId);
+    public List<Map<String, Object>> list(long ownerId, Long lessonId) {
+        String available = QUESTION_SELECT + "WHERE (q.owner_id IS NULL OR q.owner_id=?) ";
+        String order = """
+                ORDER BY CASE WHEN q.owner_id IS NULL THEN 0 ELSE 1 END,
+                         CASE q.difficulty WHEN 'EASY' THEN 0 WHEN 'MEDIUM' THEN 1 WHEN 'HARD' THEN 2 ELSE 3 END,
+                         q.id DESC
+                """;
+        return lessonId == null
+                ? jdbc.query(available + order, (rs, row) -> mapRow(rs), ownerId)
+                : jdbc.query(available + "AND q.lesson_id=? " + order, (rs, row) -> mapRow(rs), ownerId, lessonId);
     }
 
     public List<Map<String, Object>> lessons() {

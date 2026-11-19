@@ -41,10 +41,15 @@ public class ResourcePracticeSeed {
                 seed(practice);
             }
         }
-        try (var input = new ClassPathResource("db/seed-practice-expansion.json").getInputStream()) {
+        seedSets("db/seed-practice-expansion.json", "practice-expansion-v1-");
+        seedSets("db/seed-review-bank.json", "review-bank-v1-");
+    }
+
+    private void seedSets(String resource, String migrationPrefix) throws IOException {
+        try (var input = new ClassPathResource(resource).getInputStream()) {
             List<PracticeSet> sets = mapper.readValue(input, new TypeReference<>() {});
             for (PracticeSet set : sets) {
-                seed(set);
+                seed(set, migrationPrefix);
             }
         }
     }
@@ -71,9 +76,9 @@ public class ResourcePracticeSeed {
         insertExercise(lessonId, "resource-" + practice.noteId(), practice.exercise());
     }
 
-    private void seed(PracticeSet set) throws IOException {
+    private void seed(PracticeSet set, String migrationPrefix) throws IOException {
         List<Long> lessonIds = jdbc.queryForList("SELECT id FROM lesson WHERE slug = ?", Long.class, set.lessonSlug());
-        if (lessonIds.isEmpty() || !claim("practice-expansion-v1-" + set.id())) {
+        if (lessonIds.isEmpty() || !claim(migrationPrefix + set.id())) {
             return;
         }
         long lessonId = lessonIds.get(0);

@@ -14,7 +14,7 @@ import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import hljs from 'highlight.js/lib/common'
 import 'highlight.js/styles/github.css'
-import { courseApi, codeApi } from '@/api'
+import { courseApi, codeApi, type QaItem } from '@/api'
 import { errMsg, getToken, API_BASE_URL } from '@/api/http'
 import { useAgentStore } from '@/stores/agent'
 import { useProgressStore, type ReadingPosition, type SelfCheckResult } from '@/stores/progress'
@@ -595,8 +595,9 @@ const runningSnippet = ref<number | null>(null)
 const snippetRuns = ref<Record<number, any>>({})
 /** 该课时的习题 */
 const exercises = ref<any[]>([])
-const qaItems = ref<any[]>([])
+const qaItems = ref<QaItem[]>([])
 const revealedQa = ref<Record<number, boolean>>({})
+const lessonQaPreviewSize = 3
 /** 只展示属于本课时的习题 */
 const lessonExercises = computed(() => {
   const lid = lesson.value?.id
@@ -606,6 +607,19 @@ const lessonExercises = computed(() => {
 const lessonQa = computed(() => {
   const lid=lesson.value?.id
   return lid ? qaItems.value.filter((q) => q.lessonId === lid && q.qaType !== 'CODE') : []
+})
+watch(lessonId, async (id, _, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  qaItems.value = []
+  revealedQa.value = {}
+  if (!id) return
+  try {
+    const questions = await courseApi.qa(id)
+    if (active) qaItems.value = questions
+  } catch {
+    // An unavailable question bank should not interrupt the lesson.
+  }
 })
 function qaOptions(raw: string) { try { const v=JSON.parse(raw||'[]'); return Array.isArray(v)?v:[] } catch { return [] } }
 function qaAnswerKey(raw: string) { return raw === 'TRUE' ? '正确' : raw === 'FALSE' ? '错误' : raw }
@@ -662,7 +676,6 @@ onMounted(() => {
   }).catch(() => {
     exercises.value = []
   })
-  void courseApi.qa().then((list) => { qaItems.value=list }).catch(() => { qaItems.value=[] })
 })
 onUnmounted(() => {
   loadVersion++
@@ -847,11 +860,13 @@ watch(() => route.params.slug, (slug) => {
       <section v-if="activeTab === 'exercises'" class="card lesson-exercises-panel">
         <div class="section-head"><span class="dot" /><h2>课后练习</h2><span class="line" /></div>
         <div v-if="lessonExercises.length" class="ex-list"><RouterLink v-for="e in lessonExercises" :key="e.id" :to="`/exercise/${e.slug}`" class="ex-list__item"><strong>{{ e.title }}</strong><span class="badge badge--sun">{{ e.difficulty }}</span><span class="ex-list__go">去做题 →</span></RouterLink></div>
-        <article v-for="q in lessonQa" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'||q.qaType==='SINGLE_CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':q.qaType==='SHORT_ANSWER'?'简答题':'练习题' }}</span><strong>{{ q.question }}</strong>
+        <article v-for="q in lessonQa.slice(0, lessonQaPreviewSize)" :key="q.id" class="lesson-quiz"><span class="badge badge--lilac">{{ q.qaType==='CHOICE'||q.qaType==='SINGLE_CHOICE'?'选择题':q.qaType==='JUDGE'?'判断题':q.qaType==='SHORT_ANSWER'?'简答题':'练习题' }}</span><strong>{{ q.question }}</strong>
           <ul v-if="q.options" class="quiz-options"><li v-for="(opt,i) in qaOptions(q.options)" :key="i">{{ opt }}</li></ul>
           <button class="btn btn--sm btn--mint" @click="revealedQa[q.id]=!revealedQa[q.id]">{{revealedQa[q.id]?'收起答案':'查看答案'}}</button>
           <div v-if="revealedQa[q.id]" class="quiz-answer"><p>{{q.answer}}</p><b v-if="q.answerKey">答案：{{qaAnswerKey(q.answerKey)}}</b></div>
         </article>
+        <RouterLink v-if="lessonQa.length > lessonQaPreviewSize" class="btn btn--sm btn--ghost lesson-quiz__more"
+          :to="{ name: 'qa', query: { lesson: lessonSlug } }">练习本节全部 {{ lessonQa.length }} 道题 →</RouterLink>
       </section>
     </template>
   </div>
@@ -907,7 +922,8 @@ watch(() => route.params.slug, (slug) => {
 .lesson-tabs a.active { background: var(--c-mint); color: #fff; }
 .lesson-exercises-panel { padding: 28px; }
 .lesson-quiz { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 18px 0; border-bottom: 1px solid var(--c-cream-deep); }
-.lesson-quiz strong { line-height: 1.8; }
+.lesson-quiz strong { line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lesson-quiz__more { margin-top: 12px; }
 .quiz-options { margin: 0; padding-left: 24px; line-height: 1.8; }
 .quiz-answer { width: 100%; padding: 12px 16px; border-left: 5px solid var(--c-mint); border-radius: 0 10px 10px 0; background: var(--c-cream); line-height: 1.7; }
 .quiz-answer p { margin: 0 0 6px; }

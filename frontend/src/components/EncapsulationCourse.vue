@@ -78,6 +78,7 @@ const nextLesson = computed(() => props.lessons.find(lesson => !progress.isCompl
           <RouterLink v-else-if="lesson.slug === 'encapsulation-packages'" :to="{ name: 'lesson-lab', params: { slug: lesson.slug } }">打开实验室</RouterLink>
           <RouterLink v-else-if="lesson.slug === 'encapsulation-refactor'" :to="{ name: 'lesson', params: { slug: lesson.slug }, query: { tab: 'exercises' } }">开始重构</RouterLink>
           <a v-if="lesson.slug === 'encapsulation-packages'" :href="packageStarterZip" download>下载双包实验工程</a>
+          <RouterLink :to="{ name: 'qa', query: { lesson: lesson.slug } }">题库自测</RouterLink>
         </footer>
       </li>
     </ol>

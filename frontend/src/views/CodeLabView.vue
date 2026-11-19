@@ -123,7 +123,7 @@ watch([() => route.params.slug, lessonRetry], async ([slug], _, onCleanup) => {
     videos.value = detail.videos || []
     syncSelection()
     if (!snippets.value.length && !videos.value.length) return
-    void Promise.allSettled([codeApi.exercises(loadedLesson.id), courseApi.qa()]).then(([exercises, questions]) => {
+    void Promise.allSettled([codeApi.exercises(loadedLesson.id), courseApi.qa(loadedLesson.id)]).then(([exercises, questions]) => {
       if (!current) return
       hasLessonPractice.value =
         (exercises.status === 'fulfilled' && exercises.value.some((item) => item.lessonId === loadedLesson.id))

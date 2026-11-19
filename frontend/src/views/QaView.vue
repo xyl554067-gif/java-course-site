@@ -52,10 +52,18 @@ const resourceFilter = computed(() => {
   return typeof resource === 'string' && (['all', 'mine'].includes(resource) || resourceNoteById(resource)) ? resource : ''
 })
 const topicId = computed(() => typeof route.query.topic === 'string' ? route.query.topic : '')
+const lessonFilter = computed(() => typeof route.query.lesson === 'string' ? route.query.lesson : '')
 const topics = computed(() => practiceTopics(items.value, lessons.value))
 const topic = computed(() => topics.value.find(group => group.id === topicId.value))
-const filtersActive = computed(() => Boolean(keyword.value.trim() || difficulty.value || resourceFilter.value || filter.value !== 'ALL'))
-const list = computed(() => (topicId.value ? topic.value?.items ?? [] : items.value).filter((item) => {
+const topicItems = computed(() => topicId.value ? topic.value?.items ?? [] : items.value)
+const lessonOptions = computed(() => {
+  const lessonIds = new Set(topicItems.value.map(item => item.lessonId))
+  return lessons.value.filter(lesson => lessonIds.has(lesson.id))
+})
+const selectedLesson = computed(() => lessonOptions.value.find(lesson => lesson.slug === lessonFilter.value))
+const filtersActive = computed(() => Boolean(lessonFilter.value || keyword.value.trim() || difficulty.value || resourceFilter.value || filter.value !== 'ALL'))
+const list = computed(() => topicItems.value.filter((item) => {
+  if (lessonFilter.value && item.lessonId !== selectedLesson.value?.id) return false
   const matchesType = filter.value === 'ALL' || normalizeType(item.qaType) === filter.value
   const source = resourceFilter.value
   const matchesSource = !source || item.resourceNoteId === source
@@ -66,17 +74,19 @@ const list = computed(() => (topicId.value ? topic.value?.items ?? [] : items.va
 const totalPages = computed(() => Math.max(1, Math.ceil(list.value.length / pageSize)))
 const currentPage = computed(() => Math.min(page.value, totalPages.value))
 const pageItems = computed(() => list.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
-watch([topicId, keyword, filter, difficulty, resourceFilter], () => { page.value = 1 })
+watch([topicId, lessonFilter, keyword, filter, difficulty, resourceFilter], () => { page.value = 1 })
 
-function setFilter(name: 'topic' | 'resource', value: string) {
-  void router.replace({ query: { ...route.query, [name]: value || undefined } })
+function setFilter(name: 'topic' | 'resource' | 'lesson', value: string) {
+  const query = { ...route.query, [name]: value || undefined }
+  if (name === 'topic') delete query.lesson
+  void router.replace({ query })
 }
 
 function clearFilters(overview = false) {
   filter.value = 'ALL'
   keyword.value = ''
   difficulty.value = ''
-  void router.replace({ query: { ...route.query, resource: undefined, topic: overview ? undefined : route.query.topic } })
+  void router.replace({ query: { ...route.query, resource: undefined, lesson: undefined, topic: overview ? undefined : route.query.topic } })
 }
 
 async function turnPage(direction: number) {
@@ -334,6 +344,12 @@ onMounted(load)
       <label class="qa__field">难度
         <select v-model="difficulty"><option value="">全部难度</option><option v-for="level in practiceLevels" :key="level.id" :value="level.id">{{ level.label }}</option></select>
       </label>
+      <label class="qa__field qa__field--lesson">课时
+        <select :value="lessonFilter" @change="setFilter('lesson', ($event.target as HTMLSelectElement).value)">
+          <option value="">全部课时</option>
+          <option v-for="lesson in lessonOptions" :key="lesson.id" :value="lesson.slug">{{ lesson.title }}</option>
+        </select>
+      </label>
       <label class="qa__field">来源
         <select :value="resourceFilter" @change="setFilter('resource', ($event.target as HTMLSelectElement).value)">
           <option value="">全部来源</option>
@@ -384,7 +400,7 @@ onMounted(load)
     <div v-if="loading" class="qa__loading"><div class="spinner" /></div>
     <section v-else-if="topicId || filtersActive" class="qa__list" aria-labelledby="qa-results">
       <header class="qa__results-head">
-        <h2 id="qa-results" ref="resultsHeading" class="title-round" tabindex="-1">{{ topic?.title || '筛选结果' }}</h2>
+        <h2 id="qa-results" ref="resultsHeading" class="title-round" tabindex="-1">{{ selectedLesson?.title || topic?.title || '筛选结果' }}</h2>
         <span role="status">{{ list.length }} 道题</span>
       </header>
       <p v-if="!list.length" class="card qa__empty">没有匹配的题目，试试更换分区或筛选条件。</p>
@@ -434,6 +450,7 @@ onMounted(load)
 .qa__actions,.qa-editor__actions,.qa__empty>div{display:flex;align-items:center;gap:9px}
 .qa__tools{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-bottom:24px;padding:14px;background:var(--c-cream);border:1px solid #d0c5e6;border-radius:var(--radius-md)}
 .qa__field{display:grid;gap:5px;min-width:0;font-size:13px;font-weight:700}.qa__field--search{flex:1 1 180px}
+.qa__field--lesson{flex:1 1 155px;max-width:245px}
 .qa__field :is(input,select){width:100%;max-width:100%;min-width:0;padding:8px 9px;border:1px solid #8e85a6;border-radius:8px;background:var(--c-paper);color:var(--c-ink);font:inherit;font-weight:400}
 .template-link,.text-button{border:0;background:none;color:var(--c-ink-soft);cursor:pointer;text-decoration:underline;text-underline-offset:3px}.template-link{font:inherit;font-size:13px;margin-block:8px}
 .qa__results-head,.qa__pages{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.qa__results-head{justify-content:space-between;scroll-margin-top:calc(var(--nav-h) + 12px)}.qa__results-head h2{margin:0;scroll-margin-top:calc(var(--nav-h) + 12px)}.qa__pages{justify-content:center}
