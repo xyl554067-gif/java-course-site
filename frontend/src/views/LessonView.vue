@@ -1114,12 +1114,6 @@ watch(() => route.params.slug, (slug) => {
 .md-body :deep(.md-table tbody tr:hover td) { background: var(--c-cream); }
 /* 表格里的行内代码不要继承 code 块的高亮底色 */
 .md-body :deep(.md-table code) { background: var(--c-cream-deep); }
-@media (prefers-color-scheme: dark) {
-  .md-body :deep(.md-table th),
-  .md-body :deep(.md-table td) { border-color: var(--c-line-dark); }
-  .md-body :deep(.md-table th) { background: rgba(255, 255, 255, 0.05); color: var(--code-ink-dark); }
-  .md-body :deep(.md-table tbody tr:hover td) { background: rgba(255, 255, 255, 0.04); }
-}
 /* 代码块：正文里的代码块由 v-html 注入（不带 scoped 属性），必须用 :deep() 命中 */
 .code,
 .md-body :deep(.md-code) {
