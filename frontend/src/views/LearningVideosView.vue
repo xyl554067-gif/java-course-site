@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { courseApi, learningVideoApi, type LearningVideo, type VideoInput, type QaLessonOption } from '@/api'
 import { errMsg } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const videos = ref<LearningVideo[]>([])
 const lessons = ref<QaLessonOption[]>([])
 const loading = ref(true)
@@ -16,15 +19,28 @@ const editingId = ref<number>()
 const draft = ref<VideoInput>()
 const formHeading = ref<HTMLHeadingElement | null>(null)
 const removingId = ref<number>()
-const query = ref('')
-const selectedLesson = ref('')
-
 const lessonOptions = computed(() => {
-  const options = new Map<number, { title: string; courseTitle: string }>()
+  const options = new Map<string, { title: string; courseTitle: string }>()
   for (const video of videos.value) {
-    options.set(video.lessonId, { title: video.lessonTitle, courseTitle: video.courseTitle })
+    options.set(String(video.lessonId), { title: video.lessonTitle, courseTitle: video.courseTitle })
   }
   return options
+})
+
+function replaceFilters(filters: { q?: string; lesson?: string }) {
+  void router.replace({ query: { ...route.query, ...filters } })
+}
+
+const query = computed({
+  get: () => typeof route.query.q === 'string' ? route.query.q : '',
+  set: (value: string) => replaceFilters({ q: value || undefined }),
+})
+const selectedLesson = computed({
+  get: () => {
+    const lesson = route.query.lesson
+    return typeof lesson === 'string' && lessonOptions.value.has(lesson) ? lesson : ''
+  },
+  set: (value: string) => replaceFilters({ lesson: value || undefined }),
 })
 
 const filteredVideos = computed(() => {
@@ -38,8 +54,7 @@ const filteredVideos = computed(() => {
 })
 
 function clearFilters() {
-  query.value = ''
-  selectedLesson.value = ''
+  replaceFilters({ q: undefined, lesson: undefined })
 }
 
 const courses = computed(() => {
@@ -156,7 +171,7 @@ onMounted(load)
       <label>对应课时
         <select v-model="selectedLesson">
           <option value="">全部课时</option>
-          <option v-for="[id, lesson] in lessonOptions" :key="id" :value="String(id)">
+          <option v-for="[id, lesson] in lessonOptions" :key="id" :value="id">
             {{ lesson.courseTitle }} · {{ lesson.title }}
           </option>
         </select>
