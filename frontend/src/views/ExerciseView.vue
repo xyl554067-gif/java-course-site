@@ -22,7 +22,8 @@ const router = useRouter()
 const exercises = ref<CodeExercise[]>([])
 const lessons = ref<QaLessonOption[]>([])
 const runtime = ref<CodeRuntime | null>(null)
-const runtimeFailed = ref(false)
+const checkingRuntime = ref(false)
+const runtimeError = ref('')
 const current = ref<CodeExercise | null>(null)
 const code = ref('')
 const stdin = ref('')
@@ -65,11 +66,16 @@ function clearFilters(overview = false) {
 }
 
 async function loadRuntime() {
-  runtimeFailed.value = false
+  if (checkingRuntime.value) return
+  checkingRuntime.value = true
+  runtimeError.value = ''
   try {
     runtime.value = await codeApi.runtime()
-  } catch {
-    runtimeFailed.value = true
+  } catch (e) {
+    runtime.value = null
+    runtimeError.value = errMsg(e)
+  } finally {
+    checkingRuntime.value = false
   }
 }
 
@@ -142,7 +148,7 @@ function selectExercise(ex: CodeExercise) {
   showHint.value = false
   running.value = false
   submitting.value = false
-  if (!runtime.value && !runtimeFailed.value) void loadRuntime()
+  if (!runtime.value && !runtimeError.value) void loadRuntime()
   void loadSubmissions(ex.id, version)
   try {
     const raw = sessionStorage.getItem('javacourse.lab.snippet')
@@ -286,9 +292,9 @@ onMounted(load)
       <RouterLink class="ex__back" :to="{ name: 'exercises', query: route.query }">← 返回练习目录</RouterLink>
       <div v-if="error && !current" class="card ex__loading" role="alert">{{ error }}</div>
       <section v-else-if="current" class="ex__main">
-        <div v-if="runtimeFailed || (runtime && !ready)" class="ex__alert ex__alert--warn" role="status">
-          <p>{{ runtime?.note || '暂时无法获取代码运行环境。' }}</p>
-          <button type="button" class="btn btn--sm btn--ghost" @click="loadRuntime">重试检测</button>
+        <div v-if="!ready" class="ex__alert ex__alert--warn">
+          <p role="status">{{ checkingRuntime ? '正在检查 Java 运行环境，可以先编辑代码。' : runtimeError || runtime?.note || 'Java 运行环境暂未就绪。' }}</p>
+          <button v-if="!checkingRuntime" type="button" class="btn btn--sm btn--ghost" @click="loadRuntime">重试检测</button>
         </div>
         <!-- 题面 -->
         <div class="card ex__head">
@@ -330,7 +336,6 @@ onMounted(load)
             <CodeEditor
               ref="editorRef"
               v-model="code"
-              :readonly="!ready"
               :min-rows="16"
               :max-rows="30"
               @run="doRun"
