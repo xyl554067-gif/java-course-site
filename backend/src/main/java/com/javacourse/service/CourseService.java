@@ -15,14 +15,16 @@ import java.util.Map;
 @Service
 public class CourseService {
     private static final String ENCAPSULATION_COURSE = "java-encapsulation";
-    private static final String ENCAPSULATION_LESSON = "encapsulation-account";
+    private static final String ENCAPSULATION_LESSON = EncapsulationKnowledge.LESSON_SLUG;
 
     private final CourseRepository repo;
     private final LearningVideoRepository videos;
+    private final EncapsulationKnowledge topicKnowledge;
 
-    public CourseService(CourseRepository repo, LearningVideoRepository videos) {
+    public CourseService(CourseRepository repo, LearningVideoRepository videos, EncapsulationKnowledge topicKnowledge) {
         this.repo = repo;
         this.videos = videos;
+        this.topicKnowledge = topicKnowledge;
     }
 
     public List<Map<String, Object>> listCourses() {
@@ -74,6 +76,7 @@ public class CourseService {
         lesson.put("snippets", repo.listSnippets(id));
         lesson.put("videos", videos.forLesson(id));
         lesson.put("knowledge", repo.listKnowledgeOfLesson(id));
+        if (ENCAPSULATION_LESSON.equals(slug)) lesson.put("topicKnowledge", topicKnowledge.cards());
         if (ENCAPSULATION_COURSE.equals(lesson.get("courseSlug"))) {
             // The original entries remain addressable for question links and saved progress.
             return lesson;

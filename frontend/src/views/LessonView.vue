@@ -14,7 +14,7 @@ import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import hljs from 'highlight.js/lib/common'
 import 'highlight.js/styles/github.css'
-import { courseApi, codeApi, type CodeRunResult, type CodeRuntime, type CodeSnippet, type QaItem } from '@/api'
+import { courseApi, codeApi, type CodeRunResult, type CodeRuntime, type CodeSnippet, type QaItem, type TopicKnowledgeCard } from '@/api'
 import { errMsg, getToken, API_BASE_URL } from '@/api/http'
 import { useAgentStore } from '@/stores/agent'
 import { useProgressStore, type ReadingPosition, type SelfCheckResult } from '@/stores/progress'
@@ -45,6 +45,9 @@ const arrayReviewPrompt: LessonComicPrompt = {
 const activeTab = computed(() => String(route.query.tab || 'notes'))
 const lessonSlug = computed(() => String(route.params.slug || ''))
 const isEncapsulationLesson = computed(() => lessonSlug.value === 'encapsulation-account')
+const topicDetails = ref<HTMLDetailsElement | null>(null)
+const topicCards = computed<TopicKnowledgeCard[]>(() => lesson.value?.topicKnowledge ?? [])
+const topicCategories = computed(() => [...new Set(topicCards.value.map(card => card.category))])
 const resourceNote = computed(() => resourceNotes.find((note) => note.lessonSlug === lessonSlug.value))
 const hasAccessCheck = computed(() => isEncapsulationLesson.value || ['oop-core', 'encapsulation-access'].includes(lessonSlug.value))
 const encapsulationReadings = [
@@ -66,6 +69,22 @@ const comicPrompt = computed(() => {
     : undefined
 })
 function jumpToHeading(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+
+function jumpToTopicKnowledge() {
+  const details = topicDetails.value
+  const id = route.hash.slice(1)
+  if (!details || !isEncapsulationLesson.value || activeTab.value !== 'notes' || !id.startsWith('topic-knowledge')) return false
+  const target = id === details.id ? details.querySelector('summary') : document.getElementById(id)
+  if (!target || !details.contains(target)) return false
+  details.open = true
+  target.focus({ preventScroll: true })
+  target.scrollIntoView({ block: 'start', behavior: 'instant' })
+  return true
+}
+
+watch(() => route.hash, () => {
+  requestAnimationFrame(() => { if (!loading.value) jumpToTopicKnowledge() })
+})
 type LessonSnippet = CodeSnippet & { stdin?: string | null }
 const snippets = ref<LessonSnippet[]>([])
 const hasLessonVideos = ref(false)
@@ -586,10 +605,12 @@ async function load(slug: string) {
     } else if (example) {
       example.focus({ preventScroll: true })
       example.scrollIntoView({ block: 'start', behavior: 'instant' })
-    } else if (reviewing.value) {
-      quizArea.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
-    } else if (route.query.resume === '1' && stored?.progress?.readingSection) {
-      document.getElementById(stored.progress.readingSection)?.scrollIntoView({ block: 'start', behavior: 'instant' })
+    } else if (!jumpToTopicKnowledge()) {
+      if (reviewing.value) {
+        quizArea.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      } else if (route.query.resume === '1' && stored?.progress?.readingSection) {
+        document.getElementById(stored.progress.readingSection)?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      }
     }
     if (newId) startTimer(newId)
     requestAnimationFrame(() => { if (version === loadVersion) readingReady = true })
@@ -887,6 +908,21 @@ watch(() => route.params.slug, (slug) => {
             </p>
           </div>
 
+          <details v-if="isEncapsulationLesson && topicCards.length" id="topic-knowledge" ref="topicDetails" class="topic-lesson-readings topic-knowledge">
+            <summary>专题知识库（{{ topicCards.length }} 条）</summary>
+            <p>角色一整理知识条目、编译正反例及口语检索验收题。</p>
+            <a :href="ASSET_BASE + 'downloads/encapsulation-role-one-examples.zip'" download>下载三组编译实验</a>
+            <div v-for="category in topicCategories" :key="category" class="topic-knowledge__group">
+              <h3>{{ category }}</h3>
+              <article v-for="card in topicCards.filter(item => item.category === category)" :key="card.id" class="topic-knowledge__card">
+                <h4 :id="'topic-knowledge-' + card.id" tabindex="-1">{{ card.title }}</h4>
+                <p>{{ card.summary }}</p>
+                <p>{{ card.example }}</p>
+                <a :href="card.sourceUrl" target="_blank" rel="noopener noreferrer">核对来源 ↗</a>
+              </article>
+            </div>
+          </details>
+
           <details v-if="isEncapsulationLesson" class="topic-lesson-readings">
             <summary>课后资料</summary>
             <ul>
@@ -966,6 +1002,11 @@ watch(() => route.params.slug, (slug) => {
 .topic-lesson-action pre { margin: 6px 0 0; padding: 9px; background: var(--c-paper); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .inline-runtime-error button { margin-top: 8px; }
 .topic-lesson-readings { margin-top: 24px; }
+.topic-knowledge summary, .topic-knowledge__card h4 { scroll-margin-top: calc(var(--nav-h) + 16px); }
+.topic-knowledge__group { margin-top: 20px; }
+.topic-knowledge__card { border-top: var(--bw-thin) solid var(--c-ink-faint); margin-top: 12px; padding-top: 12px; overflow-wrap: anywhere; }
+.topic-knowledge__card h4, .topic-knowledge__card p { margin: 0 0 8px; }
+.topic-knowledge a { text-decoration: underline; text-underline-offset: 3px; }
 .topic-lesson-readings summary { cursor: pointer; font-weight: 750; }
 .topic-lesson-readings li + li { margin-top: 6px; }
 .lesson-resource { margin-block: var(--space-lg); }

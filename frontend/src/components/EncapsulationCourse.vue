@@ -26,6 +26,10 @@ const stages = [
           {{ progress.isCompleted(lesson.id) ? '复习这节课' : '进入知识点讲解' }} →
         </RouterLink>
       </div>
+      <p v-if="lesson" class="topic-hero__credit">
+        <RouterLink :to="{ name: 'lesson', params: { slug: lesson.slug }, hash: '#topic-knowledge' }">专题知识库</RouterLink>
+        · 角色一整理知识条目、代码示例及检索验收题
+      </p>
     </div>
 
     <section class="topic-outline" aria-labelledby="topic-outline-title">
@@ -54,6 +58,7 @@ const stages = [
 .topic-hero h1 span { display: inline-block; }
 .topic-hero__desc { max-width: 29rem; margin: 0; color: var(--c-ink-soft); line-height: 1.75; }
 .topic-hero__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 22px; }
+.topic-hero__credit { margin: 12px 0 0; color: var(--c-ink-soft); font-size: .9rem; }
 
 .topic-outline { min-width: 0; padding: clamp(14px, 2vw, 22px); border: 1px solid #cdc0e4; border-radius: var(--radius-md); background: var(--c-paper); }
 .topic-outline h2 { margin: 0 0 12px; font-size: 1.2rem; }

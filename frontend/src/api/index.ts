@@ -134,6 +134,16 @@ export interface Citation {
   title: string
   slug: string
   summary: string
+  knowledgeId?: string
+}
+
+export interface TopicKnowledgeCard {
+  id: string
+  title: string
+  category: string
+  summary: string
+  example: string
+  sourceUrl: string
 }
 
 export interface AskResult {

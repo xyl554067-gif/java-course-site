@@ -1,0 +1,317 @@
+[
+  {
+    "query": "Java 的四种成员访问权限怎么区分？",
+    "expected": "ACC-01",
+    "group": "原31题"
+  },
+  {
+    "query": "顶层类为什么不能声明为 private？",
+    "expected": "ACC-02",
+    "group": "原31题"
+  },
+  {
+    "query": "同包但没有继承关系可以访问 protected 吗？",
+    "expected": "ACC-03",
+    "group": "原31题"
+  },
+  {
+    "query": "为什么跨包子类里 parent.score 会报错？",
+    "expected": "ACC-04",
+    "group": "原31题"
+  },
+  {
+    "query": "跨包子类可以访问父类无修饰符字段吗？",
+    "expected": "ACC-05",
+    "group": "原31题"
+  },
+  {
+    "query": "为什么不能直接修改 Student 的成绩？如何读取私有字段？",
+    "expected": "ENC-01",
+    "group": "原31题"
+  },
+  {
+    "query": "怎样在创建账户时拒绝负数初始余额？",
+    "expected": "ENC-02",
+    "group": "原31题"
+  },
+  {
+    "query": "如何通过存取款方法保证余额合法？",
+    "expected": "ENC-03",
+    "group": "原31题"
+  },
+  {
+    "query": "包声明和源码目录有什么关系？",
+    "expected": "PKG-01",
+    "group": "原31题"
+  },
+  {
+    "query": "我已经 import Student 了，为什么还是不能访问 student.score？",
+    "expected": "PKG-02",
+    "group": "原31题"
+  },
+  {
+    "query": "同一个文件怎样使用两个包里的同名类？",
+    "expected": "PKG-03",
+    "group": "原31题"
+  },
+  {
+    "query": "import school.* 会导入 school.app 的类吗？",
+    "expected": "PKG-04",
+    "group": "原31题"
+  },
+  {
+    "query": "成绩字段是私有的，我该怎么读取它？",
+    "expected": "ENC-01",
+    "group": "原31题"
+  },
+  {
+    "query": "new BankAccount(-1) 应该在哪里阻止？",
+    "expected": "ENC-02",
+    "group": "原31题"
+  },
+  {
+    "query": "账户怎么防止超额取款后余额变成负数？",
+    "expected": "ENC-03",
+    "group": "原31题"
+  },
+  {
+    "query": "四个访问修饰符的可见范围能做个对照吗？",
+    "expected": "ACC-01",
+    "group": "原31题"
+  },
+  {
+    "query": "最外层的 Java 类为什么不能写 protected？",
+    "expected": "ACC-02",
+    "group": "原31题"
+  },
+  {
+    "query": "处在同一个包的无关类能访问 protected 成员吗？",
+    "expected": "ACC-03",
+    "group": "原31题"
+  },
+  {
+    "query": "跨包 Child 里 Parent p = this，为什么 p.score 报错？",
+    "expected": "ACC-04",
+    "group": "原31题"
+  },
+  {
+    "query": "父类字段没写修饰符，别的包的子类能用吗？",
+    "expected": "ACC-05",
+    "group": "原31题"
+  },
+  {
+    "query": "package school.app 和源码文件夹怎么对应？",
+    "expected": "PKG-01",
+    "group": "原31题"
+  },
+  {
+    "query": "类已经导入，为什么我还是读不了它的私有字段？",
+    "expected": "PKG-02",
+    "group": "原31题"
+  },
+  {
+    "query": "一个文件需要用两个重名类，要怎么写全限定名？",
+    "expected": "PKG-03",
+    "group": "原31题"
+  },
+  {
+    "query": "import school.* 后，为什么找不到 school.app.Child？",
+    "expected": "PKG-04",
+    "group": "原31题"
+  },
+  {
+    "query": "不用 getter 的话，private 成绩字段能直接读吗？",
+    "expected": "ENC-01",
+    "group": "原31题"
+  },
+  {
+    "query": "import school.core.Student 之后访问不了私有成绩字段怎么办？",
+    "expected": "PKG-02",
+    "group": "原31题"
+  },
+  {
+    "query": "同包普通类读 protected 字段需要 extends 吗？",
+    "expected": "ACC-03",
+    "group": "原31题"
+  },
+  {
+    "query": "protected 字段在跨包子类里为什么不能用父类引用读？",
+    "expected": "ACC-04",
+    "group": "原31题"
+  },
+  {
+    "query": "如何配置 Maven 镜像？",
+    "expected": "",
+    "group": "原31题"
+  },
+  {
+    "query": "Python 如何 import pandas？",
+    "expected": "",
+    "group": "原31题"
+  },
+  {
+    "query": "Java 怎么给数组排序？",
+    "expected": "",
+    "group": "原31题"
+  },
+  {
+    "query": "成绩存在对象里面，外部要怎样拿到这个值？",
+    "expected": "ENC-01",
+    "group": "原22题"
+  },
+  {
+    "query": "一开户就给了负余额，在哪里挡住比较合适？",
+    "expected": "ENC-02",
+    "group": "原22题"
+  },
+  {
+    "query": "扣的钱超过账户里剩下的，怎么让原来的数值保持原样？",
+    "expected": "ENC-03",
+    "group": "原22题"
+  },
+  {
+    "query": "把能看见一个成员的范围从最宽到最窄排一下。",
+    "expected": "ACC-01",
+    "group": "原22题"
+  },
+  {
+    "query": "一个类直接写在源文件里，能给它标成仅自己可见吗？",
+    "expected": "ACC-02",
+    "group": "原22题"
+  },
+  {
+    "query": "都放在同一个包的两个类，彼此没有继承关系，能读对方的受保护字段吗？",
+    "expected": "ACC-03",
+    "group": "原22题"
+  },
+  {
+    "query": "两个变量指向同一个孩子对象，为什么换成父类类型就取不到继承来的值？",
+    "expected": "ACC-04",
+    "group": "原22题"
+  },
+  {
+    "query": "字段前面什么都没写，另一个包里的孩子类能直接用吗？",
+    "expected": "ACC-05",
+    "group": "原22题"
+  },
+  {
+    "query": "源码放在 school/app 下面，运行时为什么要写 school.app.Demo？",
+    "expected": "PKG-01",
+    "group": "原22题"
+  },
+  {
+    "query": "类都导进来了，为什么在另一个文件里还是取不到它的成绩字段？",
+    "expected": "PKG-02",
+    "group": "原22题"
+  },
+  {
+    "query": "两个库的 Date 都要在同一份源码里出现，该怎么写才不会撞名字？",
+    "expected": "PKG-03",
+    "group": "原22题"
+  },
+  {
+    "query": "外层包用了星号，怎么里层目录里的类还是找不到？",
+    "expected": "PKG-04",
+    "group": "原22题"
+  },
+  {
+    "query": "Parent p = this; return p.score;",
+    "expected": "ACC-04",
+    "group": "原22题"
+  },
+  {
+    "query": "package school.app;\nclass Bad extends school.core.Parent { int read() { return super.local; } }",
+    "expected": "ACC-05",
+    "group": "原22题"
+  },
+  {
+    "query": "import java.util.Date;\nimport java.sql.Date;\nclass Demo { Date value; }",
+    "expected": "PKG-03",
+    "group": "原22题"
+  },
+  {
+    "query": "import school.*;\nclass Demo { Child value; } // Child: school.app.Child",
+    "expected": "PKG-04",
+    "group": "原22题"
+  },
+  {
+    "query": "import school.core.Student;\nclass Demo { int read(Student s) { return s.score; } } // score: private",
+    "expected": "PKG-02",
+    "group": "原22题"
+  },
+  {
+    "query": "private class Standalone {}",
+    "expected": "ACC-02",
+    "group": "原22题"
+  },
+  {
+    "query": "Python 的 import 在虚拟环境里为什么找不到 pandas？",
+    "expected": "",
+    "group": "原22题"
+  },
+  {
+    "query": "GitHub 上怎么创建 private 仓库？",
+    "expected": "",
+    "group": "原22题"
+  },
+  {
+    "query": "Python 里 import 后的私有模块为什么访问不了？",
+    "expected": "",
+    "group": "原22题"
+  },
+  {
+    "query": "如何读取 PEM 格式的 private key？",
+    "expected": "",
+    "group": "原22题"
+  },
+  {
+    "query": "同一个包里没继承的类也能碰受保护成员吗？",
+    "expected": "ACC-03",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "声明成员时省略了访问修饰符，外包的派生类能读吗？",
+    "expected": "ACC-05",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "类型已经引进来了，但还是拿不到那个字段的值。",
+    "expected": "PKG-02",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "import alpha.model.Widget;\nimport beta.api.Widget;\nclass Example { Widget w; }",
+    "expected": "PKG-03",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "import alpha.Widget;\nimport alpha.Widget;\nclass Example { Widget w; }",
+    "expected": "",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "package example;\npublic class Main {}",
+    "expected": "",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "Python 中 import 后为何读不了 private 属性？",
+    "expected": "",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "怎么从 PEM 文件提取 private key？",
+    "expected": "",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "SSH private key 为什么读不了？",
+    "expected": "",
+    "group": "第二轮独立"
+  },
+  {
+    "query": "怎么把装着分数的字段留给对象自己管？",
+    "expected": "ENC-01",
+    "group": "第二轮独立"
+  }
+]

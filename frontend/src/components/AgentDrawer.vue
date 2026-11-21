@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useAgentStore } from '@/stores/agent'
 import AssistantOptions from '@/components/AssistantOptions.vue'
 import AssistantAnswer from '@/components/AssistantAnswer.vue'
-import { MAX_QUESTION_LENGTH, useAssistantConversation, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
+import { citationPath, MAX_QUESTION_LENGTH, useAssistantConversation, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
 
 const agent = useAgentStore()
 const { localOnly, includeLesson, lessonSlug, requestOptions } = useAssistantRequestOptions()
@@ -152,7 +152,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                 v-for="(c, i) in m.citations"
                 :key="i"
                 class="badge badge--mint cites__item"
-                :to="`/lesson/${c.slug}`"
+                :to="citationPath(c)"
                 @click="agent.close()"
               >
                 {{ c.title }}

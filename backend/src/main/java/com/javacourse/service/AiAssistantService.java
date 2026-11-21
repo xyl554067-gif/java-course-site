@@ -54,10 +54,7 @@ public class AiAssistantService {
         if (containsConfiguredSecret(result.answer()) || AssistantPolicy.unsafeAnswer(result.answer())) {
             return reply(AssistantPolicy.OUTPUT_BLOCKED, List.of(), "local", false, true, start);
         }
-        List<Map<String, Object>> citations = context.stream()
-                .map(lesson -> Map.of("title", lesson.get("title"), "slug", lesson.get("slug"),
-                        "summary", lesson.get("summary")))
-                .toList();
+        List<Map<String, Object>> citations = context.stream().map(this::citation).toList();
         return reply(result.answer(), citations, result.provider(), result.degraded(), false, start);
     }
 
@@ -88,7 +85,10 @@ public class AiAssistantService {
         if (limit == 0) return List.of();
 
         List<Map<String, Object>> context = new ArrayList<>();
-        if (lessonSlug != null) {
+        search.topicKnowledge(question).stream().limit(limit).forEach(card -> context.add(Map.of(
+                "title", card.title(), "slug", EncapsulationKnowledge.LESSON_SLUG, "knowledgeId", card.id(),
+                "summary", safeExcerpt(card.summary(), 360), "content", safeExcerpt(card.example(), 1200))));
+        if (lessonSlug != null && context.size() < limit) {
             Map<String, Object> selected = publicExcerpt(repo.findPublicAssistantLesson(lessonSlug));
             if (!selected.isEmpty()) context.add(selected);
         }
@@ -106,6 +106,15 @@ public class AiAssistantService {
                 .limit(remaining)
                 .forEachOrdered(context::add);
         return context;
+    }
+
+    private Map<String, Object> citation(Map<String, Object> material) {
+        Map<String, Object> citation = new HashMap<>();
+        citation.put("title", material.get("title"));
+        citation.put("slug", material.get("slug"));
+        citation.put("summary", material.get("summary"));
+        if (material.containsKey("knowledgeId")) citation.put("knowledgeId", material.get("knowledgeId"));
+        return citation;
     }
 
     private Map<String, Object> publicExcerpt(Map<String, Object> lesson) {

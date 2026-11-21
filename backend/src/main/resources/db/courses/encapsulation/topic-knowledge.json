@@ -1,0 +1,206 @@
+[
+  {
+    "card": {
+      "id": "ENC-01",
+      "title": "私有字段与公开方法",
+      "category": "封装",
+      "summary": "把数据和负责维护它的操作放进同一个类。外部代码通过公开方法取得所需的值，类可以保留直接改写字段的权限。",
+      "example": "外部读取 student.score 会报错。提供公开的 getScore() 后，可改为 student.getScore()。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.1"
+    },
+    "questions": [
+      "为什么不能直接修改 Student 的成绩？如何读取私有字段？"
+    ],
+    "groups": [
+      "私有|private|对象里面|对象自己管|藏起来",
+      "读取|读[成取]|查看|getter|getScore|成绩|字段|拿到|取值|获取|成员|读不了"
+    ]
+  },
+  {
+    "card": {
+      "id": "ENC-02",
+      "title": "构造时校验",
+      "category": "封装",
+      "summary": "在构造器里校验初始值，可以从对象创建时维护约定。例如，账户要求余额非负时，可以用 IllegalArgumentException 拒绝负数。",
+      "example": "new BankAccount(10) 成功。new BankAccount(-1) 会抛出异常，调用方得不到账户实例。",
+      "sourceUrl": "https://dev.java/learn/language/oop/classes-objects/creating-classes/"
+    },
+    "questions": [
+      "怎样在创建账户时拒绝负数初始余额？"
+    ],
+    "groups": [
+      "构造[器方]|初始|创建|new\\s+BankAccount|开户",
+      "负数|负值|非法|校验|拒绝|\\(\\s*-\\d|负余额"
+    ]
+  },
+  {
+    "card": {
+      "id": "ENC-03",
+      "title": "用业务方法维护状态",
+      "category": "封装",
+      "summary": "存取款方法先检查输入，再更新余额。金额须为正数，取款不能超过余额，存款不能造成整数溢出。",
+      "example": "余额为 100 时取款 120，应该拒绝这笔操作，余额仍是 100。",
+      "sourceUrl": "https://dev.java/learn/language/oop/classes-objects/creating-classes/"
+    },
+    "questions": [
+      "如何通过存取款方法保证余额合法？"
+    ],
+    "groups": [
+      "存款|取款|存取款|deposit|withdraw|扣钱|扣的钱",
+      "校验|余额|超额|非法|状态|溢出|剩下的|原来的数值"
+    ]
+  },
+  {
+    "card": {
+      "id": "ACC-01",
+      "title": "四种成员访问权限",
+      "category": "访问控制",
+      "summary": "先确认类型能否访问，再看成员修饰符和访问位置。public 对外开放，省略修饰符限同包，protected 还允许满足条件的异包子类访问，private 限于外围顶层类型的主体。",
+      "example": "同包的另一个顶层类可以读包级字段，直接读 private 字段会报错。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.1"
+    },
+    "questions": [
+      "Java 的四种成员访问权限怎么区分？"
+    ],
+    "groups": [
+      "四种|四个|权限表|public.*private|最宽.{0,10}最窄",
+      "权限|修饰符|可见|范围|看见"
+    ]
+  },
+  {
+    "card": {
+      "id": "ACC-02",
+      "title": "顶层类的访问权限",
+      "category": "访问控制",
+      "summary": "普通顶层类可声明为 public，或省略访问修饰符而只在本包可见。成员类可以使用 private 或 protected。",
+      "example": "在独立源文件写 private class Item {} 会编译失败。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.6"
+    },
+    "questions": [
+      "顶层类为什么不能声明为 private？"
+    ],
+    "groups": [
+      "顶层|最外层|直接写在源文件|^\\s*(?:private|protected)\\s+class\\s+\\w+",
+      "private|protected|public|权限|修饰符|仅自己可见"
+    ]
+  },
+  {
+    "card": {
+      "id": "ACC-03",
+      "title": "同包访问 protected",
+      "category": "访问控制",
+      "summary": "调用代码与声明 protected 成员的类在同一个包时，调用类无须继承该类，仍可访问可见类型中的这个成员。",
+      "example": "demo.bank 里的 BankCheck 可以访问同包 Account 的 protected auditCode()。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.1"
+    },
+    "questions": [
+      "同包但没有继承关系可以访问 protected 吗？"
+    ],
+    "groups": [
+      "protected|受保护",
+      "同包|同一个包|无继承|没有继承|没继承"
+    ]
+  },
+  {
+    "card": {
+      "id": "ACC-04",
+      "title": "跨包子类访问 protected 实例成员",
+      "category": "访问控制",
+      "summary": "在异包子类的方法里，通过表达式访问父类声明的 protected 实例成员时，接收者的编译期类型必须是当前子类或它的子类型。",
+      "example": "在 SavingsAccount 中，this.auditCode() 可以编译。Account parent = this 后，parent.auditCode() 会被拒绝。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.2.1"
+    },
+    "questions": [
+      "为什么跨包子类里 parent.score 会报错？"
+    ],
+    "groups": [
+      "protected|Parent\\s+\\w+\\s*=\\s*this|父类引用|父类类型.{0,15}(?:取不到|读不到)|指向同一个.{0,12}对象",
+      "跨包|子类|编译期|\\w+\\.score|父类类型|取不到|读不到|继承来的"
+    ]
+  },
+  {
+    "card": {
+      "id": "ACC-05",
+      "title": "省略修饰符的包访问权限",
+      "category": "访问控制",
+      "summary": "普通类的字段或方法省略访问修饰符时只有包访问权限。跨包的子类也受包边界限制。",
+      "example": "把访问代码从 demo.bank 移到 demo.app 后，原来能调用的包级 branchCode() 会报错。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.1"
+    },
+    "questions": [
+      "跨包子类可以访问父类无修饰符字段吗？"
+    ],
+    "groups": [
+      "无修饰符|没写修饰符|不写权限|包访问权限|package.private|前面什么都没写|省略.{0,6}(?:访问)?修饰符|super\\.local\\b",
+      "字段|成员|方法|跨包|子类|别的包|另一个包|派生类|extends"
+    ]
+  },
+  {
+    "card": {
+      "id": "PKG-01",
+      "title": "包声明与代码组织",
+      "category": "包管理",
+      "summary": "package 声明确定类属于哪个包。源码通常按包路径存放。用 java 启动命名包里的入口类时，要在类路径根目录下使用全限定名。",
+      "example": "声明 package demo.app 的 BankApp 可放在 src/demo/app。输出到 out 后用 java -cp out demo.app.BankApp。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.4.1"
+    },
+    "questions": [
+      "包声明和源码目录有什么关系？"
+    ],
+    "groups": [
+      "package\\s+\\w+|包声明|包名|\\bschool/app\\b|全限定类名",
+      "目录|文件夹|路径|源码|运行|运行时"
+    ]
+  },
+  {
+    "card": {
+      "id": "PKG-02",
+      "title": "import 与访问权限",
+      "category": "包管理",
+      "summary": "import 让可访问的类型可以用简单类名引用。字段和方法仍按访问修饰符检查。即使写全限定类名，也不能读该类的私有字段。",
+      "example": "import school.core.Student 后可以写 Student。若 score 是 private，student.score 会失败，可以调用公开的 student.getScore()。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.5.1"
+    },
+    "questions": [
+      "我已经 import Student 了，为什么还是不能访问 student.score？"
+    ],
+    "groups": [
+      "import|导入|导包|导进来|引进来",
+      "私有|private|权限|访问不了|读不了|不能访问|取不到|拿不到"
+    ]
+  },
+  {
+    "card": {
+      "id": "PKG-03",
+      "title": "同名类与全限定类名",
+      "category": "包管理",
+      "summary": "同一源文件不能显式导入两个不同的同名类型。可以导入其中一个，再用全限定名引用另一个。两条通配符导入若让简单名产生歧义，也需要消歧。",
+      "example": "导入 one.Item 后，可以同时写 Item first 和 two.Item second。再写 import two.Item 会编译失败。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.5.1"
+    },
+    "questions": [
+      "同一个文件怎样使用两个包里的同名类？"
+    ],
+    "groups": [
+      "同名|重名|one\\.Item|two\\.Item|撞名字",
+      "类|类型|导入|import|全限定|源码|同一份"
+    ]
+  },
+  {
+    "card": {
+      "id": "PKG-04",
+      "title": "父包与子包的边界",
+      "category": "包管理",
+      "summary": "父包和子包各有独立的包边界。通配符导入只处理指定包中的可访问类型，子包里的类需要单独导入或使用全限定名。",
+      "example": "import school.* 后仍要导入 school.app.Child。school.app 里的代码也没有权限读取 school 包的包级字段。",
+      "sourceUrl": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.5.2"
+    },
+    "questions": [
+      "import school.* 会导入 school.app 的类吗？"
+    ],
+    "groups": [
+      "子包|父包|school\\.app\\.Child|import\\s+\\w+\\.\\*|外层包|里层目录",
+      "通配符|import|导入|访问|包权限|星号|找不到"
+    ]
+  }
+]

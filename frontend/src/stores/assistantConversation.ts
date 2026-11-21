@@ -2,9 +2,17 @@ import { computed, ref, watch } from 'vue'
 import { defineStore, storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { aiApi, type AssistantRequestOptions, type Citation } from '@/api'
+
 import { isAxiosError } from 'axios'
 import { getToken } from '@/api/http'
 import { useAuthStore } from './auth'
+
+export function citationPath(citation: Citation) {
+  const path = `/lesson/${citation.slug}`
+  const id = citation.knowledgeId
+  return citation.slug === 'encapsulation-account' && typeof id === 'string' && /^(ENC|ACC|PKG)-\d{2}$/.test(id)
+    ? `${path}#topic-knowledge-${id}` : path
+}
 
 export const WHALE_IDENTITY = 'Ciallo~ 我是鲸鲸，Java 精通之路的学习助教。我可以讲课程知识、帮你读懂 Java 代码和报错，也能给练习提示。'
 export const WHALE_GREETING = 'Ciallo~ 我是鲸鲸，陪你学 Java。可以问我课程知识、代码报错，或请我给一道练习题的第一步提示。'

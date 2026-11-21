@@ -28,10 +28,12 @@ public class SearchService {
 
     private final CourseRepository repo;
     private final AppProperties props;
+    private final EncapsulationKnowledge topicKnowledge;
 
-    public SearchService(CourseRepository repo, AppProperties props) {
+    public SearchService(CourseRepository repo, AppProperties props, EncapsulationKnowledge topicKnowledge) {
         this.repo = repo;
         this.props = props;
+        this.topicKnowledge = topicKnowledge;
     }
 
     /**
@@ -77,7 +79,21 @@ public class SearchService {
             int c = Integer.compare((Integer) b.get("score"), (Integer) a.get("score"));
             return c != 0 ? c : Long.compare((Long) a.get("id"), (Long) b.get("id"));
         });
-        return scored.size() > 30 ? scored.subList(0, 30) : scored;
+        var cards = topicKnowledge(kw);
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (int i = 0; i < cards.size(); i++) {
+            var card = cards.get(i);
+            long id = -Integer.toUnsignedLong(card.id().hashCode());
+            results.add(Map.of("id", id, "targetId", id, "targetType", "KNOWLEDGE",
+                    "title", card.title(), "body", card.summary(), "highlight", escape(card.summary()),
+                    "refUrl", card.refUrl(), "score", 300 - i));
+        }
+        results.addAll(scored);
+        return results.size() > 30 ? results.subList(0, 30) : results;
+    }
+
+    List<EncapsulationKnowledge.Card> topicKnowledge(String question) {
+        return topicKnowledge.match(question);
     }
 
     /**

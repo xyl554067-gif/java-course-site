@@ -30,7 +30,7 @@ import { useAgentStore } from '@/stores/agent'
 import { useAuthStore } from '@/stores/auth'
 import AssistantOptions from '@/components/AssistantOptions.vue'
 import AssistantAnswer from '@/components/AssistantAnswer.vue'
-import { MAX_QUESTION_LENGTH, useAssistantConversation, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
+import { citationPath, MAX_QUESTION_LENGTH, useAssistantConversation, useAssistantRequestOptions, WHALE_GREETING, WHALE_INTRO_QUESTION, WHALE_LOCAL_NOTICE, WHALE_PRIVACY_NOTICE } from '@/stores/assistantConversation'
 
 const pet = usePetStore()
 const agent = useAgentStore()
@@ -446,9 +446,9 @@ onUnmounted(() => {
             <div v-if="m.citations && m.citations.length" class="pet-msg__cites">
               <RouterLink
                 v-for="c in m.citations"
-                :key="c.slug"
+                :key="citationPath(c)"
                 class="pet-cite"
-                :to="`/lesson/${c.slug}`"
+                :to="citationPath(c)"
                 @click="pet.closeBubble()"
               >
                 {{ c.title }}
