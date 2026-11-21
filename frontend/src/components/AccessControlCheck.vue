@@ -23,7 +23,7 @@ const allQuestions = [
     context: '同一个子类方法中，parent 的声明是 Account parent = this。',
     code: 'System.out.println(parent.auditCode());',
     allowed: false,
-    reason: '访问检查使用引用的编译期类型。这里 parent 是 Account 类型，不能这样访问 protected 实例方法，可改为 this.auditCode()。',
+    reason: '跨包访问这个 protected 实例方法时，接收者的编译期类型必须是 SavingsAccount 或其子类。parent 声明为 Account，可改用 this.auditCode()。',
   },
   {
     title: '包内方法与子包',
@@ -35,8 +35,10 @@ const allQuestions = [
 ]
 
 const questions = props.demo ? allQuestions.slice(1, 3) : allQuestions
+const heading = ref<HTMLHeadingElement | null>(null)
 const answers = ref<(boolean | null)[]>(questions.map(() => null))
 const checked = ref(questions.map(() => false))
+const checkedCount = computed(() => checked.value.filter(Boolean).length)
 const correctCount = computed(() => questions.filter((question, index) =>
   checked.value[index] && answers.value[index] === question.allowed,
 ).length)
@@ -45,11 +47,17 @@ function choose(index: number, answer: boolean) {
   answers.value[index] = answer
   checked.value[index] = false
 }
+
+function restart() {
+  answers.value = questions.map(() => null)
+  checked.value = questions.map(() => false)
+  heading.value?.focus()
+}
 </script>
 
 <template>
   <section id="access-check" class="access-check" aria-labelledby="access-check-title">
-    <h2 id="access-check-title" tabindex="-1">访问权限判断练习</h2>
+    <h2 id="access-check-title" ref="heading" tabindex="-1">访问权限判断练习</h2>
     <p>以笔记中的 Account 类为例，先判断调用能否通过编译，再核对原因。</p>
     <pre class="access-check__reference"><code>// demo.bank.Account 中的成员
 private int balance;
@@ -76,10 +84,14 @@ String branchCode() { return "BANK"; }</code></pre>
       </fieldset>
       <p v-if="checked[index]" class="access-check__feedback" role="status">
         <strong>{{ answers[index] === question.allowed ? '判断正确。' : '再看一下访问条件。' }}</strong>
+        <template v-if="answers[index] !== question.allowed">正确判断是{{ question.allowed ? '可以编译' : '编译失败' }}。</template>
         {{ question.reason }}
       </p>
     </form>
-    <p v-if="checked.some(Boolean)" class="access-check__summary" role="status">已答对 {{ correctCount }} / {{ questions.length }} 题</p>
+    <div v-if="checkedCount" class="access-check__actions access-check__review">
+      <p class="access-check__summary">已核对 {{ checkedCount }} 题，已答对 {{ correctCount }} / {{ questions.length }} 题</p>
+      <button type="button" class="btn btn--sm btn--ghost access-check__restart" @click="restart">重新作答</button>
+    </div>
     <div class="access-check__actions">
       <RouterLink v-if="!props.demo" class="btn btn--sm btn--mint" :to="{ name: 'lesson-lab', params: { slug: props.labSlug } }">去实验室改写账户示例 →</RouterLink>
       <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6.2.1" target="_blank" rel="noopener noreferrer">核对 Java 访问规则 ↗</a>
@@ -100,5 +112,6 @@ String branchCode() { return "BANK"; }</code></pre>
 .access-check__actions label { display: inline-flex; align-items: center; gap: 5px; }
 .access-check__actions a:not(.btn) { color: var(--c-ink-soft); font-size: .85rem; }
 .access-check__feedback { margin: 12px 0 0; padding: 10px; background: #edf6f2; border-radius: 8px; line-height: 1.65; }
-.access-check .access-check__summary { color: var(--c-ink); font-weight: 700; }
+.access-check__review { margin-bottom: 12px; }
+.access-check__summary { margin: 0; color: var(--c-ink); font-weight: 700; }
 </style>
