@@ -69,9 +69,6 @@ http.interceptors.response.use(
     if (error?.response?.status === 401 && token && error?.config?.headers?.Authorization === `Bearer ${token}`) {
       clearToken()
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
-      if (!location.hash.includes('/login')) {
-        location.hash = '#/login'
-      }
     }
     return Promise.reject(error)
   },

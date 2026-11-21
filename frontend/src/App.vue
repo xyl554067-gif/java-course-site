@@ -24,6 +24,7 @@ const progress = useProgressStore()
 const bare = computed(() => route.meta.bare === true)
 const mobileNavOpen = ref(false)
 const menuButton = ref<HTMLButtonElement | null>(null)
+const retryingProfile = ref(false)
 
 watch(() => route.fullPath, () => { mobileNavOpen.value = false })
 
@@ -35,6 +36,9 @@ function closeMobileNav() {
 
 function onAuthExpired() {
   void auth.syncStoredSession()
+  if (!route.meta.public) {
+    void router.replace({ name: 'login', query: { redirect: route.fullPath } })
+  }
 }
 
 async function onStorage(event: StorageEvent) {
@@ -80,6 +84,16 @@ async function handleLogout() {
   await auth.logout()
   progress.reset()
   router.push({ name: 'login' })
+}
+
+async function retryProfile() {
+  if (retryingProfile.value) return
+  retryingProfile.value = true
+  try {
+    await auth.bootstrap()
+  } finally {
+    retryingProfile.value = false
+  }
 }
 </script>
 
@@ -137,6 +151,11 @@ async function handleLogout() {
       </div>
     </header>
 
+    <div v-if="!bare && auth.isLogged && auth.profileUnavailable" class="container session-warning">
+      <p role="status">{{ retryingProfile ? '正在重新读取登录资料…' : '暂时无法读取登录资料，已保留本次登录。' }}</p>
+      <button class="btn btn--sm btn--ghost" type="button" :disabled="retryingProfile" @click="retryProfile">重试读取</button>
+    </div>
+
     <main class="app-main" :class="{ 'app-main--bare': bare }">
       <RouterView v-slot="{ Component }">
         <Transition name="fade" mode="out-in">
@@ -170,6 +189,8 @@ async function handleLogout() {
 .app-shell { min-height: 100%; display: flex; flex-direction: column; }
 .app-main { flex: 1; padding-bottom: var(--space-xl); }
 .app-main--bare { padding-bottom: 0; }
+.session-warning { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-block: 10px; }
+.session-warning p { margin: 0; color: var(--c-ink-soft); }
 
 .nav {
   position: sticky;
