@@ -52,10 +52,11 @@ public class EncapsulationKnowledge {
     }
 
     private String normalize(String text) {
-        return text.replace("`", "").strip().replaceAll("\\s+", " ");
+        return text.replace("`", "").replaceAll("[\\s\\p{Zs}]+", " ").strip();
     }
 
     private int matchScore(Rule rule, String query, boolean importCollision) {
+        if (normalize(rule.card().title()).equalsIgnoreCase(query)) return 110;
         if (rule.questions().stream().anyMatch(question -> normalize(question).equalsIgnoreCase(query))) return 100;
         if (importCollision && "PKG-03".equals(rule.card().id())) return 30;
         if (!rule.groups().stream().allMatch(group -> group.matcher(query).find())) return 0;

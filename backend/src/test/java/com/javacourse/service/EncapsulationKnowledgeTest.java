@@ -3,6 +3,7 @@ package com.javacourse.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.javacourse.config.AppProperties;
+import com.javacourse.controller.SearchController;
 import com.javacourse.repository.CourseRepository;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +54,20 @@ class EncapsulationKnowledgeTest {
         assertThat(result.get("citations").toString()).contains("knowledgeId=PKG-02");
         assertThat(search.search("Java 的 import 和 Python 的 import 有什么区别？"))
                 .allSatisfy(hit -> assertThat(hit.get("refUrl").toString()).doesNotContain("#topic-knowledge-"));
+    }
+
+    @Test
+    void knowledgeSuggestionsRemainSearchableByTheirDisplayedTitles() {
+        var search = new SearchService(mock(CourseRepository.class), new AppProperties(), knowledge);
+        var controller = new SearchController(search);
+        var suggestions = controller.suggest("类型已经引进来了，但还是拿不到那个字段的值。").getData();
+        assertThat(suggestions).startsWith("import 与访问权限");
+        for (var card : knowledge.cards()) {
+            assertThat(controller.search(card.title()).getData())
+                    .as(card.title()).extracting(hit -> hit.get("refUrl")).startsWith(card.refUrl());
+        }
+        assertThat(controller.search("IMPORT　与访问权限").getData()).extracting(hit -> hit.get("refUrl"))
+                .startsWith("/lesson/encapsulation-account#topic-knowledge-PKG-02");
     }
 
     private record QueryCase(String query, String expected, String group) {}
