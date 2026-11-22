@@ -9,6 +9,7 @@ const allQuestions = [
     context: 'demo.bank.BankCheck 中，account 的类型是 Account。',
     code: 'System.out.println(account.balance);',
     allowed: false,
+    hint: '先找 balance 的访问修饰符，再确认这行调用写在 Account 自己的类体里，还是写在同包的另一个类里。',
     reason: 'balance 是 private 字段。同包的其他顶层类也不能直接访问，可改用 account.getBalance()。',
   },
   {
@@ -16,6 +17,7 @@ const allQuestions = [
     context: 'demo.app.SavingsAccount 继承 Account，在子类方法中调用。',
     code: 'System.out.println(this.auditCode());',
     allowed: true,
+    hint: '先确认调用写在哪个类的方法里，再判断这个方法中的 this 是什么类型。',
     reason: 'auditCode() 是 protected 实例方法。访问发生在异包子类内部，通过 this 调用可以通过编译。',
   },
   {
@@ -23,6 +25,7 @@ const allQuestions = [
     context: '同一个子类方法中，parent 的声明是 Account parent = this。',
     code: 'System.out.println(parent.auditCode());',
     allowed: false,
+    hint: '赋值后 parent 和 this 指向同一个对象。编译器检查 parent 时，用的是变量声明处写的什么类型？',
     reason: '跨包访问这个 protected 实例方法时，接收者的编译期类型必须是 SavingsAccount 或其子类。parent 声明为 Account，可改用 this.auditCode()。',
   },
   {
@@ -30,6 +33,7 @@ const allQuestions = [
     context: 'demo.bank.tools 包中的普通类，account 的类型是 Account。',
     code: 'System.out.println(account.branchCode());',
     allowed: false,
+    hint: '把 Account 和调用代码所在的完整包名写出来，逐段比较。',
     reason: 'branchCode() 省略了访问修饰符，只能在 demo.bank 包内访问。demo.bank.tools 是另一个包，可把这次调用放回 demo.bank 中验证。',
   },
 ]
@@ -38,19 +42,27 @@ const questions = props.demo ? allQuestions.slice(1, 3) : allQuestions
 const heading = ref<HTMLHeadingElement | null>(null)
 const answers = ref<(boolean | null)[]>(questions.map(() => null))
 const checked = ref(questions.map(() => false))
+const restartCount = ref(0)
 const checkedCount = computed(() => checked.value.filter(Boolean).length)
 const correctCount = computed(() => questions.filter((question, index) =>
   checked.value[index] && answers.value[index] === question.allowed,
 ).length)
 
-function choose(index: number, answer: boolean) {
+function choose(index: number, answer: boolean | null) {
   answers.value[index] = answer
   checked.value[index] = false
+}
+
+function retry(index: number, event: MouseEvent) {
+  choose(index, null)
+  const trigger = event.currentTarget as HTMLButtonElement
+  trigger.form?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus()
 }
 
 function restart() {
   answers.value = questions.map(() => null)
   checked.value = questions.map(() => false)
+  restartCount.value++
   heading.value?.focus()
 }
 </script>
@@ -82,11 +94,21 @@ String branchCode() { return "BANK"; }</code></pre>
           <button type="submit" class="btn btn--sm btn--ghost" :disabled="answers[index] === null">核对判断</button>
         </div>
       </fieldset>
+      <details v-if="!checked[index]" :key="restartCount" class="access-check__hint">
+        <summary>查看判断提示</summary>
+        <p>{{ question.hint }}</p>
+      </details>
       <p v-if="checked[index]" class="access-check__feedback" role="status">
         <strong>{{ answers[index] === question.allowed ? '判断正确。' : '再看一下访问条件。' }}</strong>
         <template v-if="answers[index] !== question.allowed">正确判断是{{ question.allowed ? '可以编译' : '编译失败' }}。</template>
         {{ question.reason }}
       </p>
+      <button
+        v-if="checked[index] && answers[index] !== question.allowed"
+        type="button"
+        class="btn btn--sm btn--ghost access-check__retry"
+        @click="retry(index, $event)"
+      >再判断这一题</button>
     </form>
     <div v-if="checkedCount" class="access-check__actions access-check__review">
       <p class="access-check__summary">已核对 {{ checkedCount }} 题，已答对 {{ correctCount }} / {{ questions.length }} 题</p>
@@ -112,6 +134,9 @@ String branchCode() { return "BANK"; }</code></pre>
 .access-check__actions label { display: inline-flex; align-items: center; gap: 5px; }
 .access-check__actions a:not(.btn) { color: var(--c-ink-soft); font-size: .85rem; }
 .access-check__feedback { margin: 12px 0 0; padding: 10px; background: #edf6f2; border-radius: 8px; line-height: 1.65; }
+.access-check__hint, .access-check__retry { margin-top: 10px; }
+.access-check__hint summary { cursor: pointer; color: var(--c-ink); text-decoration: underline; text-underline-offset: 3px; }
+.access-check__hint p { margin: 6px 0 0; color: var(--c-ink-soft); line-height: 1.65; }
 .access-check__review { margin-bottom: 12px; }
 .access-check__summary { margin: 0; color: var(--c-ink); font-weight: 700; }
 </style>
