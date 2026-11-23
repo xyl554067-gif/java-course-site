@@ -15,9 +15,11 @@ import { codeApi, courseApi, type CodeExercise, type CodeRuntime, type JudgeResu
 import { errMsg } from '@/api/http'
 import { resourceNoteForExercise } from '@/content/course-resources'
 import { matchesPracticeQuery, practiceLevel, practiceLevelLabel, practiceLevels, practiceTopics } from '@/content/practice-catalog'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const exercises = ref<CodeExercise[]>([])
 const lessons = ref<QaLessonOption[]>([])
@@ -36,10 +38,23 @@ const submitting = ref(false)
 const error = ref('')
 const showHint = ref(false)
 const loadError = ref('')
+const draftUnavailable = ref(false)
 const editorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 let selectionVersion = 0
 
 const ready = computed(() => runtime.value?.ready === true)
+const account = computed(() => auth.user?.id ?? auth.user?.username)
+const draftKey = computed(() => current.value && account.value != null
+  ? 'javacourse:exercise:' + JSON.stringify([account.value, current.value.id])
+  : null)
+const hasEdits = computed(() => current.value != null && (code.value !== (current.value.starterCode || '') || stdin.value !== ''))
+const draftInput = computed({
+  get: () => stdin.value,
+  set: (value: string) => {
+    stdin.value = value
+    saveDraft()
+  },
+})
 const resourceNote = computed(() => resourceNoteForExercise(current.value?.slug))
 const slug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : '')
 const topicId = computed(() => typeof route.query.topic === 'string' ? route.query.topic : '')
@@ -145,12 +160,47 @@ function selectBySlug(slug: string) {
   }
 }
 
+function saveDraft() {
+  const key = draftKey.value
+  if (!key) return
+  try {
+    if (hasEdits.value) sessionStorage.setItem(key, JSON.stringify({ code: code.value, stdin: stdin.value }))
+    else sessionStorage.removeItem(key)
+    draftUnavailable.value = false
+  } catch {
+    draftUnavailable.value = true
+  }
+}
+
+function restoreDraft() {
+  const key = draftKey.value
+  if (!key) return
+  try {
+    const saved = sessionStorage.getItem(key)
+    if (!saved) return
+    const draft = JSON.parse(saved)
+    if (typeof draft?.code === 'string' && typeof draft?.stdin === 'string') {
+      code.value = draft.code
+      stdin.value = draft.stdin
+    }
+  } catch {
+    draftUnavailable.value = true
+  }
+}
+
+function updateCode(value: string) {
+  code.value = value
+  saveDraft()
+}
+
 function selectExercise(ex: CodeExercise) {
   const version = ++selectionVersion
   error.value = ''
   current.value = ex
   code.value = ex.starterCode || ''
   stdin.value = ''
+  draftUnavailable.value = false
+  restoreDraft()
   runResult.value = null
   judgeResult.value = null
   submissions.value = []
@@ -164,7 +214,7 @@ function selectExercise(ex: CodeExercise) {
     if (raw) {
       sessionStorage.removeItem('javacourse.lab.snippet')
       const payload = JSON.parse(raw)
-      if (typeof payload?.code === 'string') code.value = payload.code
+      if (!hasEdits.value && typeof payload?.code === 'string') updateCode(payload.code)
     }
   } catch {
     // Ignore invalid code handoffs.
@@ -228,7 +278,7 @@ function jumpTo(line: number) {
 
 function resetCode() {
   if (current.value) {
-    code.value = current.value.starterCode || ''
+    updateCode(current.value.starterCode || '')
     runResult.value = null
     judgeResult.value = null
   }
@@ -236,6 +286,15 @@ function resetCode() {
 
 watch(slug, (selectedSlug) => {
   if (selectedSlug && !loading.value) selectBySlug(selectedSlug)
+})
+
+watch(account, (next, previous) => {
+  if (!current.value) return
+  if (previous != null) selectExercise(current.value)
+  else if (next != null) {
+    if (hasEdits.value) saveDraft()
+    else restoreDraft()
+  }
 })
 
 watch([code, stdin], () => {
@@ -344,9 +403,10 @@ onMounted(load)
           <div class="ex__editor">
             <CodeEditor
               ref="editorRef"
-              v-model="code"
+              :model-value="code"
               :min-rows="16"
               :max-rows="30"
+              @update:model-value="updateCode"
               @run="doRun"
             />
           </div>
@@ -358,11 +418,14 @@ onMounted(load)
               <span class="ex__stdin-hint">题目要求读入数据时填在这里，会作为程序输入</span>
             </label>
             <textarea
-              v-model="stdin"
+              v-model="draftInput"
               class="ex__stdin-box"
               rows="2"
               placeholder="例如：&#10;5&#10;1 2 3 4 5"
             />
+            <p v-if="draftUnavailable" class="ex__draft" role="status">当前浏览器无法保存或读取草稿。</p>
+            <p v-else-if="hasEdits && draftKey" class="ex__draft">草稿已保存在当前标签页。</p>
+            <p v-else-if="hasEdits" class="ex__draft" role="status">登录资料读取后可保存草稿。</p>
           </div>
 
           <!-- 运行结果 -->
@@ -568,6 +631,7 @@ onMounted(load)
   resize: vertical;
 }
 .ex__stdin-box:focus { border-color: var(--c-mint-deep); }
+.ex__draft { margin: 6px 0 0; font-size: .875rem; color: var(--c-ink-soft); }
 
 /* ---------- 结果 ---------- */
 .ex__result {
