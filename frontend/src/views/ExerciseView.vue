@@ -36,8 +36,6 @@ const submitting = ref(false)
 const error = ref('')
 const showHint = ref(false)
 const loadError = ref('')
-const keyword = ref('')
-const difficulty = ref('')
 const editorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 let selectionVersion = 0
 
@@ -46,6 +44,17 @@ const resourceNote = computed(() => resourceNoteForExercise(current.value?.slug)
 const slug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : '')
 const topicId = computed(() => typeof route.query.topic === 'string' ? route.query.topic : '')
 const resourceOnly = computed(() => route.query.resource === 'all')
+const keyword = computed({
+  get: () => typeof route.query.q === 'string' ? route.query.q : '',
+  set: (value: string) => setFilter('q', value),
+})
+const difficulty = computed({
+  get: () => {
+    const level = typeof route.query.difficulty === 'string' ? practiceLevel(route.query.difficulty) : ''
+    return practiceLevels.some(option => option.id === level) ? level : ''
+  },
+  set: (value: string) => setFilter('difficulty', value),
+})
 const topics = computed(() => practiceTopics(exercises.value, lessons.value))
 const topic = computed(() => topics.value.find(group => group.id === topicId.value))
 const filtersActive = computed(() => Boolean(keyword.value.trim() || difficulty.value || resourceOnly.value))
@@ -55,14 +64,14 @@ const shownExercises = computed(() => (topicId.value ? topic.value?.items ?? [] 
   && matchesPracticeQuery(keyword.value, exercise.title, exercise.lessonTitle, exercise.description),
 ))
 
-function setFilter(name: 'topic' | 'resource', value: string) {
+function setFilter(name: 'topic' | 'resource' | 'q' | 'difficulty', value: string) {
   void router.replace({ query: { ...route.query, [name]: value || undefined } })
 }
 
 function clearFilters(overview = false) {
-  keyword.value = ''
-  difficulty.value = ''
-  void router.replace({ query: { ...route.query, resource: undefined, topic: overview ? undefined : route.query.topic } })
+  void router.replace({
+    query: { ...route.query, q: undefined, difficulty: undefined, resource: undefined, topic: overview ? undefined : route.query.topic },
+  })
 }
 
 async function loadRuntime() {
