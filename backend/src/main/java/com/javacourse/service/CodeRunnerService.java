@@ -67,6 +67,10 @@ public class CodeRunnerService {
     /** 顶层类声明：public/final/abstract/strictfp 可选 */
     private static final Pattern TOP_LEVEL_CLASS =
             Pattern.compile("(?m)^[ \\t]*(?:(?:public|final|abstract|strictfp)[ \\t]+)*class[ \\t]+(\\w+)");
+    private static final String JAVA_IDENTIFIER = "[\\p{javaJavaIdentifierStart}][\\p{javaJavaIdentifierPart}]*";
+    private static final Pattern LEADING_IMPORT = Pattern.compile(
+            "\\G\\s*import\\s+(?:static\\s+)?" + JAVA_IDENTIFIER
+                    + "(?:\\s*\\.\\s*" + JAVA_IDENTIFIER + ")*(?:\\s*\\.\\s*\\*)?\\s*;");
     private static final Pattern TOP_LEVEL_METHOD = Pattern.compile(
             "(?m)^[ \\t]*(?:(?:public|protected|private|static|final|synchronized|abstract|native|strictfp)[ \\t]+)*(?:void|boolean|byte|short|int|long|float|double|char|[A-Z][\\w$]*(?:<[^\\n>]+>)?(?:\\[\\])?)[ \\t]+[A-Za-z_$][\\w$]*[ \\t]*\\(");
     private static final Pattern TOP_LEVEL_NON_CLASS_TYPE = Pattern.compile(
@@ -336,7 +340,6 @@ public class CodeRunnerService {
         }
     }
 
-    private static final String JAVA_IDENTIFIER = "[\\p{javaJavaIdentifierStart}][\\p{javaJavaIdentifierPart}]*";
     private static final Pattern EXPORT_TYPE = Pattern.compile(
             "(?m)^\\h*(?:(public)\\h+)?(?:(?:abstract|final|sealed|non-sealed|strictfp)\\h+)*"
                     + "(?:class|record|enum|interface)\\h+(" + JAVA_IDENTIFIER + ")");
@@ -610,7 +613,13 @@ public class CodeRunnerService {
         String cleaned = code
                 .replaceAll("(?s)/\\*.*?\\*/", " ")
                 .replaceAll("(?m)//.*$", " ");
-        Matcher m = TOP_LEVEL_CLASS.matcher(cleaned);
+        // 让类声明可紧接导入语句，交给 javac 的源码行号保持原样。
+        Matcher imports = LEADING_IMPORT.matcher(cleaned);
+        int declarationsStart = 0;
+        while (imports.find()) {
+            declarationsStart = imports.end();
+        }
+        Matcher m = TOP_LEVEL_CLASS.matcher(cleaned).region(declarationsStart, cleaned.length());
         String first = null;
         while (m.find()) {
             String name = m.group(1);
