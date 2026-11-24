@@ -68,7 +68,7 @@ function restart() {
 </script>
 
 <template>
-  <section id="access-check" class="access-check" aria-labelledby="access-check-title">
+  <section id="access-check" class="access-check" :class="{ 'access-check--comparison': props.demo }" aria-labelledby="access-check-title">
     <h2 id="access-check-title" ref="heading" tabindex="-1">访问权限判断练习</h2>
     <p>以笔记中的 Account 类为例，先判断调用能否通过编译，再核对原因。</p>
     <pre class="access-check__reference"><code>// demo.bank.Account 中的成员
@@ -76,11 +76,14 @@ private int balance;
 public int getBalance() { return balance; }
 protected String auditCode() { return "AUDIT"; }
 String branchCode() { return "BANK"; }</code></pre>
-    <form v-for="(question, index) in questions" :key="question.title" class="access-check__question" @submit.prevent="checked[index] = true">
+    <form v-for="(question, index) in questions" :key="question.title" class="access-check__question"
+      :data-verdict="props.demo && checked[index] ? (question.allowed ? 'allowed' : 'denied') : undefined"
+      @submit.prevent="checked[index] = true">
       <fieldset>
         <legend>{{ question.title }}</legend>
         <p>{{ question.context }}</p>
-        <pre><code>{{ question.code }}</code></pre>
+        <pre><code><template v-if="props.demo && index === 1">{{ 'Account parent = this;\n' }}</template>{{ question.code }}</code></pre>
+        <p v-if="props.demo" class="access-check__receiver">接收者的编译期类型 <code>{{ index === 0 ? 'SavingsAccount' : 'Account' }}</code></p>
         <div class="access-check__actions">
           <label v-for="choice in [true, false]" :key="String(choice)">
             <input
@@ -101,6 +104,7 @@ String branchCode() { return "BANK"; }</code></pre>
       <p v-if="checked[index]" class="access-check__feedback" role="status">
         <strong>{{ answers[index] === question.allowed ? '判断正确。' : '再看一下访问条件。' }}</strong>
         <template v-if="answers[index] !== question.allowed">正确判断是{{ question.allowed ? '可以编译' : '编译失败' }}。</template>
+        <template v-else-if="props.demo">{{ question.allowed ? '可以编译。' : '编译失败。' }}</template>
         {{ question.reason }}
       </p>
       <button
@@ -110,6 +114,10 @@ String branchCode() { return "BANK"; }</code></pre>
         @click="retry(index, $event)"
       >再判断这一题</button>
     </form>
+    <p v-if="props.demo && checkedCount === questions.length" class="access-check__takeaway">
+      <strong>同一个对象，两种编译期类型。</strong>
+      <code>this</code> 的类型是 <code>SavingsAccount</code>，<code>parent</code> 的声明类型是 <code>Account</code>。编译器按接收者的编译期类型判断这次跨包访问。
+    </p>
     <div v-if="checkedCount" class="access-check__actions access-check__review">
       <p class="access-check__summary">已核对 {{ checkedCount }} 题，已答对 {{ correctCount }} / {{ questions.length }} 题</p>
       <button type="button" class="btn btn--sm btn--ghost access-check__restart" @click="restart">重新作答</button>
@@ -139,4 +147,25 @@ String branchCode() { return "BANK"; }</code></pre>
 .access-check__hint p { margin: 6px 0 0; color: var(--c-ink-soft); line-height: 1.65; }
 .access-check__review { margin-bottom: 12px; }
 .access-check__summary { margin: 0; color: var(--c-ink); font-weight: 700; }
+
+.access-check--comparison {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  border-top-color: var(--topic-ink);
+}
+.access-check--comparison > :not(.access-check__question) { grid-column: 1 / -1; }
+.access-check--comparison > h2,
+.access-check--comparison > p,
+.access-check--comparison > pre { margin: 0; }
+.access-check--comparison .access-check__question { margin: 0; min-width: 0; border-color: var(--topic-ink); border-radius: 0; }
+.access-check--comparison pre { border-radius: 0; }
+.access-check--comparison fieldset pre { min-height: calc(3.2em + 24px); white-space: pre-wrap; overflow-wrap: anywhere; }
+.access-check--comparison .access-check__receiver { margin-bottom: 12px; font-weight: 750; }
+.access-check--comparison code { font-family: var(--font-mono); }
+.access-check--comparison .access-check__feedback { border-radius: 0; color: var(--topic-ink); border-left: 5px solid var(--topic-blue); background: #edf0ff; }
+.access-check--comparison [data-verdict="denied"] .access-check__feedback { background: #faeae4; border-left-color: var(--topic-red); }
+.access-check--comparison .access-check__takeaway { padding: 12px 14px; border-left: 5px solid var(--topic-ink); background: #fff2c2; color: var(--topic-ink); }
+@media (max-width: 700px) {
+  .access-check--comparison { grid-template-columns: minmax(0, 1fr); }
+  .access-check--comparison fieldset pre { min-height: 0; }
+}
 </style>
