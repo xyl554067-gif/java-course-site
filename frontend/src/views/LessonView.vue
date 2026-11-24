@@ -45,6 +45,12 @@ const arrayReviewPrompt: LessonComicPrompt = {
 const activeTab = computed(() => String(route.query.tab || 'notes'))
 const lessonSlug = computed(() => String(route.params.slug || ''))
 const isEncapsulationLesson = computed(() => lessonSlug.value === 'encapsulation-account')
+const encapsulationStages = [
+  { id: 'lesson-section-1', title: '保护余额', hint: '把校验写进账户' },
+  { id: 'lesson-section-3', title: '组织包结构', hint: '分开账户和程序入口' },
+  { id: 'lesson-section-2', title: '判断访问权限', hint: '比较跨包调用' },
+  { id: 'lesson-section-4', title: '修复与验收', hint: '用边界数据检查修改' },
+]
 const topicDetails = ref<HTMLDetailsElement | null>(null)
 const topicCards = computed<TopicKnowledgeCard[]>(() => lesson.value?.topicKnowledge ?? [])
 const topicCategories = computed(() => [...new Set(topicCards.value.map(card => card.category))])
@@ -68,7 +74,16 @@ const comicPrompt = computed(() => {
     ? lessonComicPrompts[slug as keyof typeof lessonComicPrompts]
     : undefined
 })
-function jumpToHeading(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+function jumpToHeading(id: string, focus = false) {
+  const heading = document.getElementById(id)
+  if (!heading) return
+  if (focus) {
+    heading.tabIndex = -1
+    heading.focus({ preventScroll: true })
+  }
+  const behavior = focus && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+  heading.scrollIntoView({ behavior, block: 'start' })
+}
 
 function jumpToTopicKnowledge() {
   const details = topicDetails.value
@@ -749,7 +764,7 @@ watch(() => route.params.slug, (slug) => {
 </script>
 
 <template>
-  <div class="container lesson-page">
+  <div class="container lesson-page" :class="{ 'lesson-page--bauhaus': isEncapsulationLesson }">
     <div v-if="loading" class="lesson__loading"><div class="spinner" /></div>
 
     <div v-else-if="error" class="card lesson__error">
@@ -766,10 +781,22 @@ watch(() => route.params.slug, (slug) => {
         </div>
         <div class="lesson__intro">
           <div class="lesson__intro-text">
-            <h1 class="lesson__title title-round">{{ lesson.title }}</h1>
+            <p v-if="isEncapsulationLesson" class="topic-kicker">JAVA 专题课 · 账户案例</p>
+            <h1 v-if="isEncapsulationLesson" class="lesson__title topic-title">
+              <span>封装、访问控制</span><span>与包管理</span>
+            </h1>
+            <h1 v-else class="lesson__title title-round">{{ lesson.title }}</h1>
             <p class="lesson__summary">{{ lesson.summary }}</p>
+            <button v-if="isEncapsulationLesson && activeTab === 'notes'" type="button" class="btn btn--primary topic-start"
+              @click="jumpToHeading('topic-lesson-notes', true)">开始知识点讲解</button>
           </div>
-          <img v-if="!isEncapsulationLesson && (!lessonComic || activeTab === 'exercises')" class="lesson__whale" :src="whaleIllustration" alt="蓝发鲸鱼小女仆鲸鲸" width="384" height="384" />
+          <div v-if="isEncapsulationLesson" class="topic-poster" aria-hidden="true">
+            <span class="topic-poster__circle"></span>
+            <span class="topic-poster__arc"></span>
+            <span class="topic-poster__stripe"></span>
+            <span class="topic-poster__triangle"></span>
+          </div>
+          <img v-else-if="!lessonComic || activeTab === 'exercises'" class="lesson__whale" :src="whaleIllustration" alt="蓝发鲸鱼小女仆鲸鲸" width="384" height="384" />
         </div>
         <div class="lesson__meta">
           <span v-if="lesson.difficulty" class="badge badge--coral">{{ isEncapsulationLesson ? practiceLevelLabel(lesson.difficulty) : lesson.difficulty }}</span>
@@ -811,6 +838,18 @@ watch(() => route.params.slug, (slug) => {
         <RouterLink v-if="lessonExercises.length||lessonQa.length" :to="{ name: 'lesson', params: { slug: route.params.slug }, query: { tab: 'exercises' } }" :class="{ active: activeTab === 'exercises' }">习题</RouterLink>
       </nav>
 
+      <nav v-if="isEncapsulationLesson && activeTab === 'notes'" class="topic-route" aria-label="专题学习路线">
+        <h2>学习路线</h2>
+        <ol>
+          <li v-for="stage in encapsulationStages" :key="stage.id">
+            <button type="button" @click="jumpToHeading(stage.id, true)">
+              <strong>{{ stage.title }}</strong>
+              <span>{{ stage.hint }}</span>
+            </button>
+          </li>
+        </ol>
+      </nav>
+
       <div v-show="activeTab !== 'exercises'" class="lesson__grid">
         <!-- 正文 -->
         <article class="lesson__body card">
@@ -819,7 +858,7 @@ watch(() => route.params.slug, (slug) => {
             <span>解压后，在 IDEA 或装有 Java 扩展的 VS Code 中打开工程。</span>
           </div>
           <template v-if="isEncapsulationLesson">
-            <div class="section-head"><span class="dot" /><h2>知识点讲解</h2><span class="line" /></div>
+            <div class="section-head"><span class="dot" /><h2 id="topic-lesson-notes">知识点讲解</h2><span class="line" /></div>
             <section v-for="part in renderedLesson.sections" :key="part.id" class="topic-lesson-section">
               <div class="md-body" v-html="part.html" @click="copyLessonCode" />
 
@@ -841,6 +880,26 @@ watch(() => route.params.slug, (slug) => {
                   <pre v-if="accountDemoOutput">{{ accountDemoOutput }}</pre>
                 </div>
               </section>
+
+              <figure v-if="part.id === 'lesson-section-3'" class="topic-package-map">
+                <figcaption>双包结构与调用方向</figcaption>
+                <div class="topic-package-map__flow">
+                  <div class="topic-package-map__package">
+                    <code>demo.app</code>
+                    <strong>BankApp</strong>
+                    <span>登记班费，发起调用</span>
+                  </div>
+                  <div class="topic-package-map__call">
+                    <code>getBalance()</code>
+                    <span>调用公开方法 <span aria-hidden="true">→</span></span>
+                  </div>
+                  <div class="topic-package-map__package">
+                    <code>demo.bank</code>
+                    <strong>Account</strong>
+                    <span>校验存款，维护余额</span>
+                  </div>
+                </div>
+              </figure>
 
               <AccessControlCheck v-if="part.id === 'lesson-section-2'" lab-slug="encapsulation-account" demo />
 
@@ -1407,4 +1466,122 @@ watch(() => route.params.slug, (slug) => {
 .lesson__intro { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lesson__intro-text { flex: 1; min-width: 0; }
 .lesson__whale { display: block; width: clamp(78px, 14vw, 150px); height: auto; flex: none; object-fit: contain; border-radius: 12px; }
+
+.lesson-page--bauhaus {
+  --topic-ink: #191915;
+  --topic-paper: #f6f2e8;
+  --topic-blue: #203e9d;
+  --topic-red: #b9281f;
+  --topic-gold: #f2c63c;
+  --font-body: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --font-round: var(--font-body);
+  --font-mono: "Cascadia Code", Consolas, "SFMono-Regular", monospace;
+  --c-ink: var(--topic-ink);
+  --c-ink-soft: #4b4942;
+  --c-ink-faint: #58564f;
+  --c-line: #a19c8e;
+  --c-paper: #fffdf7;
+  --c-cream: var(--topic-paper);
+  --c-cream-deep: #ece5d6;
+  color: var(--topic-ink);
+  font-family: var(--font-body);
+}
+:global(body:has(.lesson-page--bauhaus) .pet-layer) { display: none; }
+:global(body:has(.lesson-page--bauhaus) .fab) { width: 44px; height: 44px; left: auto; right: 12px; bottom: 12px; }
+.lesson-page--bauhaus .card { border: 1px solid var(--topic-ink); border-radius: 0; box-shadow: none; }
+.lesson-page--bauhaus .lesson__head { background: var(--topic-paper); border-width: 2px; padding: clamp(20px, 4vw, 46px); }
+.lesson-page--bauhaus .lesson__head-top { margin-bottom: clamp(18px, 3vw, 34px); }
+.lesson-page--bauhaus .lesson__intro { display: grid; gap: clamp(18px, 4vw, 56px); grid-template-columns: minmax(0, 1.27fr) minmax(0, 1fr); }
+.topic-kicker { display: flex; align-items: center; gap: 10px; font-size: .875rem; font-weight: 800; letter-spacing: .06em; margin: 0 0 12px; }
+.topic-kicker::before { content: ""; width: 13px; height: 13px; flex: none; background: var(--topic-red); }
+.lesson-page--bauhaus .topic-title { font-size: clamp(2.3rem, 4.6vw, 4.5rem); line-height: 1.12; margin-bottom: 17px; font-weight: 900; letter-spacing: -.055em; }
+.topic-title span { display: block; }
+.lesson-page--bauhaus .lesson__summary { max-width: 34ch; font-size: clamp(1rem, 1.3vw, 1.125rem); }
+.lesson-page--bauhaus :deep(.btn) {
+  font-family: var(--font-body);
+  border-radius: 0;
+  border: 1px solid var(--topic-ink);
+  box-shadow: none;
+  font-size: .875rem;
+}
+.lesson-page--bauhaus :deep(.btn--primary) { color: white; background: var(--topic-red); }
+.lesson-page--bauhaus :deep(.btn--mint) { color: white; background: var(--topic-blue); }
+.lesson-page--bauhaus :deep(.btn--sun) { color: var(--topic-ink); background: var(--topic-gold); }
+.lesson-page--bauhaus :deep(.btn--ghost) { color: var(--topic-ink); background: transparent; }
+.lesson-page--bauhaus :deep(.btn--ghost:hover) { background: var(--topic-gold); }
+.lesson-page--bauhaus :deep(:focus-visible) { outline: 2px solid var(--topic-blue); outline-offset: 4px; }
+.lesson-page--bauhaus .topic-start { margin-top: 5px; }
+.topic-poster {
+  display: grid; grid-template-columns: 1.3fr 1fr; grid-template-rows: 1.12fr 1fr;
+  width: min(100%, 360px); aspect-ratio: 1.22; gap: 2px; justify-self: end;
+  border: 2px solid var(--topic-ink); background: var(--topic-ink);
+}
+.topic-poster > span { position: relative; display: grid; place-items: center; overflow: hidden; }
+.topic-poster__circle { background: var(--topic-red); }
+.topic-poster__circle::before { content: ""; width: 64%; aspect-ratio: 1; border-radius: 50%; background: var(--topic-gold); }
+.topic-poster__circle::after { content: ""; width: 24%; aspect-ratio: 1; border-radius: 50%; background: var(--topic-ink); position: absolute; }
+.topic-poster__arc { background: var(--topic-blue); }
+.topic-poster__arc::before { content: ""; position: absolute; inset: 0; border-radius: 100% 0 0; background: var(--topic-paper); }
+.topic-poster__stripe { background: repeating-linear-gradient(135deg, var(--topic-ink) 0 8px, var(--topic-paper) 8px 16px); }
+.topic-poster__stripe::before { content: ""; width: 45%; aspect-ratio: 1; background: var(--topic-blue); transform: rotate(45deg); border: 2px solid var(--topic-ink); }
+.topic-poster__triangle { background: var(--topic-gold); }
+.topic-poster__triangle::before { content: ""; width: 70%; aspect-ratio: 1; background: var(--topic-red); clip-path: polygon(0 50%,100% 0,100% 100%); }
+.topic-poster__triangle::after { content: ""; position: absolute; width: 14%; aspect-ratio: 1; border-radius: 50%; background: var(--topic-ink); left: 52%; }
+.lesson-page--bauhaus .lesson__meta { margin-top: 20px; }
+.lesson-page--bauhaus .badge { background: var(--c-paper); color: var(--topic-ink); border-radius: 0; }
+.lesson-page--bauhaus .readbar { height: 5px; border: 0; border-radius: 0; }
+.lesson-page--bauhaus .readbar__fill { background: var(--topic-blue); }
+.lesson-page--bauhaus .lesson-tabs { gap: 1px; padding: 0; }
+.lesson-page--bauhaus .lesson-tabs a { border-radius: 0; font-size: .9375rem; padding: 8px clamp(9px, 2vw, 18px); }
+.lesson-page--bauhaus .lesson-tabs a.active { background: var(--topic-blue); }
+.topic-route { margin: 0 0 20px; padding: 19px clamp(16px, 3vw, 28px) 21px; background: var(--topic-blue); color: white; }
+.topic-route h2 { margin: 0 0 10px; font-size: 1.375rem; }
+.topic-route ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 0; border-top: 1px solid #ffffff78; list-style: none; }
+.topic-route li + li { border-left: 1px solid #ffffff78; }
+.topic-route button { display: grid; gap: 4px; width: 100%; height: 100%; min-width: 0; padding: 10px 12px 0; text-align: left; background: none; color: white; border: 0; cursor: pointer; font: inherit; }
+.topic-route button::before { content: ""; width: 11px; height: 11px; margin-bottom: 3px; background: var(--topic-gold); }
+.topic-route li:first-child button::before { border-radius: 50%; }
+.topic-route li:nth-child(2) button::before { background: var(--topic-paper); }
+.topic-route li:nth-child(3) button::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.topic-route li:nth-child(4) button::before { transform: rotate(45deg); background: #ffb5aa; }
+.topic-route button:hover strong { text-decoration: underline; text-underline-offset: .22em; }
+.lesson-page--bauhaus .topic-route button:focus-visible { outline-color: var(--topic-gold); outline-offset: -2px; }
+.topic-route button span { font-size: .875rem; color: #edf0ff; }
+.lesson-page--bauhaus .section-head .dot { background: var(--topic-red); border-radius: 0; }
+.lesson-page--bauhaus .section-head .line { background: var(--topic-ink); }
+#topic-lesson-notes { scroll-margin-top: calc(var(--nav-h) + 16px); }
+.lesson-page--bauhaus .md-body :deep(.md-h2) {
+  font-size: clamp(1.32rem, 2.4vw, 1.8rem); border: 0; padding: 18px 0 0; margin-bottom: 16px;
+  border-top: 2px solid var(--topic-ink); font-weight: 850;
+}
+.lesson-page--bauhaus .md-body :deep(blockquote) {
+  background: #edf0ff; border-left: 5px solid var(--topic-blue); border-radius: 0; color: var(--topic-ink);
+}
+.lesson-page--bauhaus .md-body :deep(.md-table-wrap) { border: 1px solid var(--topic-ink); border-radius: 0; }
+.lesson-page--bauhaus .md-body :deep(.md-table th) { background: #eee8d9; color: var(--topic-ink); border-bottom: 2px solid var(--topic-ink); }
+.lesson-page--bauhaus .md-body :deep(.md-table td) { background: #fffdf7; color: var(--topic-ink); }
+.lesson-page--bauhaus .md-body :deep(.md-code-frame) { border-radius: 0; }
+.lesson-page--bauhaus .topic-lesson-action { background: #edf0ff; border: 1px solid var(--topic-blue); border-radius: 0; }
+.lesson-page--bauhaus .side__card--whale { background: var(--topic-paper); }
+.lesson-page--bauhaus .side__toc button { border-radius: 0; font-family: var(--font-body); }
+.lesson-page--bauhaus .kp { border-radius: 0; }
+.topic-package-map {
+  max-width: 760px; margin: 20px auto 0; padding: clamp(14px, 2.5vw, 22px);
+  color: #fff; background: var(--topic-blue);
+}
+.topic-package-map figcaption { font-weight: 800; margin-bottom: 12px; }
+.topic-package-map__flow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.topic-package-map__package { display: grid; gap: 5px; min-width: 0; padding: 12px; align-self: stretch; border: 1px dashed #ffffffba; }
+.topic-package-map__package code, .topic-package-map__call code { font-family: var(--font-mono); color: #ffe08c; overflow-wrap: anywhere; }
+.topic-package-map__package span, .topic-package-map__call span { font-size: .875rem; }
+.topic-package-map__call { display: grid; gap: 3px; text-align: center; }
+@media (max-width: 650px) {
+  .lesson-page--bauhaus .lesson__intro { grid-template-columns: 1fr; }
+  .topic-poster { justify-self: start; width: min(100%, 300px); aspect-ratio: 1.55; }
+  .topic-route ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .topic-route li:nth-child(odd) { border-left: 0; }
+  .topic-route li:nth-child(n+3) { border-top: 1px solid #ffffff78; margin-top: 9px; }
+  .topic-package-map__flow { grid-template-columns: 1fr; gap: 8px; }
+  .topic-package-map__call span[aria-hidden] { display: inline-block; transform: rotate(90deg); }
+}
 </style>
