@@ -182,6 +182,8 @@ export interface CodeRuntime {
 
 /** 一次代码运行的结果 */
 export interface CodeRunResult {
+  /** 浏览器从发出运行请求到收到结果的时间 */
+  requestMs: number
   compileMs?: number
   executionMs?: number
   reusedCompilation?: boolean
@@ -381,10 +383,13 @@ export const codeApi = {
    * 超时单独放宽到 60s：后端编译 15s + 运行 10s，判题还要跑多个用例，
    * 全局 30s 的默认超时不够用。
    */
-  run: (code: string, stdin?: string) =>
-    request<CodeRunResult>(
+  run: async (code: string, stdin?: string): Promise<CodeRunResult> => {
+    const started = performance.now()
+    const result = await request<Omit<CodeRunResult, 'requestMs'>>(
       http.post('/code/run', { code, stdin: stdin ?? '' }, { timeout: 60000 }),
-    ),
+    )
+    return { ...result, requestMs: Math.round(performance.now() - started) }
+  },
   /** 提交习题并判题 */
   submit: (exerciseId: number, code: string) =>
     request<JudgeResult>(

@@ -10,6 +10,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CodeEditor from '@/components/CodeEditor.vue'
+import CodeRunTiming from '@/components/CodeRunTiming.vue'
 import PracticeTopics from '@/components/PracticeTopics.vue'
 import { codeApi, courseApi, type CodeExercise, type CodeRuntime, type JudgeResult, type CodeRunResult, type CodeSubmission, type QaLessonOption } from '@/api'
 import { errMsg } from '@/api/http'
@@ -429,13 +430,14 @@ onMounted(load)
           </div>
 
           <!-- 运行结果 -->
+          <p v-if="running" role="status">正在等待服务器返回运行结果…</p>
           <div v-if="runResult" class="ex__result">
             <div class="ex__result-head">
               <span class="ex__status" :class="runResult.success ? 'is-pass' : 'is-err'">
                 {{ runResult.success ? '✓ 编译并运行成功' : '✗ ' + runResult.message }}
               </span>
-              <span class="ex__duration">{{ runResult.durationMs }} ms</span>
             </div>
+            <CodeRunTiming :result="runResult" />
             <div v-if="runResult.output" class="ex__block">
               <div class="ex__block-label">编译器输出</div>
               <pre class="ex__pre ex__pre--err">{{ runResult.output }}</pre>

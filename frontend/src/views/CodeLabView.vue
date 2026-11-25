@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import CodeEditor from '@/components/CodeEditor.vue'
+import CodeRunTiming from '@/components/CodeRunTiming.vue'
 import LessonVideoPanel from '@/components/LessonVideoPanel.vue'
 import LocalIdePanel from '@/components/LocalIdePanel.vue'
 import { courseApi, codeApi, type CodeRuntime, type CodeRunResult, type CodeSnippet, type LearningVideo, type Lesson } from '@/api'
@@ -264,13 +265,10 @@ async function exportProject() {
           <textarea :value="stdin" rows="3" @input="setDraft(code, ($event.target as HTMLTextAreaElement).value)" />
         </label>
         <p v-if="runError" class="warn" role="alert">{{ runError }}</p>
+        <p v-if="running" role="status">正在等待服务器返回运行结果…</p>
         <div v-if="result" class="result" :class="result.success ? 'pass' : 'fail'" role="status">
-          <b>{{ result.success ? '运行成功' : result.message }}</b><span>{{ result.durationMs }} ms</span>
-          <p v-if="result.compileMs != null || result.executionMs != null || result.reusedCompilation" class="run-timing">
-            <template v-if="result.reusedCompilation">已复用编译结果</template>
-            <template v-else-if="result.compileMs != null">编译 {{ result.compileMs }} ms</template>
-            <template v-if="result.executionMs != null"> · 执行 {{ result.executionMs }} ms</template>
-          </p>
+          <b>{{ result.success ? '运行成功' : result.message }}</b>
+          <CodeRunTiming :result="result" />
           <pre v-if="result.output || result.stdout || result.stderr">{{ result.output || result.stdout || result.stderr }}</pre>
         </div>
       </section>
@@ -286,7 +284,7 @@ async function exportProject() {
   </div>
 </template>
 
-<style scoped>.lab-page{padding:28px 0}.lab-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}.lab-top h1{margin:8px 0}.lab-top p,.lab-exercises p{color:var(--c-ink-soft)}.lab-top a{color:var(--c-mint)}.lab-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}.lab-list,.lab-editor,.lab-exercises{padding:20px}.lab-list{display:flex;flex-direction:column;gap:8px}.lab-list h2,.lab-exercises h2{margin:0 0 8px}.lab-list button{text-align:left;padding:12px;border:1px solid var(--c-line);border-radius:12px;background:var(--c-paper);color:var(--c-ink);cursor:pointer;display:flex;flex-direction:column;gap:4px}.lab-list button.active{background:var(--c-mint);color:#fff}.lab-list small{opacity:.75}.editor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.editor-head>div{display:flex;align-items:center;gap:10px}.warn{padding:10px;background:#fff2d6;border-radius:10px;color:#745619}.explanation{line-height:1.7}.stdin{display:block;margin-top:14px;font-weight:700}.stdin textarea{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-paper);color:var(--c-ink);font:inherit}.result{margin-top:14px;padding:12px;border-radius:10px}.result.pass{background:#e8f8ef;color:#146543}.result.fail{background:#fff0ee;color:#8f3129}.result span{float:right}.result pre{white-space:pre-wrap;overflow:auto}.lab-exercises{margin-top:18px}.lab-error{padding:20px}@media(max-width:800px){.lab-layout{grid-template-columns:1fr}.lab-list{display:grid;grid-template-columns:1fr 1fr}.lab-list h2{grid-column:1/-1}.editor-head{align-items:flex-start;flex-direction:column}}.lab-actions{flex-wrap:wrap}.run-timing{margin:6px 0 0;font-size:.875rem}
+<style scoped>.lab-page{padding:28px 0}.lab-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}.lab-top h1{margin:8px 0}.lab-top p,.lab-exercises p{color:var(--c-ink-soft)}.lab-top a{color:var(--c-mint)}.lab-layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}.lab-list,.lab-editor,.lab-exercises{padding:20px}.lab-list{display:flex;flex-direction:column;gap:8px}.lab-list h2,.lab-exercises h2{margin:0 0 8px}.lab-list button{text-align:left;padding:12px;border:1px solid var(--c-line);border-radius:12px;background:var(--c-paper);color:var(--c-ink);cursor:pointer;display:flex;flex-direction:column;gap:4px}.lab-list button.active{background:var(--c-mint);color:#fff}.lab-list small{opacity:.75}.editor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.editor-head>div{display:flex;align-items:center;gap:10px}.warn{padding:10px;background:#fff2d6;border-radius:10px;color:#745619}.explanation{line-height:1.7}.stdin{display:block;margin-top:14px;font-weight:700}.stdin textarea{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-paper);color:var(--c-ink);font:inherit}.result{margin-top:14px;padding:12px;border-radius:10px}.result.pass{background:#e8f8ef;color:#146543}.result.fail{background:#fff0ee;color:#8f3129}.result pre{white-space:pre-wrap;overflow:auto}.lab-exercises{margin-top:18px}.lab-error{padding:20px}@media(max-width:800px){.lab-layout{grid-template-columns:1fr}.lab-list{display:grid;grid-template-columns:1fr 1fr}.lab-list h2{grid-column:1/-1}.editor-head{align-items:flex-start;flex-direction:column}}.lab-actions{flex-wrap:wrap}
 .lab-sidebar { min-width: 0; display: grid; gap: 14px; scroll-margin-top: calc(var(--nav-h) + 10px); }
 .lab-editor { min-width: 0; scroll-margin-top: calc(var(--nav-h) + 10px); }
 .lab-layout--video { grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr); }
