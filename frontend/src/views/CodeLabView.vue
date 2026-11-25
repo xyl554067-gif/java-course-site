@@ -265,7 +265,9 @@ async function exportProject() {
           <textarea :value="stdin" rows="3" @input="setDraft(code, ($event.target as HTMLTextAreaElement).value)" />
         </label>
         <p v-if="runError" class="warn" role="alert">{{ runError }}</p>
-        <p v-if="running" role="status">正在等待服务器返回运行结果…</p>
+        <div role="status" aria-atomic="true">
+          <p v-if="running">正在等待服务器返回运行结果…</p>
+        </div>
         <div v-if="result" class="result" :class="result.success ? 'pass' : 'fail'" role="status">
           <b>{{ result.success ? '运行成功' : result.message }}</b>
           <CodeRunTiming :result="result" />

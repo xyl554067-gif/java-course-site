@@ -430,7 +430,9 @@ onMounted(load)
           </div>
 
           <!-- 运行结果 -->
-          <p v-if="running" role="status">正在等待服务器返回运行结果…</p>
+          <div role="status" aria-atomic="true">
+            <p v-if="running">正在等待服务器返回运行结果…</p>
+          </div>
           <div v-if="runResult" class="ex__result">
             <div class="ex__result-head">
               <span class="ex__status" :class="runResult.success ? 'is-pass' : 'is-err'">
