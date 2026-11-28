@@ -1074,7 +1074,7 @@ watch(() => route.params.slug, (slug) => {
 
 .lesson-quiz-area { scroll-margin-top: calc(var(--nav-h) + 16px); }
 @media (max-width: 720px) {
-  :global(body:has(.lesson-page .md-body) .pet-layer),
+  :global(body:has(.lesson-page:not(.lesson-page--bauhaus) .md-body) .pet-layer),
   :global(body.lesson-quiz-visible .pet-layer) { display: none; }
   :global(body:has(.lesson-page .md-body) .fab),
   :global(body.lesson-quiz-visible .fab) { width: 44px; height: 44px; right: 12px; bottom: 12px; }
@@ -1486,7 +1486,6 @@ watch(() => route.params.slug, (slug) => {
   color: var(--topic-ink);
   font-family: var(--font-body);
 }
-:global(body:has(.lesson-page--bauhaus) .pet-layer) { display: none; }
 :global(body:has(.lesson-page--bauhaus) .fab) { width: 44px; height: 44px; left: auto; right: 12px; bottom: 12px; }
 .lesson-page--bauhaus .card { border: 1px solid var(--topic-ink); border-radius: 0; box-shadow: none; }
 .lesson-page--bauhaus .lesson__head { background: var(--topic-paper); border-width: 2px; padding: clamp(20px, 4vw, 46px); }

@@ -71,7 +71,6 @@ const stages = [
 
 @media (max-width: 760px) {
   .topic-hero { grid-template-columns: minmax(0, 1fr); }
-  :global(body:has(.topic-hero) .pet-layer) { display: none; }
   :global(body:has(.topic-hero) .fab) { width: 44px; height: 44px; bottom: 12px; left: 12px; }
 }
 </style>
